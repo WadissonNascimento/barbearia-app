@@ -4,7 +4,7 @@ import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 
 export const metadata: Metadata = {
-  title: "BarberPro",
+  title: "JakCompany",
   description: "Barbearia com agendamento, WhatsApp e Mercado Pago"
 };
 
