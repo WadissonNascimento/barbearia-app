@@ -14,7 +14,7 @@ export function Header() {
           <Image
             src="/logo.png"
             alt="JakCompany"
-            width={500}
+            width={200}
             height={200}
             className="h-auto w-400 md:w-52 object-contain"
           />
