@@ -5,15 +5,24 @@ import { Footer } from "@/components/Footer";
 
 export const metadata: Metadata = {
   title: "JakCompany",
-  description: "Barbearia com agendamento, WhatsApp e Mercado Pago"
+  description: "Barbearia com agendamento, WhatsApp e Mercado Pago",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="pt-BR">
-      <body>
+      <body className="bg-black text-white">
         <Header />
-        <main>{children}</main>
+
+        {/* 👇 MUITO IMPORTANTE */}
+        <main className="min-h-screen px-4 py-10">
+          {children}
+        </main>
+
         <Footer />
       </body>
     </html>

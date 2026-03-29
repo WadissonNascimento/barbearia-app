@@ -16,7 +16,7 @@ export function Header() {
             alt="JakCompany"
             width={200}
             height={200}
-            className="h-auto w-400 md:w-52 object-contain"
+            className="h-auto w-40 object-contain md:w-52"
           />
         </Link>
 
@@ -53,7 +53,7 @@ export function Header() {
             </Link>
 
             <Link
-              href="/admin"
+              href="/painel"
               className="rounded-lg px-3 py-2 transition hover:bg-zinc-900"
               onClick={() => setOpen(false)}
             >

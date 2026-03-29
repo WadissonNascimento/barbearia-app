@@ -2,14 +2,14 @@ import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { LogoutButton } from "@/components/LogoutButton";
 
-export default async function AdminPage() {
+export default async function BarberPage() {
   const session = await auth();
 
   if (!session?.user) {
     redirect("/login");
   }
 
-  if (session.user.role !== "ADMIN") {
+  if (session.user.role !== "BARBER") {
     redirect("/painel");
   }
 
@@ -17,7 +17,7 @@ export default async function AdminPage() {
     <div className="mx-auto max-w-6xl px-4 py-10">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-white">Painel do Admin</h1>
+          <h1 className="text-3xl font-bold text-white">Painel do Barbeiro</h1>
           <p className="text-zinc-400">Bem-vindo, {session.user.name}</p>
         </div>
 
@@ -25,7 +25,7 @@ export default async function AdminPage() {
       </div>
 
       <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6 text-zinc-300">
-        Aqui vai o dashboard do administrador.
+        Aqui vai a agenda e os atendimentos do barbeiro.
       </div>
     </div>
   );
