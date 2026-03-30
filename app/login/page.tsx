@@ -2,35 +2,44 @@ import { loginAction } from "./actions";
 
 export default function LoginPage() {
   return (
-    <div className="mx-auto flex min-h-[80vh] max-w-md items-center px-4 py-10">
-      <div className="w-full rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-xl">
+    <main className="min-h-screen flex items-center justify-center bg-neutral-950 px-4">
+      <div className="w-full max-w-md rounded-2xl border border-white/10 bg-white/5 p-8 shadow-2xl">
         <h1 className="mb-2 text-3xl font-bold text-white">Entrar</h1>
+        <p className="mb-6 text-sm text-zinc-400">
+          Acesse sua conta para entrar no painel.
+        </p>
 
-        <form action={loginAction} className="mt-6 space-y-4">
-          <input
-            name="email"
-            type="email"
-            placeholder="E-mail"
-            className="w-full rounded-xl bg-black px-4 py-3 text-white"
-            required
-          />
+        <form action={loginAction} className="space-y-4">
+          <div>
+            <label className="mb-1 block text-sm text-zinc-300">Email</label>
+            <input
+              type="email"
+              name="email"
+              placeholder="seuemail@exemplo.com"
+              className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none"
+              required
+            />
+          </div>
 
-          <input
-            name="password"
-            type="password"
-            placeholder="Senha"
-            className="w-full rounded-xl bg-black px-4 py-3 text-white"
-            required
-          />
+          <div>
+            <label className="mb-1 block text-sm text-zinc-300">Senha</label>
+            <input
+              type="password"
+              name="password"
+              placeholder="********"
+              className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none"
+              required
+            />
+          </div>
 
           <button
             type="submit"
-            className="w-full rounded-xl bg-emerald-500 py-3 font-bold text-black"
+            className="w-full rounded-xl bg-white px-4 py-3 font-semibold text-black transition hover:opacity-90"
           >
             Entrar
           </button>
         </form>
       </div>
-    </div>
+    </main>
   );
 }

@@ -1,51 +1,35 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
-import { z } from "zod";
+import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 
-import { prisma } from "@/lib/prisma";
-
-const loginSchema = z.object({
-  email: z.string().email("E-mail inválido"),
-  password: z.string().min(6, "Senha inválida"),
-});
-
-export const { handlers, auth, signIn, signOut } = NextAuth({
+export const { handlers, signIn, signOut, auth } = NextAuth({
   session: {
     strategy: "jwt",
   },
-  pages: {
-    signIn: "/login",
-  },
   providers: [
     Credentials({
-      name: "Credenciais",
       credentials: {
-        email: { label: "E-mail", type: "email" },
-        password: { label: "Senha", type: "password" },
+        email: {},
+        password: {},
       },
       async authorize(credentials) {
-        const parsed = loginSchema.safeParse(credentials);
+        const email = String(credentials?.email || "").trim();
+        const password = String(credentials?.password || "");
 
-        if (!parsed.success) {
-          return null;
-        }
-
-        const { email, password } = parsed.data;
+        if (!email || !password) return null;
 
         const user = await prisma.user.findUnique({
           where: { email },
         });
 
-        if (!user || !user.passwordHash || !user.isActive) {
-          return null;
-        }
+        if (!user) return null;
+
+        if (!user.isActive) return null;
 
         const passwordOk = await bcrypt.compare(password, user.passwordHash);
 
-        if (!passwordOk) {
-          return null;
-        }
+        if (!passwordOk) return null;
 
         return {
           id: user.id,
@@ -60,34 +44,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
-        token.role = user.role;
+        token.role = (user as any).role;
       }
 
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
-        session.user.id = token.id as string;
-        session.user.role = token.role as string;
+        session.user.id = String(token.id || "");
+        session.user.role = String(token.role || "");
       }
 
       return session;
     },
-    async authorized({ auth, request }) {
-      const isLoggedIn = !!auth?.user;
-      const pathname = request.nextUrl.pathname;
-
-      const isProtectedRoute =
-        pathname.startsWith("/admin") ||
-        pathname.startsWith("/barber") ||
-        pathname.startsWith("/customer") ||
-        pathname.startsWith("/painel");
-
-      if (isProtectedRoute && !isLoggedIn) {
-        return false;
-      }
-
-      return true;
-    },
+  },
+  pages: {
+    signIn: "/login",
   },
 });

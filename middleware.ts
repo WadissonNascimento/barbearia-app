@@ -1,5 +1,20 @@
-export { auth as middleware } from "@/auth";
+import { auth } from "@/auth";
+import { NextResponse } from "next/server";
+
+export default auth((req) => {
+  const isLoggedIn = !!req.auth;
+  const pathname = req.nextUrl.pathname;
+
+  const protectedRoutes = ["/painel", "/barber", "/customer", "/redirecionar"];
+  const isProtected = protectedRoutes.some((route) => pathname.startsWith(route));
+
+  if (isProtected && !isLoggedIn) {
+    return NextResponse.redirect(new URL("/login", req.url));
+  }
+
+  return NextResponse.next();
+});
 
 export const config = {
-  matcher: ["/admin/:path*", "/barber/:path*", "/customer/:path*", "/painel/:path*"],
+  matcher: ["/painel/:path*", "/barber/:path*", "/customer/:path*", "/redirecionar"],
 };
