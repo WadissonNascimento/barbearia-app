@@ -1,11 +1,10 @@
-import type { Metadata } from "next";
 import "./globals.css";
-import { Header } from "@/components/Header";
-import { Footer } from "@/components/Footer";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
 
-export const metadata: Metadata = {
-  title: "JakCompany",
-  description: "Barbearia com agendamento, WhatsApp e Mercado Pago",
+export const metadata = {
+  title: "Jak Barber",
+  description: "Sistema de barbearia",
 };
 
 export default function RootLayout({
@@ -15,14 +14,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="pt-BR">
-      <body className="bg-black text-white">
+      <body className="bg-[#030712] text-white">
         <Header />
-
-        {/* 👇 MUITO IMPORTANTE */}
-        <main className="min-h-screen px-4 py-10">
-          {children}
-        </main>
-
+        {children}
         <Footer />
       </body>
     </html>

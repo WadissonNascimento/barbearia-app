@@ -1,6 +1,6 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
-import { LogoutButton } from "@/components/logout-button";
+import { LogoutButton } from "@/components/LogoutButton";
 
 export default async function AdminPage() {
   const session = await auth();

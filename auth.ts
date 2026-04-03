@@ -1,20 +1,24 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
+import { compare } from "bcryptjs";
 import { prisma } from "@/lib/prisma";
-import bcrypt from "bcryptjs";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   session: {
     strategy: "jwt",
   },
+  pages: {
+    signIn: "/login",
+  },
   providers: [
     Credentials({
+      name: "credentials",
       credentials: {
-        email: {},
-        password: {},
+        email: { label: "Email", type: "email" },
+        password: { label: "Senha", type: "password" },
       },
       async authorize(credentials) {
-        const email = String(credentials?.email || "").trim();
+        const email = String(credentials?.email || "").toLowerCase().trim();
         const password = String(credentials?.password || "");
 
         if (!email || !password) return null;
@@ -23,13 +27,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           where: { email },
         });
 
-        if (!user) return null;
+        if (!user || !user.isActive) return null;
 
-        if (!user.isActive) return null;
-
-        const passwordOk = await bcrypt.compare(password, user.passwordHash);
-
-        if (!passwordOk) return null;
+        const senhaCorreta = await compare(password, user.passwordHash);
+        if (!senhaCorreta) return null;
 
         return {
           id: user.id,
@@ -44,9 +45,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
-        token.role = (user as any).role;
+        token.role = (user as { role?: string }).role;
       }
-
       return token;
     },
     async session({ session, token }) {
@@ -54,11 +54,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         session.user.id = String(token.id || "");
         session.user.role = String(token.role || "");
       }
-
       return session;
     },
+    async redirect({ url, baseUrl }) {
+      if (url.startsWith("/")) return `${baseUrl}${url}`;
+      if (url.startsWith(baseUrl)) return url;
+      return baseUrl;
+    },
   },
-  pages: {
-    signIn: "/login",
-  },
+  secret: process.env.AUTH_SECRET,
 });
