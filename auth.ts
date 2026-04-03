@@ -18,7 +18,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         password: { label: "Senha", type: "password" },
       },
       async authorize(credentials) {
-        const email = String(credentials?.email || "").toLowerCase().trim();
+        const email = String(credentials?.email || "").trim().toLowerCase();
         const password = String(credentials?.password || "");
 
         if (!email || !password) return null;
@@ -27,7 +27,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           where: { email },
         });
 
-        if (!user || !user.isActive) return null;
+        if (!user) return null;
+        if (!user.isActive) return null;
 
         const senhaCorreta = await compare(password, user.passwordHash);
         if (!senhaCorreta) return null;
@@ -55,11 +56,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         session.user.role = String(token.role || "");
       }
       return session;
-    },
-    async redirect({ url, baseUrl }) {
-      if (url.startsWith("/")) return `${baseUrl}${url}`;
-      if (url.startsWith(baseUrl)) return url;
-      return baseUrl;
     },
   },
   secret: process.env.AUTH_SECRET,
