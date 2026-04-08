@@ -3,6 +3,29 @@ import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { LogoutButton } from "@/components/LogoutButton";
 
+const adminSections = [
+  {
+    href: "/admin/barbeiros",
+    title: "CRUD de Barbeiros",
+    description: "Cadastrar, inativar, reativar e excluir barbeiros.",
+  },
+  {
+    href: "/admin/agenda",
+    title: "Agenda Geral",
+    description: "Visualize todos os agendamentos e filtre por barbeiro e periodo.",
+  },
+  {
+    href: "/admin/produtos",
+    title: "CRUD de Produtos",
+    description: "Criar, editar, ocultar e excluir produtos da loja.",
+  },
+  {
+    href: "/admin/pedidos",
+    title: "Pedidos da Loja",
+    description: "Acompanhe pedidos, altere status e gerencie a operacao.",
+  },
+];
+
 export default async function AdminPage() {
   const session = await auth();
 
@@ -26,25 +49,18 @@ export default async function AdminPage() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
-        <Link
-          href="/admin/barbeiros"
-          className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6 transition hover:border-zinc-700 hover:bg-zinc-800"
-        >
-          <h2 className="text-xl font-semibold">CRUD de Barbeiros</h2>
-          <p className="mt-2 text-sm text-zinc-400">
-            Cadastrar, inativar, reativar e excluir barbeiros.
-          </p>
-        </Link>
-
-        <Link
-          href="/admin/agenda"
-          className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6 transition hover:border-zinc-700 hover:bg-zinc-800"
-        >
-          <h2 className="text-xl font-semibold">Agenda Geral</h2>
-          <p className="mt-2 text-sm text-zinc-400">
-            Visualize todos os agendamentos e filtre por barbeiro e período.
-          </p>
-        </Link>
+        {adminSections.map((section) => (
+          <Link
+            key={section.href}
+            href={section.href}
+            className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6 transition hover:border-zinc-700 hover:bg-zinc-800"
+          >
+            <h2 className="text-xl font-semibold">{section.title}</h2>
+            <p className="mt-2 text-sm text-zinc-400">
+              {section.description}
+            </p>
+          </Link>
+        ))}
       </div>
     </div>
   );

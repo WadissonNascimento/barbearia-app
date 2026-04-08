@@ -1,9 +1,9 @@
 export default function SucessoPage() {
   return (
     <section className="mx-auto max-w-3xl px-4 py-16 text-center">
-      <h1 className="text-4xl font-bold text-white">Pagamento iniciado</h1>
+      <h1 className="text-4xl font-bold text-white">Pedido registrado</h1>
       <p className="mt-4 text-zinc-300">
-        Quando o Mercado Pago confirmar o pagamento, o pedido será atualizado automaticamente pelo webhook.
+        Seu pedido foi criado com sucesso. Quando o Mercado Pago estiver configurado de verdade, o pagamento tambem podera seguir pelo checkout online.
       </p>
     </section>
   );

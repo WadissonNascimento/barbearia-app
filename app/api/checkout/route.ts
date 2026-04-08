@@ -38,12 +38,12 @@ export async function POST(request: Request) {
 
     const noStock = parsed.items.find((item) => {
       const product = dbProducts.find((p) => p.id === item.productId)!;
-      return product.stock < item.quantity;
+      return !product.isActive || product.stock < item.quantity;
     });
 
     if (noStock) {
       return NextResponse.json(
-        { message: "Um ou mais produtos estao sem estoque suficiente." },
+        { message: "Um ou mais produtos estao indisponiveis." },
         { status: 400 }
       );
     }
@@ -87,6 +87,17 @@ export async function POST(request: Request) {
     });
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const accessToken = process.env.MERCADO_PAGO_ACCESS_TOKEN || "";
+    const mercadoPagoDisabled =
+      !accessToken || accessToken.includes("xxxxxxxx");
+
+    if (mercadoPagoDisabled) {
+      return NextResponse.json({
+        redirectTo: `${baseUrl}/sucesso?pedido=${order.id}`,
+        orderId: order.id,
+      });
+    }
+
     const isLocal =
       baseUrl.includes("localhost") || baseUrl.includes("127.0.0.1");
 
@@ -143,7 +154,8 @@ export async function POST(request: Request) {
     });
 
     const initPoint =
-      preference.init_point || (preference as { sandbox_init_point?: string }).sandbox_init_point;
+      preference.init_point ||
+      (preference as { sandbox_init_point?: string }).sandbox_init_point;
 
     if (!initPoint) {
       throw new Error(

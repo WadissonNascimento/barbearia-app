@@ -1,25 +1,57 @@
 "use client";
 
-import { createContext, useContext, useState, ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 
 type CartItem = {
   productId: string;
   name: string;
   price: number;
   quantity: number;
+  imageUrl?: string | null;
 };
 
 type CartContextType = {
   cart: CartItem[];
+  cartCount: number;
+  cartTotal: number;
   addToCart: (item: CartItem) => void;
   removeFromCart: (productId: string) => void;
+  updateQuantity: (productId: string, quantity: number) => void;
   clearCart: () => void;
 };
+
+const STORAGE_KEY = "barbearia-cart";
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    try {
+      const storedCart = window.localStorage.getItem(STORAGE_KEY);
+      if (storedCart) {
+        setCart(JSON.parse(storedCart) as CartItem[]);
+      }
+    } catch {
+      window.localStorage.removeItem(STORAGE_KEY);
+    } finally {
+      setHydrated(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(cart));
+  }, [cart, hydrated]);
 
   function addToCart(item: CartItem) {
     setCart((prev) => {
@@ -28,7 +60,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       if (existing) {
         return prev.map((i) =>
           i.productId === item.productId
-            ? { ...i, quantity: i.quantity + 1 }
+            ? { ...i, quantity: i.quantity + item.quantity }
             : i
         );
       }
@@ -41,15 +73,40 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setCart((prev) => prev.filter((i) => i.productId !== productId));
   }
 
+  function updateQuantity(productId: string, quantity: number) {
+    if (quantity <= 0) {
+      removeFromCart(productId);
+      return;
+    }
+
+    setCart((prev) =>
+      prev.map((item) =>
+        item.productId === productId ? { ...item, quantity } : item
+      )
+    );
+  }
+
   function clearCart() {
     setCart([]);
   }
 
-  return (
-    <CartContext.Provider value={{ cart, addToCart, removeFromCart, clearCart }}>
-      {children}
-    </CartContext.Provider>
+  const value = useMemo(
+    () => ({
+      cart,
+      cartCount: cart.reduce((acc, item) => acc + item.quantity, 0),
+      cartTotal: cart.reduce(
+        (acc, item) => acc + item.price * item.quantity,
+        0
+      ),
+      addToCart,
+      removeFromCart,
+      updateQuantity,
+      clearCart,
+    }),
+    [cart]
   );
+
+  return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }
 
 export function useCart() {

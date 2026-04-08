@@ -54,7 +54,7 @@ export default async function BarberPage() {
                   key={appointment.id}
                   className="rounded-xl border border-zinc-800 bg-zinc-950 p-4"
                 >
-                  <div className="grid gap-2 md:grid-cols-6 text-sm">
+                  <div className="grid gap-2 text-sm md:grid-cols-6">
                     <div>
                       <p className="text-zinc-400">Data</p>
                       <p>{date.toLocaleDateString("pt-BR")}</p>
@@ -76,7 +76,7 @@ export default async function BarberPage() {
                     </div>
 
                     <div>
-                      <p className="text-zinc-400">Serviço</p>
+                      <p className="text-zinc-400">Servico</p>
                       <p>{appointment.service.name}</p>
                     </div>
 
@@ -103,7 +103,6 @@ export default async function BarberPage() {
                     </div>
                   </div>
 
-                  {/* 🔥 BOTÕES */}
                   <div className="mt-4 flex gap-3">
                     {appointment.status === "PENDING" && (
                       <>
@@ -159,7 +158,7 @@ export default async function BarberPage() {
                           type="submit"
                           className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold hover:bg-blue-500"
                         >
-                          Marcar como concluído
+                          Marcar como concluido
                         </button>
                       </form>
                     )}

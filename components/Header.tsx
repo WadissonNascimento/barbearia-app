@@ -3,9 +3,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useCart } from "@/context/CartContext";
 
 export default function Header() {
   const [isOpen, setIsOpen] = useState(false);
+  const { cartCount } = useCart();
 
   useEffect(() => {
     function handleEsc(e: KeyboardEvent) {
@@ -31,28 +33,42 @@ export default function Header() {
             />
           </Link>
 
-          <button
-            type="button"
-            aria-label="Abrir menu"
-            onClick={() => setIsOpen((prev) => !prev)}
-            className="group relative flex h-11 w-11 items-center justify-center rounded-2xl border border-white/15 bg-white/[0.04] text-white transition hover:border-sky-400/40 hover:bg-sky-500/10 active:scale-95"
-          >
-            <span
-              className={`absolute h-[2px] w-5 rounded-full bg-white transition-all duration-300 ${
-                isOpen ? "rotate-45" : "-translate-y-[6px]"
-              }`}
-            />
-            <span
-              className={`absolute h-[2px] w-5 rounded-full bg-white transition-all duration-300 ${
-                isOpen ? "opacity-0" : "opacity-100"
-              }`}
-            />
-            <span
-              className={`absolute h-[2px] w-5 rounded-full bg-white transition-all duration-300 ${
-                isOpen ? "-rotate-45" : "translate-y-[6px]"
-              }`}
-            />
-          </button>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/carrinho"
+              className="relative rounded-2xl border border-white/15 bg-white/[0.04] px-4 py-3 text-sm text-white transition hover:border-sky-400/40 hover:bg-sky-500/10"
+            >
+              Carrinho
+              {cartCount > 0 && (
+                <span className="ml-2 rounded-full bg-emerald-500 px-2 py-0.5 text-xs font-semibold text-black">
+                  {cartCount}
+                </span>
+              )}
+            </Link>
+
+            <button
+              type="button"
+              aria-label="Abrir menu"
+              onClick={() => setIsOpen((prev) => !prev)}
+              className="group relative flex h-11 w-11 items-center justify-center rounded-2xl border border-white/15 bg-white/[0.04] text-white transition hover:border-sky-400/40 hover:bg-sky-500/10 active:scale-95"
+            >
+              <span
+                className={`absolute h-[2px] w-5 rounded-full bg-white transition-all duration-300 ${
+                  isOpen ? "rotate-45" : "-translate-y-[6px]"
+                }`}
+              />
+              <span
+                className={`absolute h-[2px] w-5 rounded-full bg-white transition-all duration-300 ${
+                  isOpen ? "opacity-0" : "opacity-100"
+                }`}
+              />
+              <span
+                className={`absolute h-[2px] w-5 rounded-full bg-white transition-all duration-300 ${
+                  isOpen ? "-rotate-45" : "translate-y-[6px]"
+                }`}
+              />
+            </button>
+          </div>
         </div>
       </header>
 
@@ -94,6 +110,14 @@ export default function Header() {
             className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-3 text-right text-sm text-white transition hover:border-sky-400/40 hover:bg-sky-500/10 active:scale-[0.98]"
           >
             Produtos
+          </Link>
+
+          <Link
+            href="/carrinho"
+            onClick={() => setIsOpen(false)}
+            className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-3 text-right text-sm text-white transition hover:border-sky-400/40 hover:bg-sky-500/10 active:scale-[0.98]"
+          >
+            Carrinho ({cartCount})
           </Link>
 
           <Link
