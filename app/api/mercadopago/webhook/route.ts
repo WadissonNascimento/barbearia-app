@@ -7,7 +7,8 @@ export async function POST(request: Request) {
   try {
     const body = await request.json().catch(() => null);
     const topic = new URL(request.url).searchParams.get("topic") || body?.type;
-    const paymentId = new URL(request.url).searchParams.get("id") || body?.data?.id;
+    const paymentId =
+      new URL(request.url).searchParams.get("id") || body?.data?.id;
 
     if (topic !== "payment" || !paymentId) {
       return NextResponse.json({ ok: true });
@@ -21,11 +22,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    const status = payment.status === "approved" ? "paid" : payment.status || "pending";
+    const status =
+      payment.status === "approved"
+        ? "CONFIRMED"
+        : payment.status === "cancelled"
+        ? "CANCELLED"
+        : "PENDING";
 
     const currentOrder = await prisma.order.findUnique({
       where: { id: orderId },
-      include: { items: true }
+      include: { items: true },
     });
 
     if (!currentOrder) {
@@ -34,25 +40,24 @@ export async function POST(request: Request) {
 
     await prisma.order.update({
       where: { id: orderId },
-      data: {
-        status,
-        mercadoPagoId: String(payment.id),
-        mercadoPagoStatus: payment.status || null
-      }
+      data: { status },
     });
 
-    if (status === "paid" && currentOrder.status !== "paid") {
+    if (status === "CONFIRMED" && currentOrder.status !== "CONFIRMED") {
       for (const item of currentOrder.items) {
         await prisma.product.update({
           where: { id: item.productId },
-          data: { stock: { decrement: item.quantity } }
+          data: { stock: { decrement: item.quantity } },
         });
       }
     }
 
     return NextResponse.json({ ok: true });
   } catch (error) {
-    return NextResponse.json({ ok: false, error: String(error) }, { status: 500 });
+    return NextResponse.json(
+      { ok: false, error: String(error) },
+      { status: 500 }
+    );
   }
 }
 

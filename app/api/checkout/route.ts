@@ -7,12 +7,14 @@ const schema = z.object({
   customerName: z.string().min(2),
   customerEmail: z.string().email(),
   customerPhone: z.string().min(8),
-  items: z.array(
-    z.object({
-      productId: z.string(),
-      quantity: z.number().int().positive(),
-    })
-  ).min(1),
+  items: z
+    .array(
+      z.object({
+        productId: z.string(),
+        quantity: z.number().int().positive(),
+      })
+    )
+    .min(1),
 });
 
 export async function POST(request: Request) {
@@ -29,7 +31,7 @@ export async function POST(request: Request) {
     );
     if (missing) {
       return NextResponse.json(
-        { message: "Produto inválido no carrinho." },
+        { message: "Produto invalido no carrinho." },
         { status: 400 }
       );
     }
@@ -41,7 +43,7 @@ export async function POST(request: Request) {
 
     if (noStock) {
       return NextResponse.json(
-        { message: "Um ou mais produtos estão sem estoque suficiente." },
+        { message: "Um ou mais produtos estao sem estoque suficiente." },
         { status: 400 }
       );
     }
@@ -51,11 +53,25 @@ export async function POST(request: Request) {
       return acc + product.price * item.quantity;
     }, 0);
 
+    let customer = await prisma.user.findUnique({
+      where: { email: parsed.customerEmail },
+    });
+
+    if (!customer) {
+      customer = await prisma.user.create({
+        data: {
+          name: parsed.customerName,
+          email: parsed.customerEmail,
+          phone: parsed.customerPhone,
+          role: "CUSTOMER",
+          isActive: true,
+        },
+      });
+    }
+
     const order = await prisma.order.create({
       data: {
-        customerName: parsed.customerName,
-        customerEmail: parsed.customerEmail,
-        customerPhone: parsed.customerPhone,
+        customerId: customer.id,
         total: orderTotal,
         items: {
           create: parsed.items.map((item) => {
@@ -63,7 +79,7 @@ export async function POST(request: Request) {
             return {
               productId: item.productId,
               quantity: item.quantity,
-              price: product.price,
+              unitPrice: product.price,
             };
           }),
         },
@@ -76,30 +92,48 @@ export async function POST(request: Request) {
 
     const preferenceClient = getPreferenceClient();
 
-    const preferenceBody: any = {
-  items: parsed.items.map((item) => {
-    const product = dbProducts.find((p) => p.id === item.productId)!;
-    return {
-      id: product.id,
-      title: product.name,
-      quantity: item.quantity,
-      unit_price: Number(product.price),
-      currency_id: "BRL",
+    const preferenceBody: {
+      items: Array<{
+        id: string;
+        title: string;
+        quantity: number;
+        unit_price: number;
+        currency_id: string;
+      }>;
+      payer: {
+        name: string;
+        email: string;
+      };
+      external_reference: string;
+      back_urls: {
+        success: string;
+        failure: string;
+        pending: string;
+      };
+      notification_url?: string;
+    } = {
+      items: parsed.items.map((item) => {
+        const product = dbProducts.find((p) => p.id === item.productId)!;
+        return {
+          id: product.id,
+          title: product.name,
+          quantity: item.quantity,
+          unit_price: Number(product.price),
+          currency_id: "BRL",
+        };
+      }),
+      payer: {
+        name: parsed.customerName,
+        email: parsed.customerEmail,
+      },
+      external_reference: order.id,
+      back_urls: {
+        success: `${baseUrl}/sucesso`,
+        failure: `${baseUrl}/falha`,
+        pending: `${baseUrl}/sucesso`,
+      },
     };
-  }),
-  payer: {
-    name: parsed.customerName,
-    email: parsed.customerEmail,
-  },
-  external_reference: order.id,
-  back_urls: {
-    success: `${baseUrl}/sucesso`,
-    failure: `${baseUrl}/falha`,
-    pending: `${baseUrl}/sucesso`,
-  },
-};
 
-    // Só envia webhook se a URL for pública
     if (!isLocal) {
       preferenceBody.notification_url = `${baseUrl}/api/mercadopago/webhook`;
     }
@@ -109,18 +143,13 @@ export async function POST(request: Request) {
     });
 
     const initPoint =
-      preference.init_point || (preference as any).sandbox_init_point;
+      preference.init_point || (preference as { sandbox_init_point?: string }).sandbox_init_point;
 
     if (!initPoint) {
       throw new Error(
-        `Mercado Pago não retornou init_point. Resposta: ${JSON.stringify(preference)}`
+        `Mercado Pago nao retornou init_point. Resposta: ${JSON.stringify(preference)}`
       );
     }
-
-    await prisma.order.update({
-      where: { id: order.id },
-      data: { mercadoPagoPrefId: preference.id },
-    });
 
     return NextResponse.json({
       initPoint,

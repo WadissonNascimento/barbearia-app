@@ -32,31 +32,14 @@ async function main() {
     where: { email: barberEmail },
   });
 
-  let barberUser = existingBarber;
-
-  if (!barberUser) {
-    barberUser = await prisma.user.create({
+  if (!existingBarber) {
+    await prisma.user.create({
       data: {
         name: "Barbeiro Exemplo",
         email: barberEmail,
         passwordHash: barberHash,
         phone: "11988888888",
         role: "BARBER",
-      },
-    });
-  }
-
-  const barberProfileExists = await prisma.barberProfile.findUnique({
-    where: { userId: barberUser.id },
-  });
-
-  if (!barberProfileExists) {
-    await prisma.barberProfile.create({
-      data: {
-        userId: barberUser.id,
-        specialty: "Fade, barba e acabamento",
-        bio: "Barbeiro exemplo da plataforma",
-        isAvailable: true,
       },
     });
   }
@@ -68,10 +51,8 @@ async function main() {
     where: { email: customerEmail },
   });
 
-  let customerUser = existingCustomer;
-
-  if (!customerUser) {
-    customerUser = await prisma.user.create({
+  if (!existingCustomer) {
+    await prisma.user.create({
       data: {
         name: "Cliente Exemplo",
         email: customerEmail,
@@ -82,41 +63,29 @@ async function main() {
     });
   }
 
-  const customerProfileExists = await prisma.customerProfile.findUnique({
-    where: { userId: customerUser.id },
-  });
-
-  if (!customerProfileExists) {
-    await prisma.customerProfile.create({
-      data: {
-        userId: customerUser.id,
-      },
-    });
-  }
-
   const services = [
     {
       name: "Corte masculino",
       description: "Corte com acabamento profissional",
-      durationMinutes: 45,
+      duration: 45,
       price: 35,
     },
     {
       name: "Barba",
       description: "Alinhamento e acabamento da barba",
-      durationMinutes: 30,
+      duration: 30,
       price: 25,
     },
     {
       name: "Corte + barba",
       description: "Combo completo",
-      durationMinutes: 60,
+      duration: 60,
       price: 55,
     },
     {
       name: "Sobrancelha",
       description: "Acabamento de sobrancelha",
-      durationMinutes: 15,
+      duration: 15,
       price: 15,
     },
   ];
@@ -134,21 +103,21 @@ async function main() {
   const products = [
     {
       name: "Pomada modeladora",
-      description: "Fixação forte e acabamento seco",
+      description: "Fixacao forte e acabamento seco",
       price: 29.9,
       stock: 20,
       imageUrl: "/produtos/pomada.jpg",
     },
     {
-      name: "Óleo para barba",
-      description: "Hidratação e brilho para barba",
+      name: "Oleo para barba",
+      description: "Hidratacao e brilho para barba",
       price: 34.9,
       stock: 15,
       imageUrl: "/produtos/oleo-barba.jpg",
     },
     {
       name: "Shampoo masculino",
-      description: "Limpeza diária para cabelo e barba",
+      description: "Limpeza diaria para cabelo e barba",
       price: 24.9,
       stock: 25,
       imageUrl: "/produtos/shampoo.jpg",
@@ -162,31 +131,6 @@ async function main() {
 
     if (!exists) {
       await prisma.product.create({ data: product });
-    }
-  }
-
-  const barberProfile = await prisma.barberProfile.findUnique({
-    where: { userId: barberUser.id },
-  });
-
-  if (barberProfile) {
-    const scheduleCount = await prisma.barberSchedule.count({
-      where: { barberId: barberProfile.id },
-    });
-
-    if (scheduleCount === 0) {
-      const defaultSchedule = [1, 2, 3, 4, 5, 6].map((weekDay) => ({
-        barberId: barberProfile.id,
-        weekDay,
-        startTime: "09:00",
-        endTime: "18:00",
-        breakStart: "12:00",
-        breakEnd: "13:00",
-      }));
-
-      await prisma.barberSchedule.createMany({
-        data: defaultSchedule,
-      });
     }
   }
 

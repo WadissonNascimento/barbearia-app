@@ -1,11 +1,14 @@
 "use server";
 
-import { signIn } from "@/auth";
 import { AuthError } from "next-auth";
+import { signIn } from "@/auth";
 
 export async function loginAction(formData: FormData) {
-  const email = String(formData.get("email") || "").trim().toLowerCase();
-  const password = String(formData.get("password") || "");
+  const email = String(formData.get("email") || "")
+    .trim()
+    .toLowerCase();
+
+  const password = String(formData.get("password") || "").trim();
 
   try {
     await signIn("credentials", {
@@ -15,12 +18,9 @@ export async function loginAction(formData: FormData) {
     });
   } catch (error) {
     if (error instanceof AuthError) {
-      switch (error.type) {
-        case "CredentialsSignin":
-          throw new Error("Email ou senha inválidos.");
-        default:
-          throw new Error("Não foi possível entrar.");
-      }
+      return {
+        error: "E-mail ou senha inválidos.",
+      };
     }
 
     throw error;

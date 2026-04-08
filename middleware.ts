@@ -1,8 +1,10 @@
-import { auth } from "@/auth";
+import NextAuth from "next-auth";
+import authConfig from "@/auth.config";
 import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
 
-export default auth((req: NextRequest & { auth?: { user?: { role?: string } } }) => {
+const { auth } = NextAuth(authConfig);
+
+export default auth((req) => {
   const isLoggedIn = !!req.auth;
   const pathname = req.nextUrl.pathname;
   const role = req.auth?.user?.role;
@@ -10,7 +12,13 @@ export default auth((req: NextRequest & { auth?: { user?: { role?: string } } })
   const isAuthPage = pathname === "/login" || pathname === "/cadastro";
   const isPainelRoot = pathname === "/painel";
 
-  if (!isLoggedIn && (pathname.startsWith("/painel") || pathname.startsWith("/admin") || pathname.startsWith("/customer") || pathname.startsWith("/barber"))) {
+  if (
+    !isLoggedIn &&
+    (pathname.startsWith("/painel") ||
+      pathname.startsWith("/admin") ||
+      pathname.startsWith("/customer") ||
+      pathname.startsWith("/barber"))
+  ) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
@@ -54,5 +62,12 @@ export default auth((req: NextRequest & { auth?: { user?: { role?: string } } })
 });
 
 export const config = {
-  matcher: ["/login", "/cadastro", "/painel/:path*", "/admin/:path*", "/barber/:path*", "/customer/:path*"],
+  matcher: [
+    "/login",
+    "/cadastro",
+    "/painel/:path*",
+    "/admin/:path*",
+    "/barber/:path*",
+    "/customer/:path*",
+  ],
 };

@@ -1,156 +1,394 @@
-export default function AgendarPage() {
+import { auth } from "@/auth";
+import { redirect } from "next/navigation";
+import Link from "next/link";
+import { prisma } from "@/lib/prisma";
+import { createAppointmentAction } from "./actions";
+import { AutoSubmitFilters } from "./AutoSubmitFilters";
+
+type SearchParams = {
+  barberId?: string;
+  serviceId?: string;
+  date?: string;
+};
+
+function toMinutes(time: string) {
+  const [hours, minutes] = time.split(":").map(Number);
+  return hours * 60 + minutes;
+}
+
+function minutesToTime(totalMinutes: number) {
+  const hours = Math.floor(totalMinutes / 60)
+    .toString()
+    .padStart(2, "0");
+  const minutes = (totalMinutes % 60).toString().padStart(2, "0");
+  return `${hours}:${minutes}`;
+}
+
+function generateSlots(startHour: number, endHour: number) {
+  const slots: string[] = [];
+  const step = 10;
+
+  let current = startHour * 60;
+  const end = endHour * 60;
+
+  while (current < end) {
+    slots.push(minutesToTime(current));
+    current += step;
+  }
+
+  return slots;
+}
+
+function formatDateLabel(dateString: string) {
+  const date = new Date(`${dateString}T00:00:00`);
+  return date.toLocaleDateString("pt-BR", {
+    weekday: "short",
+    day: "2-digit",
+    month: "2-digit",
+  });
+}
+
+function getTodayString() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getNextDays(count: number) {
+  const days: string[] = [];
+  const base = new Date();
+  base.setHours(0, 0, 0, 0);
+
+  for (let i = 0; i < count; i++) {
+    const current = new Date(base);
+    current.setDate(base.getDate() + i);
+
+    const year = current.getFullYear();
+    const month = String(current.getMonth() + 1).padStart(2, "0");
+    const day = String(current.getDate()).padStart(2, "0");
+
+    days.push(`${year}-${month}-${day}`);
+  }
+
+  return days;
+}
+
+export default async function AgendarPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
+  const session = await auth();
+
+  if (!session?.user) {
+    redirect("/login");
+  }
+
+  if (session.user.role !== "CUSTOMER") {
+    redirect("/painel");
+  }
+
+  const barbers = await prisma.user.findMany({
+    where: {
+      role: "BARBER",
+      isActive: true,
+    },
+    orderBy: {
+      name: "asc",
+    },
+  });
+
+  const services = await prisma.service.findMany({
+    where: {
+      isActive: true,
+    },
+    orderBy: {
+      name: "asc",
+    },
+  });
+
+  const today = getTodayString();
+  const nextDays = getNextDays(14);
+
+  const selectedBarberId = searchParams.barberId || "";
+  const selectedServiceId = searchParams.serviceId || "";
+  const selectedDate = searchParams.date || today;
+
+  let selectedServiceDuration = 0;
+  let morningSlots: string[] = [];
+  let afternoonSlots: string[] = [];
+  let nightSlots: string[] = [];
+
+  if (selectedBarberId && selectedServiceId && selectedDate) {
+    const selectedService = await prisma.service.findFirst({
+      where: {
+        id: selectedServiceId,
+        isActive: true,
+      },
+    });
+
+    if (selectedService) {
+      selectedServiceDuration = selectedService.duration;
+
+      const appointments = await prisma.appointment.findMany({
+        where: {
+          barberId: selectedBarberId,
+          date: {
+            gte: new Date(`${selectedDate}T00:00:00`),
+            lte: new Date(`${selectedDate}T23:59:59.999`),
+          },
+          status: {
+            not: "CANCELLED",
+          },
+        },
+        include: {
+          service: true,
+        },
+      });
+
+      const now = new Date();
+      const isToday = selectedDate === today;
+      const nowMinutes = now.getHours() * 60 + now.getMinutes();
+
+      const filterSlots = (slots: string[], periodEndHour: number) => {
+        return slots.filter((slot) => {
+          const candidateStart = toMinutes(slot);
+          const candidateEnd = candidateStart + selectedService.duration;
+          const periodEnd = periodEndHour * 60;
+
+          if (candidateEnd > periodEnd) {
+            return false;
+          }
+
+          if (isToday && candidateStart <= nowMinutes) {
+            return false;
+          }
+
+          const hasConflict = appointments.some((appointment) => {
+            const appointmentDate = new Date(appointment.date);
+            const existingStart =
+              appointmentDate.getHours() * 60 + appointmentDate.getMinutes();
+            const existingEnd = existingStart + appointment.service.duration;
+
+            return (
+              candidateStart < existingEnd &&
+              candidateEnd > existingStart
+            );
+          });
+
+          return !hasConflict;
+        });
+      };
+
+      morningSlots = filterSlots(generateSlots(8, 12), 12);
+      afternoonSlots = filterSlots(generateSlots(13, 18), 18);
+      nightSlots = filterSlots(generateSlots(18, 21), 21);
+    }
+  }
+
   return (
-    <main className="relative min-h-screen bg-[#030712] text-white">
-      <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.18),_transparent_35%),radial-gradient(circle_at_bottom,_rgba(37,99,235,0.12),_transparent_30%)]" />
+    <div className="mx-auto max-w-6xl px-4 py-10 text-white">
+      <AutoSubmitFilters />
 
-      <section className="mx-auto max-w-6xl px-4 pb-12 pt-10 sm:px-6 sm:pt-14">
-        <div className="mb-10 max-w-3xl">
-          <span className="inline-flex rounded-full border border-sky-400/20 bg-sky-500/10 px-4 py-1 text-xs font-semibold uppercase tracking-[0.25em] text-sky-300">
-            Agendamento online  
-          </span>
-
-          <h1 className="mt-4 text-4xl font-bold sm:text-5xl">
-            Agendar horário
-          </h1>
-
-          <p className="mt-4 max-w-2xl text-sm text-zinc-300 sm:text-base">
-            Escolha o serviço, o barbeiro, a data e o horário para reservar seu
-            atendimento com praticidade.
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Agendar horário</h1>
+          <p className="text-zinc-400">
+            Escolha o barbeiro, o serviço, a data e depois selecione um horário disponível.
           </p>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-[1.25fr_0.75fr]">
-          <div className="relative">
-            <div className="absolute -inset-3 rounded-[2rem] bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.22),_transparent_45%)] blur-2xl" />
+        <Link
+          href="/customer"
+          className="rounded-xl border border-zinc-700 px-4 py-2 text-sm hover:bg-zinc-800"
+        >
+          Voltar
+        </Link>
+      </div>
 
-            <div className="relative rounded-[2rem] border border-white/10 bg-white/[0.04] p-5 shadow-[0_30px_80px_rgba(0,0,0,0.45)] backdrop-blur-xl sm:p-6">
-              <div className="mb-6 flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.22em] text-sky-300">
-                    Formulário
-                  </p>
-                  <h2 className="mt-2 text-2xl font-semibold text-white">
-                    Reserve seu horário
-                  </h2>
-                </div>
+      <div className="grid gap-8 lg:grid-cols-[380px_1fr]">
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
+          <h2 className="mb-4 text-xl font-semibold">Filtros do agendamento</h2>
 
-                <div className="hidden rounded-2xl border border-white/10 bg-black/20 px-4 py-2 text-sm text-zinc-300 sm:block">
-                  Atendimento com hora marcada
-                </div>
+          <form method="GET" data-auto-submit="true" className="space-y-5">
+            <div>
+              <label className="mb-2 block text-sm text-zinc-300">Barbeiro</label>
+              <select
+                name="barberId"
+                defaultValue={selectedBarberId}
+                required
+                className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 outline-none"
+              >
+                <option value="">Selecione</option>
+                {barbers.map((barber) => (
+                  <option key={barber.id} value={barber.id}>
+                    {barber.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm text-zinc-300">Serviço</label>
+              <select
+                name="serviceId"
+                defaultValue={selectedServiceId}
+                required
+                className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 outline-none"
+              >
+                <option value="">Selecione</option>
+                {services.map((service) => (
+                  <option key={service.id} value={service.id}>
+                    {service.name} - R$ {service.price.toFixed(2)} - {service.duration} min
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-3 block text-sm text-zinc-300">Calendário</label>
+
+              <div className="grid grid-cols-2 gap-2">
+                {nextDays.map((day) => {
+                  const isSelected = day === selectedDate;
+
+                  return (
+                    <label
+                      key={day}
+                      className={`cursor-pointer rounded-xl border px-3 py-3 text-left text-sm transition ${
+                        isSelected
+                          ? "border-white bg-white text-black"
+                          : "border-zinc-700 bg-zinc-950 hover:border-zinc-500"
+                      } ${
+                        !selectedBarberId || !selectedServiceId
+                          ? "cursor-not-allowed opacity-50"
+                          : ""
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="date"
+                        value={day}
+                        defaultChecked={isSelected}
+                        disabled={!selectedBarberId || !selectedServiceId}
+                        className="hidden"
+                      />
+                      {formatDateLabel(day)}
+                    </label>
+                  );
+                })}
               </div>
 
-              <form className="space-y-5">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <input
-                    type="text"
-                    placeholder="Seu nome"
-                    className="rounded-2xl border border-white/10 bg-[#050816] px-4 py-4 text-white outline-none transition placeholder:text-zinc-500 focus:border-sky-400/50 focus:bg-[#07101f]"
-                  />
-
-                  <input
-                    type="text"
-                    placeholder="WhatsApp"
-                    className="rounded-2xl border border-white/10 bg-[#050816] px-4 py-4 text-white outline-none transition placeholder:text-zinc-500 focus:border-sky-400/50 focus:bg-[#07101f]"
-                  />
-
-                  <input
-                    type="email"
-                    placeholder="E-mail (opcional)"
-                    className="rounded-2xl border border-white/10 bg-[#050816] px-4 py-4 text-white outline-none transition placeholder:text-zinc-500 focus:border-sky-400/50 focus:bg-[#07101f]"
-                  />
-
-                  <select className="rounded-2xl border border-white/10 bg-[#050816] px-4 py-4 text-white outline-none transition focus:border-sky-400/50 focus:bg-[#07101f]">
-                    <option>Escolha o serviço</option>
-                    <option>Corte</option>
-                    <option>Barba</option>
-                    <option>Corte + Barba</option>
-                    <option>Sobrancelha</option>
-                  </select>
-
-                  <select className="rounded-2xl border border-white/10 bg-[#050816] px-4 py-4 text-white outline-none transition focus:border-sky-400/50 focus:bg-[#07101f]">
-                    <option>Escolha o barbeiro</option>
-                    <option>Jak</option>
-                    <option>Ryan</option>
-                    <option>Wadisson</option>
-                  </select>
-
-                  <input
-                    type="date"
-                    className="rounded-2xl border border-white/10 bg-[#050816] px-4 py-4 text-white outline-none transition focus:border-sky-400/50 focus:bg-[#07101f]"
-                  />
-
-                  <select className="rounded-2xl border border-white/10 bg-[#050816] px-4 py-4 text-white outline-none transition focus:border-sky-400/50 focus:bg-[#07101f] sm:col-span-2">
-                    <option>Horário</option>
-                    <option>09:00</option>
-                    <option>10:00</option>
-                    <option>11:00</option>
-                    <option>13:00</option>
-                    <option>14:00</option>
-                    <option>15:00</option>
-                    <option>16:00</option>
-                    <option>17:00</option>
-                  </select>
-                </div>
-
-                <textarea
-                  placeholder="Observações"
-                  rows={5}
-                  className="w-full rounded-2xl border border-white/10 bg-[#050816] px-4 py-4 text-white outline-none transition placeholder:text-zinc-500 focus:border-sky-400/50 focus:bg-[#07101f]"
-                />
-
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-zinc-300">
-                    Confirmação rápida e prática.
-                  </div>
-
-                  <button
-                    type="submit"
-                    className="rounded-2xl bg-sky-500 px-6 py-4 font-semibold text-white shadow-[0_12px_30px_rgba(14,165,233,0.35)] transition hover:bg-sky-400"
-                  >
-                    Confirmar agendamento
-                  </button>
-                </div>
-              </form>
+              {(!selectedBarberId || !selectedServiceId) && (
+                <p className="mt-3 text-xs text-zinc-500">
+                  Primeiro selecione o barbeiro e o serviço para liberar as datas.
+                </p>
+              )}
             </div>
-          </div>
+          </form>
+        </div>
 
-          <aside className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6 shadow-[0_30px_80px_rgba(0,0,0,0.32)] backdrop-blur-xl">
-            <div className="rounded-2xl border border-sky-400/15 bg-sky-500/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-sky-300">
-              Como funciona
-            </div>
-
-            <h3 className="mt-4 text-2xl font-semibold text-white">
-              Processo simples
-            </h3>
-
-            <div className="mt-6 space-y-4">
-              {[
-                "O cliente escolhe serviço, barbeiro, data e horário.",
-                "O sistema salva o agendamento no banco.",
-                "A confirmação pode seguir para WhatsApp.",
-                "O barbeiro visualiza o horário no painel.",
-              ].map((item, index) => (
-                <div
-                  key={index}
-                  className="flex gap-4 rounded-2xl border border-white/10 bg-black/20 p-4"
-                >
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sky-500/20 text-sm font-bold text-sky-300">
-                    {index + 1}
-                  </div>
-                  <p className="text-sm leading-6 text-zinc-300">{item}</p>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-6 rounded-2xl border border-white/10 bg-black/20 p-4">
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-semibold">Horários disponíveis</h2>
               <p className="text-sm text-zinc-400">
-                Dica: mantenha seus horários sempre atualizados para evitar
-                conflitos de agenda e melhorar a experiência do cliente.
+                {selectedDate
+                  ? `Data escolhida: ${new Date(`${selectedDate}T00:00:00`).toLocaleDateString("pt-BR")}`
+                  : "Escolha barbeiro, serviço e data."}
               </p>
             </div>
-          </aside>
+
+            {selectedServiceDuration > 0 && (
+              <div className="rounded-xl border border-zinc-700 px-4 py-2 text-sm text-zinc-300">
+                Duração do serviço: {selectedServiceDuration} min
+              </div>
+            )}
+          </div>
+
+          {!selectedBarberId || !selectedServiceId || !selectedDate ? (
+            <p className="text-zinc-400">
+              Preencha barbeiro, serviço e data para carregar os horários.
+            </p>
+          ) : (
+            <div className="space-y-8">
+              <TimeSection
+                title="MANHÃ"
+                slots={morningSlots}
+                colorClass="text-sky-400"
+                barberId={selectedBarberId}
+                serviceId={selectedServiceId}
+                date={selectedDate}
+              />
+
+              <TimeSection
+                title="TARDE"
+                slots={afternoonSlots}
+                colorClass="text-yellow-400"
+                barberId={selectedBarberId}
+                serviceId={selectedServiceId}
+                date={selectedDate}
+              />
+
+              <TimeSection
+                title="NOITE"
+                slots={nightSlots}
+                colorClass="text-purple-400"
+                barberId={selectedBarberId}
+                serviceId={selectedServiceId}
+                date={selectedDate}
+              />
+            </div>
+          )}
         </div>
-      </section>
-    </main>
+      </div>
+    </div>
   );
-} 
+}
+
+function TimeSection({
+  title,
+  slots,
+  colorClass,
+  barberId,
+  serviceId,
+  date,
+}: {
+  title: string;
+  slots: string[];
+  colorClass: string;
+  barberId: string;
+  serviceId: string;
+  date: string;
+}) {
+  return (
+    <div>
+      <h3 className={`mb-3 text-lg font-bold ${colorClass}`}>--- {title} ---</h3>
+
+      {slots.length === 0 ? (
+        <p className="text-sm text-zinc-500">Nenhum horário disponível nesse período.</p>
+      ) : (
+        <div className="flex flex-wrap gap-3">
+          {slots.map((slot) => (
+            <form key={slot} action={createAppointmentAction}>
+              <input type="hidden" name="barberId" value={barberId} />
+              <input type="hidden" name="serviceId" value={serviceId} />
+              <input type="hidden" name="date" value={date} />
+              <input type="hidden" name="time" value={slot} />
+              <input type="hidden" name="notes" value="" />
+
+              <button
+                type="submit"
+                className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2 text-sm transition hover:border-white hover:bg-zinc-800"
+              >
+                {slot}
+              </button>
+            </form>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

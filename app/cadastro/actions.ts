@@ -32,18 +32,12 @@ export async function registerAction(formData: FormData) {
 
   const passwordHash = await hash(password, 10);
 
-  const user = await prisma.user.create({
+  await prisma.user.create({
     data: {
       name,
       email,
       passwordHash,
       role: "CUSTOMER",
-    },
-  });
-
-  await prisma.customerProfile.create({
-    data: {
-      userId: user.id,
     },
   });
 
