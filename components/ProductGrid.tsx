@@ -1,10 +1,10 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { formatCurrency } from "@/lib/utils";
 import AddToCartButton from "@/components/AddToCartButton";
 import { useCart } from "@/context/CartContext";
+import { normalizeProductImageUrl } from "@/lib/productImageUrl";
 
 type Product = {
   id: string;
@@ -45,12 +45,11 @@ export function ProductGrid({ products }: { products: Product[] }) {
             className="group overflow-hidden rounded-[1.8rem] border border-white/10 bg-white/[0.04] shadow-[0_20px_60px_rgba(0,0,0,0.28)] transition hover:border-sky-400/30 hover:bg-white/[0.06]"
           >
             <div className="relative h-64 border-b border-white/10 bg-black/10">
-              {product.imageUrl ? (
-                <Image
-                  src={product.imageUrl}
+              {normalizeProductImageUrl(product.imageUrl) ? (
+                <img
+                  src={normalizeProductImageUrl(product.imageUrl) || ""}
                   alt={product.name}
-                  fill
-                  className="object-contain p-6 transition duration-300 group-hover:scale-105"
+                  className="h-full w-full object-contain p-6 transition duration-300 group-hover:scale-105"
                 />
               ) : (
                 <div className="flex h-full items-center justify-center text-zinc-500">

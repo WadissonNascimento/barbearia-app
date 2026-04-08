@@ -2,6 +2,12 @@ import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import {
+  generateSlots,
+  isActiveAppointmentStatus,
+  isBlockedPeriod,
+  toMinutes,
+} from "@/lib/barberSchedule";
 import { createAppointmentAction } from "./actions";
 import { AutoSubmitFilters } from "./AutoSubmitFilters";
 
@@ -10,34 +16,6 @@ type SearchParams = {
   serviceId?: string;
   date?: string;
 };
-
-function toMinutes(time: string) {
-  const [hours, minutes] = time.split(":").map(Number);
-  return hours * 60 + minutes;
-}
-
-function minutesToTime(totalMinutes: number) {
-  const hours = Math.floor(totalMinutes / 60)
-    .toString()
-    .padStart(2, "0");
-  const minutes = (totalMinutes % 60).toString().padStart(2, "0");
-  return `${hours}:${minutes}`;
-}
-
-function generateSlots(startHour: number, endHour: number) {
-  const slots: string[] = [];
-  const step = 10;
-
-  let current = startHour * 60;
-  const end = endHour * 60;
-
-  while (current < end) {
-    slots.push(minutesToTime(current));
-    current += step;
-  }
-
-  return slots;
-}
 
 function formatDateLabel(dateString: string) {
   const date = new Date(`${dateString}T00:00:00`);
@@ -75,6 +53,14 @@ function getNextDays(count: number) {
   return days;
 }
 
+function splitSlotsByPeriod(slots: string[]) {
+  return {
+    morning: slots.filter((slot) => toMinutes(slot) < 12 * 60),
+    afternoon: slots.filter((slot) => toMinutes(slot) >= 12 * 60 && toMinutes(slot) < 18 * 60),
+    night: slots.filter((slot) => toMinutes(slot) >= 18 * 60),
+  };
+}
+
 export default async function AgendarPage({
   searchParams,
 }: {
@@ -100,31 +86,37 @@ export default async function AgendarPage({
     },
   });
 
-  const services = await prisma.service.findMany({
-    where: {
-      isActive: true,
-    },
-    orderBy: {
-      name: "asc",
-    },
-  });
-
   const today = getTodayString();
   const nextDays = getNextDays(14);
-
   const selectedBarberId = searchParams.barberId || "";
   const selectedServiceId = searchParams.serviceId || "";
   const selectedDate = searchParams.date || today;
 
+  const services = selectedBarberId
+    ? await prisma.service.findMany({
+        where: {
+          OR: [{ barberId: selectedBarberId }, { barberId: null }],
+          isActive: true,
+        },
+        orderBy: {
+          name: "asc",
+        },
+      })
+    : [];
+
   let selectedServiceDuration = 0;
-  let morningSlots: string[] = [];
-  let afternoonSlots: string[] = [];
-  let nightSlots: string[] = [];
+  let isDayAvailable = false;
+  let periodSlots = {
+    morning: [] as string[],
+    afternoon: [] as string[],
+    night: [] as string[],
+  };
 
   if (selectedBarberId && selectedServiceId && selectedDate) {
     const selectedService = await prisma.service.findFirst({
       where: {
         id: selectedServiceId,
+        OR: [{ barberId: selectedBarberId }, { barberId: null }],
         isActive: true,
       },
     });
@@ -132,33 +124,61 @@ export default async function AgendarPage({
     if (selectedService) {
       selectedServiceDuration = selectedService.duration;
 
-      const appointments = await prisma.appointment.findMany({
-        where: {
-          barberId: selectedBarberId,
-          date: {
-            gte: new Date(`${selectedDate}T00:00:00`),
-            lte: new Date(`${selectedDate}T23:59:59.999`),
-          },
-          status: {
-            not: "CANCELLED",
-          },
-        },
-        include: {
-          service: true,
-        },
-      });
+      const selectedDay = new Date(`${selectedDate}T00:00:00`);
+      const dayStart = new Date(`${selectedDate}T00:00:00`);
+      const dayEnd = new Date(`${selectedDate}T23:59:59.999`);
+      const dayOfWeek = selectedDay.getDay();
 
-      const now = new Date();
-      const isToday = selectedDate === today;
-      const nowMinutes = now.getHours() * 60 + now.getMinutes();
+      const [availability, appointments, blocks] = await Promise.all([
+        prisma.barberAvailability.findFirst({
+          where: {
+            barberId: selectedBarberId,
+            weekDay: dayOfWeek,
+            isActive: true,
+          },
+        }),
+        prisma.appointment.findMany({
+          where: {
+            barberId: selectedBarberId,
+            date: {
+              gte: dayStart,
+              lte: dayEnd,
+            },
+          },
+          include: {
+            service: true,
+          },
+        }),
+        prisma.barberBlock.findMany({
+          where: {
+            barberId: selectedBarberId,
+            startDateTime: {
+              lte: dayEnd,
+            },
+            endDateTime: {
+              gte: dayStart,
+            },
+          },
+        }),
+      ]);
 
-      const filterSlots = (slots: string[], periodEndHour: number) => {
-        return slots.filter((slot) => {
+      if (availability) {
+        isDayAvailable = true;
+
+        const generatedSlots = generateSlots(
+          availability.startTime,
+          availability.endTime
+        );
+        const dayEndMinutes = toMinutes(availability.endTime);
+        const now = new Date();
+        const isToday = selectedDate === today;
+        const nowMinutes = now.getHours() * 60 + now.getMinutes();
+
+        const validSlots = generatedSlots.filter((slot) => {
           const candidateStart = toMinutes(slot);
           const candidateEnd = candidateStart + selectedService.duration;
-          const periodEnd = periodEndHour * 60;
 
-          if (candidateEnd > periodEnd) {
+          if (candidateEnd > dayEndMinutes) {
             return false;
           }
 
@@ -166,25 +186,31 @@ export default async function AgendarPage({
             return false;
           }
 
+          const startDate = new Date(`${selectedDate}T${slot}:00`);
+          const endDate = new Date(startDate.getTime() + selectedService.duration * 60000);
+
+          if (isBlockedPeriod(startDate, endDate, blocks)) {
+            return false;
+          }
+
           const hasConflict = appointments.some((appointment) => {
+            if (!isActiveAppointmentStatus(appointment.status)) {
+              return false;
+            }
+
             const appointmentDate = new Date(appointment.date);
             const existingStart =
               appointmentDate.getHours() * 60 + appointmentDate.getMinutes();
             const existingEnd = existingStart + appointment.service.duration;
 
-            return (
-              candidateStart < existingEnd &&
-              candidateEnd > existingStart
-            );
+            return candidateStart < existingEnd && candidateEnd > existingStart;
           });
 
           return !hasConflict;
         });
-      };
 
-      morningSlots = filterSlots(generateSlots(8, 12), 12);
-      afternoonSlots = filterSlots(generateSlots(13, 18), 18);
-      nightSlots = filterSlots(generateSlots(18, 21), 21);
+        periodSlots = splitSlotsByPeriod(validSlots);
+      }
     }
   }
 
@@ -194,9 +220,9 @@ export default async function AgendarPage({
 
       <div className="mb-8 flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Agendar horário</h1>
+          <h1 className="text-3xl font-bold">Agendar horario</h1>
           <p className="text-zinc-400">
-            Escolha o barbeiro, o serviço, a data e depois selecione um horário disponível.
+            Escolha o barbeiro, o servico, a data e depois selecione um horario disponivel.
           </p>
         </div>
 
@@ -231,24 +257,26 @@ export default async function AgendarPage({
             </div>
 
             <div>
-              <label className="mb-2 block text-sm text-zinc-300">Serviço</label>
+              <label className="mb-2 block text-sm text-zinc-300">Servico</label>
               <select
                 name="serviceId"
                 defaultValue={selectedServiceId}
                 required
-                className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 outline-none"
+                disabled={!selectedBarberId}
+                className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 outline-none disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <option value="">Selecione</option>
                 {services.map((service) => (
                   <option key={service.id} value={service.id}>
                     {service.name} - R$ {service.price.toFixed(2)} - {service.duration} min
+                    {service.barberId ? " - Exclusivo" : " - Geral"}
                   </option>
                 ))}
               </select>
             </div>
 
             <div>
-              <label className="mb-3 block text-sm text-zinc-300">Calendário</label>
+              <label className="mb-3 block text-sm text-zinc-300">Calendario</label>
 
               <div className="grid grid-cols-2 gap-2">
                 {nextDays.map((day) => {
@@ -283,7 +311,7 @@ export default async function AgendarPage({
 
               {(!selectedBarberId || !selectedServiceId) && (
                 <p className="mt-3 text-xs text-zinc-500">
-                  Primeiro selecione o barbeiro e o serviço para liberar as datas.
+                  Primeiro selecione o barbeiro e o servico para liberar as datas.
                 </p>
               )}
             </div>
@@ -293,30 +321,34 @@ export default async function AgendarPage({
         <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
           <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h2 className="text-xl font-semibold">Horários disponíveis</h2>
+              <h2 className="text-xl font-semibold">Horarios disponiveis</h2>
               <p className="text-sm text-zinc-400">
                 {selectedDate
                   ? `Data escolhida: ${new Date(`${selectedDate}T00:00:00`).toLocaleDateString("pt-BR")}`
-                  : "Escolha barbeiro, serviço e data."}
+                  : "Escolha barbeiro, servico e data."}
               </p>
             </div>
 
             {selectedServiceDuration > 0 && (
               <div className="rounded-xl border border-zinc-700 px-4 py-2 text-sm text-zinc-300">
-                Duração do serviço: {selectedServiceDuration} min
+                Duracao do servico: {selectedServiceDuration} min
               </div>
             )}
           </div>
 
           {!selectedBarberId || !selectedServiceId || !selectedDate ? (
             <p className="text-zinc-400">
-              Preencha barbeiro, serviço e data para carregar os horários.
+              Preencha barbeiro, servico e data para carregar os horarios.
+            </p>
+          ) : !isDayAvailable ? (
+            <p className="text-zinc-400">
+              Este barbeiro nao possui disponibilidade ativa configurada para esse dia.
             </p>
           ) : (
             <div className="space-y-8">
               <TimeSection
-                title="MANHÃ"
-                slots={morningSlots}
+                title="MANHA"
+                slots={periodSlots.morning}
                 colorClass="text-sky-400"
                 barberId={selectedBarberId}
                 serviceId={selectedServiceId}
@@ -325,7 +357,7 @@ export default async function AgendarPage({
 
               <TimeSection
                 title="TARDE"
-                slots={afternoonSlots}
+                slots={periodSlots.afternoon}
                 colorClass="text-yellow-400"
                 barberId={selectedBarberId}
                 serviceId={selectedServiceId}
@@ -334,7 +366,7 @@ export default async function AgendarPage({
 
               <TimeSection
                 title="NOITE"
-                slots={nightSlots}
+                slots={periodSlots.night}
                 colorClass="text-purple-400"
                 barberId={selectedBarberId}
                 serviceId={selectedServiceId}
@@ -368,7 +400,7 @@ function TimeSection({
       <h3 className={`mb-3 text-lg font-bold ${colorClass}`}>--- {title} ---</h3>
 
       {slots.length === 0 ? (
-        <p className="text-sm text-zinc-500">Nenhum horário disponível nesse período.</p>
+        <p className="text-sm text-zinc-500">Nenhum horario disponivel nesse periodo.</p>
       ) : (
         <div className="flex flex-wrap gap-3">
           {slots.map((slot) => (

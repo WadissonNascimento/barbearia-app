@@ -113,11 +113,19 @@ export default function Header() {
           </Link>
 
           <Link
-            href="/carrinho"
+            href="/rastreio"
             onClick={() => setIsOpen(false)}
             className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-3 text-right text-sm text-white transition hover:border-sky-400/40 hover:bg-sky-500/10 active:scale-[0.98]"
           >
-            Carrinho ({cartCount})
+            Acompanhar rastreio
+          </Link>
+
+          <Link
+            href="/meu-perfil"
+            onClick={() => setIsOpen(false)}
+            className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-3 text-right text-sm text-white transition hover:border-sky-400/40 hover:bg-sky-500/10 active:scale-[0.98]"
+          >
+            Meu perfil
           </Link>
 
           <Link

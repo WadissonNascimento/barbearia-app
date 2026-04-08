@@ -1,0 +1,314 @@
+import { prisma } from "@/lib/prisma";
+import { normalizeAppointmentStatus } from "@/lib/appointmentStatus";
+
+export type BarberDashboardFilters = {
+  view?: "today" | "upcoming" | "all";
+  status?: string;
+  date?: string;
+};
+
+function matchesSearch(value: string, search: string) {
+  return value.toLowerCase().includes(search.toLowerCase());
+}
+
+function getDayRange(baseDate = new Date()) {
+  const start = new Date(baseDate);
+  start.setHours(0, 0, 0, 0);
+
+  const end = new Date(baseDate);
+  end.setHours(23, 59, 59, 999);
+
+  return { start, end };
+}
+
+function getSelectedDate(filters: BarberDashboardFilters) {
+  if (filters.date) {
+    const parsed = new Date(`${filters.date}T00:00:00`);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed;
+    }
+  }
+
+  return new Date();
+}
+
+export async function getBarberDashboardData(
+  barberId: string,
+  filters: BarberDashboardFilters
+) {
+  const selectedDate = getSelectedDate(filters);
+  const { start: selectedStart, end: selectedEnd } = getDayRange(selectedDate);
+  const { start: todayStart, end: todayEnd } = getDayRange(new Date());
+  const view = filters.view || "today";
+  const status = normalizeAppointmentStatus(filters.status || "ALL");
+
+  const appointmentWhere =
+    view === "all"
+      ? {
+          barberId,
+        }
+      : view === "upcoming"
+      ? {
+          barberId,
+          date: {
+            gte: new Date(),
+          },
+        }
+      : {
+          barberId,
+          date: {
+            gte: selectedStart,
+            lte: selectedEnd,
+          },
+        };
+
+  const appointments = await prisma.appointment.findMany({
+    where: {
+      ...appointmentWhere,
+      ...(status !== "ALL" ? { status } : {}),
+    },
+    include: {
+      customer: true,
+      service: true,
+    },
+    orderBy: {
+      date: "asc",
+    },
+  });
+
+  const [appointmentsToday, completedToday, upcomingAppointments, services, availabilities, blocks, clientNotes, allBarberAppointments] =
+    await Promise.all([
+      prisma.appointment.count({
+        where: {
+          barberId,
+          date: {
+            gte: todayStart,
+            lte: todayEnd,
+          },
+        },
+      }),
+      prisma.appointment.count({
+        where: {
+          barberId,
+          date: {
+            gte: todayStart,
+            lte: todayEnd,
+          },
+          status: {
+            in: ["COMPLETED", "DONE"],
+          },
+        },
+      }),
+      prisma.appointment.findMany({
+        where: {
+          barberId,
+          date: {
+            gte: new Date(),
+          },
+          status: {
+            notIn: ["CANCELLED", "COMPLETED", "DONE", "NO_SHOW"],
+          },
+        },
+        include: {
+          customer: true,
+          service: true,
+        },
+        orderBy: {
+          date: "asc",
+        },
+        take: 3,
+      }),
+      prisma.service.findMany({
+        where: {
+          barberId,
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+      }),
+      prisma.barberAvailability.findMany({
+        where: { barberId },
+        orderBy: {
+          weekDay: "asc",
+        },
+      }),
+      prisma.barberBlock.findMany({
+        where: {
+          barberId,
+          endDateTime: {
+            gte: new Date(),
+          },
+        },
+        orderBy: {
+          startDateTime: "asc",
+        },
+      }),
+      prisma.clientNote.findMany({
+        where: { barberId },
+      }),
+      prisma.appointment.findMany({
+        where: { barberId },
+        include: {
+          customer: true,
+        },
+        orderBy: {
+          date: "desc",
+        },
+      }),
+    ]);
+
+  const noteMap = new Map(
+    clientNotes.map((note) => [note.customerId, note.note] as const)
+  );
+
+  const clientsMap = new Map<
+    string,
+    {
+      id: string;
+      name: string;
+      email: string | null;
+      phone: string | null;
+      lastAppointment: Date;
+      totalAppointments: number;
+      note: string;
+    }
+  >();
+
+  for (const appointment of allBarberAppointments) {
+    if (!clientsMap.has(appointment.customerId)) {
+      clientsMap.set(appointment.customerId, {
+        id: appointment.customer.id,
+        name: appointment.customer.name || "Cliente",
+        email: appointment.customer.email || null,
+        phone: appointment.customer.phone || null,
+        lastAppointment: appointment.date,
+        totalAppointments: 1,
+        note: noteMap.get(appointment.customerId) || "",
+      });
+      continue;
+    }
+
+    const existing = clientsMap.get(appointment.customerId)!;
+    existing.totalAppointments += 1;
+  }
+
+  return {
+    filters: {
+      view,
+      status,
+      date: selectedDate.toISOString().slice(0, 10),
+    },
+    summary: {
+      appointmentsToday,
+      completedToday,
+      nextAppointments: upcomingAppointments,
+    },
+    appointments: appointments.map((appointment) => ({
+      ...appointment,
+      status: normalizeAppointmentStatus(appointment.status),
+    })),
+    services,
+    availabilities,
+    blocks,
+    clients: Array.from(clientsMap.values()),
+  };
+}
+
+export async function getBarberClientsDirectory(barberId: string, search = "") {
+  const dashboard = await getBarberDashboardData(barberId, {
+    view: "all",
+    status: "ALL",
+  });
+
+  const normalizedSearch = search.trim();
+  const clients = normalizedSearch
+    ? dashboard.clients.filter((client) =>
+        [client.name, client.email || "", client.phone || ""].some((value) =>
+          matchesSearch(value, normalizedSearch)
+        )
+      )
+    : dashboard.clients;
+
+  return {
+    search: normalizedSearch,
+    clients,
+  };
+}
+
+export async function getBarberClientProfile(barberId: string, customerId: string) {
+  const customer = await prisma.user.findFirst({
+    where: {
+      id: customerId,
+      customerAppointments: {
+        some: {
+          barberId,
+        },
+      },
+    },
+    include: {
+      customerAppointments: {
+        where: {
+          barberId,
+        },
+        include: {
+          service: true,
+        },
+        orderBy: {
+          date: "desc",
+        },
+      },
+      customerClientNotes: {
+        where: {
+          barberId,
+        },
+      },
+    },
+  });
+
+  if (!customer) {
+    return null;
+  }
+
+  const totalAppointments = customer.customerAppointments.length;
+  const completedAppointments = customer.customerAppointments.filter(
+    (appointment) => normalizeAppointmentStatus(appointment.status) === "COMPLETED"
+  ).length;
+  const totalSpent = customer.customerAppointments.reduce(
+    (sum, appointment) => sum + appointment.service.price,
+    0
+  );
+  const favoriteServiceMap = new Map<string, number>();
+
+  for (const appointment of customer.customerAppointments) {
+    favoriteServiceMap.set(
+      appointment.service.name,
+      (favoriteServiceMap.get(appointment.service.name) || 0) + 1
+    );
+  }
+
+  const favoriteService = Array.from(favoriteServiceMap.entries()).sort(
+    (a, b) => b[1] - a[1]
+  )[0]?.[0] || null;
+
+  return {
+    customer: {
+      id: customer.id,
+      name: customer.name || "Cliente",
+      email: customer.email || null,
+      phone: customer.phone || null,
+      createdAt: customer.createdAt,
+      note: customer.customerClientNotes[0]?.note || "",
+    },
+    stats: {
+      totalAppointments,
+      completedAppointments,
+      totalSpent,
+      favoriteService,
+      lastAppointment: customer.customerAppointments[0]?.date || null,
+    },
+    appointments: customer.customerAppointments.map((appointment) => ({
+      ...appointment,
+      status: normalizeAppointmentStatus(appointment.status),
+    })),
+  };
+}

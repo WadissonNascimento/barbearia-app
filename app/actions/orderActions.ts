@@ -113,7 +113,47 @@ export async function getMyOrders(customerId?: string) {
 }
 
 export async function confirmOrder(orderId: string) {
-  await updateOrderStatus(orderId, "CONFIRMED");
+  const session = await auth();
+
+  if (!session?.user || session.user.role !== "ADMIN") {
+    throw new Error("Nao autorizado.");
+  }
+
+  await prisma.order.update({
+    where: { id: orderId },
+    data: {
+      status: "CONFIRMED",
+      adminApproved: true,
+    },
+  });
+
+  revalidatePath("/admin/pedidos");
+  revalidatePath("/meus-pedidos");
+}
+
+export async function saveTrackingCode(orderId: string, trackingCode: string) {
+  const session = await auth();
+
+  if (!session?.user || session.user.role !== "ADMIN") {
+    throw new Error("Nao autorizado.");
+  }
+
+  const normalizedCode = trackingCode.trim().toUpperCase();
+
+  if (!normalizedCode) {
+    throw new Error("Informe um codigo de rastreio valido.");
+  }
+
+  await prisma.order.update({
+    where: { id: orderId },
+    data: {
+      trackingCode: normalizedCode,
+      status: "SHIPPED",
+    },
+  });
+
+  revalidatePath("/admin/pedidos");
+  revalidatePath("/meus-pedidos");
 }
 
 export async function updateOrderStatus(orderId: string, status: string) {

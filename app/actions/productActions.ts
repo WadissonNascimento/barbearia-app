@@ -3,6 +3,7 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { normalizeProductImageUrl, saveProductImage } from "@/lib/productImages";
 
 async function ensureProductAccess() {
   const session = await auth();
@@ -18,6 +19,7 @@ function revalidateProductViews() {
   revalidatePath("/carrinho");
   revalidatePath("/admin");
   revalidatePath("/admin/produtos");
+  revalidatePath("/admin/produtos/novo");
 }
 
 export async function createProduct(data: {
@@ -34,8 +36,38 @@ export async function createProduct(data: {
       name: data.name.trim(),
       description: data.description?.trim() || null,
       price: Number(data.price),
-      imageUrl: data.imageUrl?.trim() || null,
+      imageUrl: normalizeProductImageUrl(data.imageUrl?.trim() || null),
       stock: Number(data.stock),
+    },
+  });
+
+  revalidateProductViews();
+  return product;
+}
+
+export async function createProductFromForm(formData: FormData) {
+  await ensureProductAccess();
+
+  const name = String(formData.get("name") || "").trim();
+  const description = String(formData.get("description") || "").trim();
+  const price = Number(formData.get("price") || 0);
+  const stock = Number(formData.get("stock") || 0);
+  const imageFile = formData.get("image");
+
+  if (!name || !price || stock < 0) {
+    throw new Error("Preencha nome, preco e estoque corretamente.");
+  }
+
+  const imageUrl =
+    imageFile instanceof File ? await saveProductImage(imageFile) : null;
+
+  const product = await prisma.product.create({
+    data: {
+      name,
+      description: description || null,
+      price,
+      stock,
+      imageUrl,
     },
   });
 
@@ -58,11 +90,37 @@ export async function updateProduct(
 
   const product = await prisma.product.update({
     where: { id },
-    data,
+    data: {
+      ...data,
+      imageUrl:
+        data.imageUrl === undefined
+          ? undefined
+          : normalizeProductImageUrl(data.imageUrl),
+    },
   });
 
   revalidateProductViews();
   return product;
+}
+
+export async function updateProductImage(formData: FormData) {
+  await ensureProductAccess();
+
+  const productId = String(formData.get("productId") || "");
+  const imageFile = formData.get("image");
+
+  if (!productId || !(imageFile instanceof File) || imageFile.size === 0) {
+    throw new Error("Selecione uma imagem para enviar.");
+  }
+
+  const imageUrl = await saveProductImage(imageFile);
+
+  await prisma.product.update({
+    where: { id: productId },
+    data: { imageUrl },
+  });
+
+  revalidateProductViews();
 }
 
 export async function deleteProduct(id: string) {

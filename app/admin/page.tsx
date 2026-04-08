@@ -20,6 +20,11 @@ const adminSections = [
     description: "Criar, editar, ocultar e excluir produtos da loja.",
   },
   {
+    href: "/admin/servicos",
+    title: "Servicos Gerais",
+    description: "Gerencie os servicos padrao disponiveis para todos os barbeiros.",
+  },
+  {
     href: "/admin/pedidos",
     title: "Pedidos da Loja",
     description: "Acompanhe pedidos, altere status e gerencie a operacao.",

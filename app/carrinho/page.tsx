@@ -17,6 +17,7 @@ export default function CarrinhoPage() {
   const [customerName, setCustomerName] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
+  const [customerAddress, setCustomerAddress] = useState("");
 
   async function finalizarPedido() {
     if (!cart.length) {
@@ -24,8 +25,8 @@ export default function CarrinhoPage() {
       return;
     }
 
-    if (!customerName || !customerEmail || !customerPhone) {
-      alert("Preencha nome, e-mail e telefone para finalizar.");
+    if (!customerName || !customerEmail || !customerPhone || !customerAddress) {
+      alert("Preencha nome, e-mail, telefone e endereco para finalizar.");
       return;
     }
 
@@ -41,6 +42,7 @@ export default function CarrinhoPage() {
           customerName,
           customerEmail,
           customerPhone,
+          customerAddress,
           items: cart.map((item) => ({
             productId: item.productId,
             quantity: item.quantity,
@@ -55,7 +57,10 @@ export default function CarrinhoPage() {
       }
 
       clearCart();
-      window.location.href = data.initPoint || data.redirectTo || "/sucesso";
+      window.location.href =
+        data.initPoint ||
+        data.redirectTo ||
+        `/rastreio?email=${encodeURIComponent(customerEmail)}`;
     } catch (error) {
       alert(error instanceof Error ? error.message : "Erro ao finalizar pedido.");
     } finally {
@@ -162,6 +167,12 @@ export default function CarrinhoPage() {
                 onChange={(e) => setCustomerPhone(e.target.value)}
                 placeholder="Seu telefone"
                 className="w-full rounded-xl bg-[#0a1324] px-4 py-3 text-white outline-none"
+              />
+              <textarea
+                value={customerAddress}
+                onChange={(e) => setCustomerAddress(e.target.value)}
+                placeholder="Endereco para entrega"
+                className="min-h-28 w-full rounded-xl bg-[#0a1324] px-4 py-3 text-white outline-none"
               />
             </div>
 

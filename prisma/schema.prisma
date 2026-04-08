@@ -23,10 +23,15 @@ model User {
   accounts       Account[]
   sessions       Session[]
 
-  customerAppointments Appointment[] @relation("CustomerAppointments")
-  barberAppointments   Appointment[] @relation("BarberAppointments")
+  customerAppointments Appointment[]      @relation("CustomerAppointments")
+  barberAppointments   Appointment[]      @relation("BarberAppointments")
+  barberServices       Service[]          @relation("BarberServices")
+  barberAvailabilities BarberAvailability[]
+  barberBlocks         BarberBlock[]
+  barberClientNotes    ClientNote[]       @relation("BarberClientNotes")
+  customerClientNotes  ClientNote[]       @relation("CustomerClientNotes")
 
-  orders         Order[]        @relation("CustomerOrders")
+  orders               Order[]            @relation("CustomerOrders")
 }
 
 model Account {
@@ -67,6 +72,7 @@ model VerificationToken {
 
 model Service {
   id          String        @id @default(cuid())
+  barberId    String?
   name        String
   description String?
   price       Float
@@ -75,7 +81,11 @@ model Service {
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
+  barber       User?         @relation("BarberServices", fields: [barberId], references: [id], onDelete: Cascade)
   appointments Appointment[]
+
+  @@index([barberId])
+  @@index([barberId, isActive])
 }
 
 model Appointment {
@@ -97,6 +107,54 @@ model Appointment {
   @@index([barberId])
   @@index([serviceId])
   @@index([date])
+  @@index([barberId, status])
+}
+
+model BarberAvailability {
+  id         String   @id @default(cuid())
+  barberId   String
+  weekDay    Int
+  startTime  String
+  endTime    String
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  barber User @relation(fields: [barberId], references: [id], onDelete: Cascade)
+
+  @@unique([barberId, weekDay])
+  @@index([barberId, weekDay])
+}
+
+model BarberBlock {
+  id            String   @id @default(cuid())
+  barberId      String
+  startDateTime DateTime
+  endDateTime   DateTime
+  reason        String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  barber User @relation(fields: [barberId], references: [id], onDelete: Cascade)
+
+  @@index([barberId, startDateTime])
+  @@index([barberId, endDateTime])
+}
+
+model ClientNote {
+  id         String   @id @default(cuid())
+  barberId   String
+  customerId String
+  note       String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  barber   User @relation("BarberClientNotes", fields: [barberId], references: [id], onDelete: Cascade)
+  customer User @relation("CustomerClientNotes", fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@unique([barberId, customerId])
+  @@index([barberId])
+  @@index([customerId])
 }
 
 model Product {

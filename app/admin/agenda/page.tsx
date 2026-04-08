@@ -2,6 +2,10 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import {
+  appointmentStatusColor,
+  appointmentStatusLabel,
+} from "@/lib/appointmentStatus";
 
 type SearchParams = {
   barberId?: string;
@@ -170,18 +174,8 @@ export default async function AdminAgendaPage({
                       <td className="px-4 py-3">{appointment.customer.name}</td>
                       <td className="px-4 py-3">{appointment.service.name}</td>
                       <td className="px-4 py-3">
-                        <span
-                          className={
-                            appointment.status === "CONFIRMED"
-                              ? "text-green-400"
-                              : appointment.status === "CANCELLED"
-                              ? "text-red-400"
-                              : appointment.status === "DONE"
-                              ? "text-blue-400"
-                              : "text-yellow-400"
-                          }
-                        >
-                          {appointment.status}
+                        <span className={appointmentStatusColor(appointment.status)}>
+                          {appointmentStatusLabel(appointment.status)}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-zinc-400">

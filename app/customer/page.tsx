@@ -3,6 +3,10 @@ import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { LogoutButton } from "@/components/LogoutButton";
+import {
+  appointmentStatusColor,
+  appointmentStatusLabel,
+} from "@/lib/appointmentStatus";
 
 export default async function CustomerPage() {
   const session = await auth();
@@ -39,12 +43,19 @@ export default async function CustomerPage() {
         <LogoutButton />
       </div>
 
-      <div className="mb-8">
+      <div className="mb-8 flex flex-wrap gap-3">
         <Link
           href="/agendar"
           className="inline-block rounded-xl bg-white px-5 py-3 font-semibold text-black transition hover:opacity-90"
         >
           Novo agendamento
+        </Link>
+
+        <Link
+          href="/meu-perfil"
+          className="inline-block rounded-xl border border-zinc-700 px-5 py-3 font-semibold text-white transition hover:bg-zinc-800"
+        >
+          Meu perfil
         </Link>
       </div>
 
@@ -87,18 +98,8 @@ export default async function CustomerPage() {
                       <td className="px-4 py-3">{appointment.barber.name}</td>
                       <td className="px-4 py-3">{appointment.service.name}</td>
                       <td className="px-4 py-3">
-                        <span
-                          className={
-                            appointment.status === "CONFIRMED"
-                              ? "text-green-400"
-                              : appointment.status === "CANCELLED"
-                              ? "text-red-400"
-                              : appointment.status === "DONE"
-                              ? "text-blue-400"
-                              : "text-yellow-400"
-                          }
-                        >
-                          {appointment.status}
+                        <span className={appointmentStatusColor(appointment.status)}>
+                          {appointmentStatusLabel(appointment.status)}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-zinc-400">

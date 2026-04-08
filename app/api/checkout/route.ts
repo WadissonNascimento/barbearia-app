@@ -7,6 +7,7 @@ const schema = z.object({
   customerName: z.string().min(2),
   customerEmail: z.string().email(),
   customerPhone: z.string().min(8),
+  customerAddress: z.string().min(8),
   items: z
     .array(
       z.object({
@@ -67,12 +68,21 @@ export async function POST(request: Request) {
           isActive: true,
         },
       });
+    } else {
+      customer = await prisma.user.update({
+        where: { id: customer.id },
+        data: {
+          name: parsed.customerName,
+          phone: parsed.customerPhone,
+        },
+      });
     }
 
     const order = await prisma.order.create({
       data: {
         customerId: customer.id,
         total: orderTotal,
+        notes: `Endereco de entrega: ${parsed.customerAddress}`,
         items: {
           create: parsed.items.map((item) => {
             const product = dbProducts.find((p) => p.id === item.productId)!;
@@ -93,7 +103,7 @@ export async function POST(request: Request) {
 
     if (mercadoPagoDisabled) {
       return NextResponse.json({
-        redirectTo: `${baseUrl}/sucesso?pedido=${order.id}`,
+        redirectTo: `${baseUrl}/rastreio?email=${encodeURIComponent(parsed.customerEmail)}`,
         orderId: order.id,
       });
     }
@@ -139,9 +149,9 @@ export async function POST(request: Request) {
       },
       external_reference: order.id,
       back_urls: {
-        success: `${baseUrl}/sucesso`,
+        success: `${baseUrl}/rastreio?email=${encodeURIComponent(parsed.customerEmail)}`,
         failure: `${baseUrl}/falha`,
-        pending: `${baseUrl}/sucesso`,
+        pending: `${baseUrl}/rastreio?email=${encodeURIComponent(parsed.customerEmail)}`,
       },
     };
 

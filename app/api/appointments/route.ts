@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { buildWhatsAppUrl } from "@/lib/utils";
+import {
+  isActiveAppointmentStatus,
+  isBlockedPeriod,
+  toMinutes,
+} from "@/lib/barberSchedule";
 
 const appointmentSchema = z.object({
   customer: z.string().min(2),
@@ -35,14 +40,26 @@ export async function POST(request: Request) {
       },
     });
 
+    if (!barber) {
+      return NextResponse.json(
+        { message: "Barbeiro invalido ou inativo." },
+        { status: 400 }
+      );
+    }
+
     const service = await prisma.service.findFirst({
       where: {
         OR: [{ id: parsed.service }, { name: parsed.service }],
+        AND: [
+          {
+            OR: [{ barberId: barber.id }, { barberId: null }],
+          },
+        ],
         isActive: true,
       },
     });
 
-    if (!barber || !service) {
+    if (!service) {
       return NextResponse.json(
         { message: "Barbeiro ou servico invalido." },
         { status: 400 }
@@ -57,15 +74,91 @@ export async function POST(request: Request) {
       );
     }
 
-    const existing = await prisma.appointment.findFirst({
-      where: {
-        barberId: barber.id,
-        date: appointmentDate,
-        status: { not: "CANCELLED" },
-      },
+    const dayStart = new Date(`${parsed.date}T00:00:00`);
+    const dayEnd = new Date(`${parsed.date}T23:59:59.999`);
+    const dayOfWeek = new Date(`${parsed.date}T00:00:00`).getDay();
+
+    const [availability, sameDayAppointments, blocks] = await Promise.all([
+      prisma.barberAvailability.findFirst({
+        where: {
+          barberId: barber.id,
+          weekDay: dayOfWeek,
+          isActive: true,
+        },
+      }),
+      prisma.appointment.findMany({
+        where: {
+          barberId: barber.id,
+          date: {
+            gte: dayStart,
+            lte: dayEnd,
+          },
+        },
+        include: {
+          service: true,
+        },
+      }),
+      prisma.barberBlock.findMany({
+        where: {
+          barberId: barber.id,
+          startDateTime: {
+            lte: dayEnd,
+          },
+          endDateTime: {
+            gte: dayStart,
+          },
+        },
+      }),
+    ]);
+
+    if (!availability) {
+      return NextResponse.json(
+        { message: "Esse barbeiro nao atende nesse dia." },
+        { status: 400 }
+      );
+    }
+
+    const selectedStartMinutes = toMinutes(parsed.time);
+    const selectedEndMinutes = selectedStartMinutes + service.duration;
+    const availabilityStart = toMinutes(availability.startTime);
+    const availabilityEnd = toMinutes(availability.endTime);
+
+    if (
+      selectedStartMinutes < availabilityStart ||
+      selectedEndMinutes > availabilityEnd
+    ) {
+      return NextResponse.json(
+        { message: "Horario fora da disponibilidade do barbeiro." },
+        { status: 400 }
+      );
+    }
+
+    const endDate = new Date(appointmentDate.getTime() + service.duration * 60000);
+    if (isBlockedPeriod(appointmentDate, endDate, blocks)) {
+      return NextResponse.json(
+        { message: "Horario bloqueado pelo barbeiro." },
+        { status: 400 }
+      );
+    }
+
+    const conflict = sameDayAppointments.some((appointment) => {
+      if (!isActiveAppointmentStatus(appointment.status)) {
+        return false;
+      }
+
+      const existingDate = new Date(appointment.date);
+      const existingStartMinutes =
+        existingDate.getHours() * 60 + existingDate.getMinutes();
+      const existingEndMinutes =
+        existingStartMinutes + appointment.service.duration;
+
+      return (
+        selectedStartMinutes < existingEndMinutes &&
+        selectedEndMinutes > existingStartMinutes
+      );
     });
 
-    if (existing) {
+    if (conflict) {
       return NextResponse.json(
         { message: "Esse horario ja esta ocupado para esse barbeiro." },
         { status: 400 }

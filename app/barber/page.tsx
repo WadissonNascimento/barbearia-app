@@ -1,10 +1,24 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
-import { prisma } from "@/lib/prisma";
 import { LogoutButton } from "@/components/LogoutButton";
-import { updateAppointmentStatusAction } from "./actions";
+import { MetricCard } from "./_components/MetricCard";
+import { AppointmentsSection } from "./_components/AppointmentsSection";
+import { ServicesSection } from "./_components/ServicesSection";
+import { AvailabilitySection } from "./_components/AvailabilitySection";
+import { ClientsSection } from "./_components/ClientsSection";
+import { getBarberDashboardData } from "./data";
 
-export default async function BarberPage() {
+type SearchParams = {
+  view?: "today" | "upcoming" | "all";
+  status?: string;
+  date?: string;
+};
+
+export default async function BarberPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
   const session = await auth();
 
   if (!session?.user) {
@@ -15,159 +29,117 @@ export default async function BarberPage() {
     redirect("/painel");
   }
 
-  const appointments = await prisma.appointment.findMany({
-    where: {
-      barberId: session.user.id,
-    },
-    include: {
-      customer: true,
-      service: true,
-    },
-    orderBy: {
-      date: "asc",
-    },
-  });
+  const dashboard = await getBarberDashboardData(session.user.id, searchParams);
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10 text-white">
-      <div className="mb-8 flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Painel do Barbeiro</h1>
-          <p className="text-zinc-400">Bem-vindo, {session.user.name}</p>
+    <div className="bg-[radial-gradient(circle_at_top,#1a2236_0%,#090b12_42%,#05060a_100%)]">
+      <div className="mx-auto max-w-7xl px-4 py-10 text-white">
+        <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <p className="text-sm uppercase tracking-[0.32em] text-[#d4a15d]">
+              Painel BARBER
+            </p>
+            <h1 className="mt-2 text-4xl font-semibold tracking-tight">
+              Rotina do barbeiro
+            </h1>
+            <p className="mt-3 max-w-2xl text-sm text-zinc-400">
+              Gerencie apenas sua operacao: agenda, servicos, disponibilidade e clientes.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 px-4 py-3 text-right">
+              <p className="text-sm text-zinc-400">Logado como</p>
+              <p className="font-medium text-white">{session.user.name || "Barbeiro"}</p>
+            </div>
+            <LogoutButton />
+          </div>
         </div>
 
-        <LogoutButton />
-      </div>
+        <div className="grid gap-4 md:grid-cols-3">
+          <MetricCard
+            label="Agendamentos Hoje"
+            value={dashboard.summary.appointmentsToday}
+            helper="Quantidade total de horarios no dia atual."
+          />
+          <MetricCard
+            label="Concluidos Hoje"
+            value={dashboard.summary.completedToday}
+            helper="Atendimentos finalizados com sucesso hoje."
+          />
+          <MetricCard
+            label="Proximo Horario"
+            value={
+              dashboard.summary.nextAppointments[0]
+                ? new Date(dashboard.summary.nextAppointments[0].date).toLocaleTimeString(
+                    "pt-BR",
+                    { hour: "2-digit", minute: "2-digit" }
+                  )
+                : "--:--"
+            }
+            helper={
+              dashboard.summary.nextAppointments[0]
+                ? dashboard.summary.nextAppointments[0].customer.name || "Cliente"
+                : "Nenhum atendimento futuro confirmado."
+            }
+          />
+        </div>
 
-      <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
-        <h2 className="mb-4 text-xl font-semibold">Minha agenda</h2>
+        <div className="mt-8 grid gap-8">
+          <section className="rounded-[28px] border border-zinc-800 bg-zinc-900/90 p-6 shadow-[0_18px_40px_rgba(0,0,0,0.18)]">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <h2 className="text-2xl font-semibold text-white">Proximos agendamentos</h2>
+                <p className="mt-1 text-sm text-zinc-400">
+                  Um resumo rapido do que vem na sequencia do seu dia.
+                </p>
+              </div>
+            </div>
 
-        {appointments.length === 0 ? (
-          <p className="text-zinc-400">Nenhum agendamento encontrado.</p>
-        ) : (
-          <div className="space-y-4">
-            {appointments.map((appointment) => {
-              const date = new Date(appointment.date);
-
-              return (
-                <div
-                  key={appointment.id}
-                  className="rounded-xl border border-zinc-800 bg-zinc-950 p-4"
-                >
-                  <div className="grid gap-2 text-sm md:grid-cols-6">
-                    <div>
-                      <p className="text-zinc-400">Data</p>
-                      <p>{date.toLocaleDateString("pt-BR")}</p>
-                    </div>
-
-                    <div>
-                      <p className="text-zinc-400">Hora</p>
-                      <p>
-                        {date.toLocaleTimeString("pt-BR", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </p>
-                    </div>
-
-                    <div>
-                      <p className="text-zinc-400">Cliente</p>
-                      <p>{appointment.customer.name}</p>
-                    </div>
-
-                    <div>
-                      <p className="text-zinc-400">Servico</p>
-                      <p>{appointment.service.name}</p>
-                    </div>
-
-                    <div>
-                      <p className="text-zinc-400">Status</p>
-                      <p
-                        className={
-                          appointment.status === "CONFIRMED"
-                            ? "text-green-400"
-                            : appointment.status === "CANCELLED"
-                            ? "text-red-400"
-                            : appointment.status === "DONE"
-                            ? "text-blue-400"
-                            : "text-yellow-400"
-                        }
-                      >
-                        {appointment.status}
-                      </p>
-                    </div>
-
-                    <div>
-                      <p className="text-zinc-400">Obs</p>
-                      <p>{appointment.notes || "-"}</p>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 flex gap-3">
-                    {appointment.status === "PENDING" && (
-                      <>
-                        <form action={updateAppointmentStatusAction}>
-                          <input
-                            type="hidden"
-                            name="appointmentId"
-                            value={appointment.id}
-                          />
-                          <input
-                            type="hidden"
-                            name="status"
-                            value="CONFIRMED"
-                          />
-                          <button
-                            type="submit"
-                            className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold hover:bg-green-500"
-                          >
-                            Confirmar
-                          </button>
-                        </form>
-
-                        <form action={updateAppointmentStatusAction}>
-                          <input
-                            type="hidden"
-                            name="appointmentId"
-                            value={appointment.id}
-                          />
-                          <input
-                            type="hidden"
-                            name="status"
-                            value="CANCELLED"
-                          />
-                          <button
-                            type="submit"
-                            className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold hover:bg-red-500"
-                          >
-                            Cancelar
-                          </button>
-                        </form>
-                      </>
-                    )}
-
-                    {appointment.status === "CONFIRMED" && (
-                      <form action={updateAppointmentStatusAction}>
-                        <input
-                          type="hidden"
-                          name="appointmentId"
-                          value={appointment.id}
-                        />
-                        <input type="hidden" name="status" value="DONE" />
-                        <button
-                          type="submit"
-                          className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold hover:bg-blue-500"
-                        >
-                          Marcar como concluido
-                        </button>
-                      </form>
-                    )}
-                  </div>
+            <div className="mt-5 grid gap-4 lg:grid-cols-3">
+              {dashboard.summary.nextAppointments.length === 0 ? (
+                <div className="rounded-3xl border border-dashed border-zinc-700 bg-zinc-950/60 p-6 text-sm text-zinc-400 lg:col-span-3">
+                  Nao ha proximos agendamentos no momento.
                 </div>
-              );
-            })}
-          </div>
-        )}
+              ) : (
+                dashboard.summary.nextAppointments.map((appointment) => (
+                  <div
+                    key={appointment.id}
+                    className="rounded-3xl border border-zinc-800 bg-zinc-950/70 p-5"
+                  >
+                    <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">
+                      {new Date(appointment.date).toLocaleDateString("pt-BR")}
+                    </p>
+                    <p className="mt-3 text-2xl font-semibold text-white">
+                      {new Date(appointment.date).toLocaleTimeString("pt-BR", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </p>
+                    <p className="mt-2 text-base text-white">
+                      {appointment.customer.name || "Cliente"}
+                    </p>
+                    <p className="mt-1 text-sm text-zinc-400">{appointment.service.name}</p>
+                  </div>
+                ))
+              )}
+            </div>
+          </section>
+
+          <AppointmentsSection
+            appointments={dashboard.appointments}
+            filters={dashboard.filters}
+          />
+
+          <ServicesSection services={dashboard.services} />
+
+          <AvailabilitySection
+            availabilities={dashboard.availabilities}
+            blocks={dashboard.blocks}
+          />
+
+          <ClientsSection clients={dashboard.clients} />
+        </div>
       </div>
     </div>
   );
