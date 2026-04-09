@@ -3,10 +3,12 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { buildWhatsAppUrl } from "@/lib/utils";
 import {
+  getAppointmentServicesOccupiedDuration,
   isActiveAppointmentStatus,
   isBlockedPeriod,
   toMinutes,
 } from "@/lib/barberSchedule";
+import { calculateServiceFinancials } from "@/lib/financials";
 
 const appointmentSchema = z.object({
   customer: z.string().min(2),
@@ -95,7 +97,7 @@ export async function POST(request: Request) {
           },
         },
         include: {
-          service: true,
+          services: true,
         },
       }),
       prisma.barberBlock.findMany({
@@ -119,7 +121,14 @@ export async function POST(request: Request) {
     }
 
     const selectedStartMinutes = toMinutes(parsed.time);
-    const selectedEndMinutes = selectedStartMinutes + service.duration;
+    const selectedEndMinutes =
+      selectedStartMinutes +
+      getAppointmentServicesOccupiedDuration([
+        {
+          durationSnapshot: service.duration,
+          bufferAfter: service.bufferAfter,
+        },
+      ]);
     const availabilityStart = toMinutes(availability.startTime);
     const availabilityEnd = toMinutes(availability.endTime);
 
@@ -150,7 +159,8 @@ export async function POST(request: Request) {
       const existingStartMinutes =
         existingDate.getHours() * 60 + existingDate.getMinutes();
       const existingEndMinutes =
-        existingStartMinutes + appointment.service.duration;
+        existingStartMinutes +
+        getAppointmentServicesOccupiedDuration(appointment.services);
 
       return (
         selectedStartMinutes < existingEndMinutes &&
@@ -197,8 +207,27 @@ Telefone: ${parsed.phone}${parsed.notes ? `\nObs: ${parsed.notes}` : ""}`;
       data: {
         customerId: customer.id,
         barberId: barber.id,
-        serviceId: service.id,
         date: appointmentDate,
+        services: {
+          create: (() => {
+            const financials = calculateServiceFinancials(service);
+
+            return [
+              {
+                serviceId: service.id,
+                orderIndex: 0,
+                nameSnapshot: service.name,
+                priceSnapshot: service.price,
+                durationSnapshot: service.duration,
+                bufferAfter: service.bufferAfter || 0,
+                commissionTypeSnapshot: financials.commissionType,
+                commissionValueSnapshot: financials.commissionValue,
+                barberPayoutSnapshot: financials.barberPayout,
+                shopRevenueSnapshot: financials.shopRevenue,
+              },
+            ];
+          })(),
+        },
         notes: parsed.notes || `Contato: ${whatsappUrl}`,
       },
     });

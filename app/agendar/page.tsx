@@ -4,16 +4,19 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import {
   generateSlots,
+  getAppointmentServicesOccupiedDuration,
   isActiveAppointmentStatus,
   isBlockedPeriod,
+  isBlockedByRecurringBlock,
   toMinutes,
 } from "@/lib/barberSchedule";
-import { createAppointmentAction } from "./actions";
+import { formatCurrency } from "@/lib/utils";
 import { AutoSubmitFilters } from "./AutoSubmitFilters";
+import AppointmentSlotForm from "@/components/AppointmentSlotForm";
 
 type SearchParams = {
   barberId?: string;
-  serviceId?: string;
+  serviceIds?: string;
   date?: string;
 };
 
@@ -39,9 +42,9 @@ function getNextDays(count: number) {
   const base = new Date();
   base.setHours(0, 0, 0, 0);
 
-  for (let i = 0; i < count; i++) {
+  for (let index = 0; index < count; index += 1) {
     const current = new Date(base);
-    current.setDate(base.getDate() + i);
+    current.setDate(base.getDate() + index);
 
     const year = current.getFullYear();
     const month = String(current.getMonth() + 1).padStart(2, "0");
@@ -56,7 +59,9 @@ function getNextDays(count: number) {
 function splitSlotsByPeriod(slots: string[]) {
   return {
     morning: slots.filter((slot) => toMinutes(slot) < 12 * 60),
-    afternoon: slots.filter((slot) => toMinutes(slot) >= 12 * 60 && toMinutes(slot) < 18 * 60),
+    afternoon: slots.filter(
+      (slot) => toMinutes(slot) >= 12 * 60 && toMinutes(slot) < 18 * 60
+    ),
     night: slots.filter((slot) => toMinutes(slot) >= 18 * 60),
   };
 }
@@ -89,7 +94,10 @@ export default async function AgendarPage({
   const today = getTodayString();
   const nextDays = getNextDays(14);
   const selectedBarberId = searchParams.barberId || "";
-  const selectedServiceId = searchParams.serviceId || "";
+  const selectedServiceIds = String(searchParams.serviceIds || "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
   const selectedDate = searchParams.date || today;
 
   const services = selectedBarberId
@@ -104,7 +112,24 @@ export default async function AgendarPage({
       })
     : [];
 
-  let selectedServiceDuration = 0;
+  const selectedServices = services.filter((service) =>
+    selectedServiceIds.includes(service.id)
+  );
+  const selectedTotalDuration = getAppointmentServicesOccupiedDuration(
+    selectedServices.map((service) => ({
+      durationSnapshot: service.duration,
+      bufferAfter: service.bufferAfter,
+    }))
+  );
+  const selectedBaseDuration = selectedServices.reduce(
+    (sum, service) => sum + service.duration,
+    0
+  );
+  const selectedTotalPrice = selectedServices.reduce(
+    (sum, service) => sum + service.price,
+    0
+  );
+
   let isDayAvailable = false;
   let periodSlots = {
     morning: [] as string[],
@@ -112,105 +137,112 @@ export default async function AgendarPage({
     night: [] as string[],
   };
 
-  if (selectedBarberId && selectedServiceId && selectedDate) {
-    const selectedService = await prisma.service.findFirst({
-      where: {
-        id: selectedServiceId,
-        OR: [{ barberId: selectedBarberId }, { barberId: null }],
-        isActive: true,
-      },
-    });
+  if (
+    selectedBarberId &&
+    selectedServiceIds.length > 0 &&
+    selectedServices.length === selectedServiceIds.length &&
+    selectedDate
+  ) {
+    const selectedDay = new Date(`${selectedDate}T00:00:00`);
+    const dayStart = new Date(`${selectedDate}T00:00:00`);
+    const dayEnd = new Date(`${selectedDate}T23:59:59.999`);
+    const dayOfWeek = selectedDay.getDay();
 
-    if (selectedService) {
-      selectedServiceDuration = selectedService.duration;
-
-      const selectedDay = new Date(`${selectedDate}T00:00:00`);
-      const dayStart = new Date(`${selectedDate}T00:00:00`);
-      const dayEnd = new Date(`${selectedDate}T23:59:59.999`);
-      const dayOfWeek = selectedDay.getDay();
-
-      const [availability, appointments, blocks] = await Promise.all([
-        prisma.barberAvailability.findFirst({
-          where: {
-            barberId: selectedBarberId,
-            weekDay: dayOfWeek,
-            isActive: true,
+    const [availability, appointments, blocks, recurringBlocks] = await Promise.all([
+      prisma.barberAvailability.findFirst({
+        where: {
+          barberId: selectedBarberId,
+          weekDay: dayOfWeek,
+          isActive: true,
+        },
+      }),
+      prisma.appointment.findMany({
+        where: {
+          barberId: selectedBarberId,
+          date: {
+            gte: dayStart,
+            lte: dayEnd,
           },
-        }),
-        prisma.appointment.findMany({
-          where: {
-            barberId: selectedBarberId,
-            date: {
-              gte: dayStart,
-              lte: dayEnd,
-            },
+        },
+        include: {
+          services: true,
+        },
+      }),
+      prisma.barberBlock.findMany({
+        where: {
+          barberId: selectedBarberId,
+          startDateTime: {
+            lte: dayEnd,
           },
-          include: {
-            service: true,
+          endDateTime: {
+            gte: dayStart,
           },
-        }),
-        prisma.barberBlock.findMany({
-          where: {
-            barberId: selectedBarberId,
-            startDateTime: {
-              lte: dayEnd,
-            },
-            endDateTime: {
-              gte: dayStart,
-            },
-          },
-        }),
-      ]);
+        },
+      }),
+      prisma.recurringBarberBlock.findMany({
+        where: {
+          barberId: selectedBarberId,
+          weekDay: dayOfWeek,
+          isActive: true,
+        },
+      }),
+    ]);
 
-      if (availability) {
-        isDayAvailable = true;
+    if (availability) {
+      isDayAvailable = true;
 
-        const generatedSlots = generateSlots(
-          availability.startTime,
-          availability.endTime
-        );
-        const dayEndMinutes = toMinutes(availability.endTime);
-        const now = new Date();
-        const isToday = selectedDate === today;
-        const nowMinutes = now.getHours() * 60 + now.getMinutes();
+      const generatedSlots = generateSlots(
+        availability.startTime,
+        availability.endTime
+      );
+      const dayEndMinutes = toMinutes(availability.endTime);
+      const now = new Date();
+      const isToday = selectedDate === today;
+      const nowMinutes = now.getHours() * 60 + now.getMinutes();
 
-        const validSlots = generatedSlots.filter((slot) => {
-          const candidateStart = toMinutes(slot);
-          const candidateEnd = candidateStart + selectedService.duration;
+      const validSlots = generatedSlots.filter((slot) => {
+        const candidateStart = toMinutes(slot);
+        const candidateEnd = candidateStart + selectedTotalDuration;
 
-          if (candidateEnd > dayEndMinutes) {
+        if (candidateEnd > dayEndMinutes) {
+          return false;
+        }
+
+        if (isToday && candidateStart <= nowMinutes) {
+          return false;
+        }
+
+        const startDate = new Date(`${selectedDate}T${slot}:00`);
+        const endDate = new Date(startDate.getTime() + selectedTotalDuration * 60000);
+
+        if (isBlockedPeriod(startDate, endDate, blocks)) {
+          return false;
+        }
+
+        if (
+          isBlockedByRecurringBlock(candidateStart, candidateEnd, recurringBlocks)
+        ) {
+          return false;
+        }
+
+        const hasConflict = appointments.some((appointment) => {
+          if (!isActiveAppointmentStatus(appointment.status)) {
             return false;
           }
 
-          if (isToday && candidateStart <= nowMinutes) {
-            return false;
-          }
+          const appointmentDate = new Date(appointment.date);
+          const existingStart =
+            appointmentDate.getHours() * 60 + appointmentDate.getMinutes();
+          const existingEnd =
+            existingStart + getAppointmentServicesOccupiedDuration(appointment.services);
 
-          const startDate = new Date(`${selectedDate}T${slot}:00`);
-          const endDate = new Date(startDate.getTime() + selectedService.duration * 60000);
-
-          if (isBlockedPeriod(startDate, endDate, blocks)) {
-            return false;
-          }
-
-          const hasConflict = appointments.some((appointment) => {
-            if (!isActiveAppointmentStatus(appointment.status)) {
-              return false;
-            }
-
-            const appointmentDate = new Date(appointment.date);
-            const existingStart =
-              appointmentDate.getHours() * 60 + appointmentDate.getMinutes();
-            const existingEnd = existingStart + appointment.service.duration;
-
-            return candidateStart < existingEnd && candidateEnd > existingStart;
-          });
-
-          return !hasConflict;
+          return candidateStart < existingEnd && candidateEnd > existingStart;
         });
 
-        periodSlots = splitSlotsByPeriod(validSlots);
-      }
+        return !hasConflict;
+      });
+
+      periodSlots = splitSlotsByPeriod(validSlots);
     }
   }
 
@@ -222,7 +254,7 @@ export default async function AgendarPage({
         <div>
           <h1 className="text-3xl font-bold">Agendar horario</h1>
           <p className="text-zinc-400">
-            Escolha o barbeiro, o servico, a data e depois selecione um horario disponivel.
+            Escolha o barbeiro, combine os servicos, defina a data e reserve o horario.
           </p>
         </div>
 
@@ -257,22 +289,47 @@ export default async function AgendarPage({
             </div>
 
             <div>
-              <label className="mb-2 block text-sm text-zinc-300">Servico</label>
-              <select
-                name="serviceId"
-                defaultValue={selectedServiceId}
-                required
-                disabled={!selectedBarberId}
-                className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 outline-none disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <option value="">Selecione</option>
-                {services.map((service) => (
-                  <option key={service.id} value={service.id}>
-                    {service.name} - R$ {service.price.toFixed(2)} - {service.duration} min
-                    {service.barberId ? " - Exclusivo" : " - Geral"}
-                  </option>
-                ))}
-              </select>
+              <label className="mb-3 block text-sm text-zinc-300">Servicos</label>
+              <div className="space-y-2">
+                {services.length === 0 ? (
+                  <p className="rounded-xl border border-dashed border-zinc-700 px-4 py-4 text-sm text-zinc-500">
+                    Selecione um barbeiro para ver os servicos disponiveis.
+                  </p>
+                ) : (
+                  services.map((service) => {
+                    const checked = selectedServiceIds.includes(service.id);
+
+                    return (
+                      <label
+                        key={service.id}
+                        className={`flex cursor-pointer items-start gap-3 rounded-xl border px-4 py-3 transition ${
+                          checked
+                            ? "border-white bg-white text-black"
+                            : "border-zinc-700 bg-zinc-950 hover:border-zinc-500"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          name="serviceIds"
+                          value={service.id}
+                          defaultChecked={checked}
+                          className="mt-1 h-4 w-4"
+                        />
+                        <div className="text-sm">
+                          <p className="font-semibold">{service.name}</p>
+                          <p className={checked ? "text-black/70" : "text-zinc-400"}>
+                            {formatCurrency(service.price)} • {service.duration} min
+                            {service.bufferAfter > 0
+                              ? ` + ${service.bufferAfter} min de intervalo`
+                              : ""}
+                            {service.barberId ? " • Exclusivo" : " • Geral"}
+                          </p>
+                        </div>
+                      </label>
+                    );
+                  })
+                )}
+              </div>
             </div>
 
             <div>
@@ -290,7 +347,7 @@ export default async function AgendarPage({
                           ? "border-white bg-white text-black"
                           : "border-zinc-700 bg-zinc-950 hover:border-zinc-500"
                       } ${
-                        !selectedBarberId || !selectedServiceId
+                        !selectedBarberId || selectedServiceIds.length === 0
                           ? "cursor-not-allowed opacity-50"
                           : ""
                       }`}
@@ -300,7 +357,7 @@ export default async function AgendarPage({
                         name="date"
                         value={day}
                         defaultChecked={isSelected}
-                        disabled={!selectedBarberId || !selectedServiceId}
+                        disabled={!selectedBarberId || selectedServiceIds.length === 0}
                         className="hidden"
                       />
                       {formatDateLabel(day)}
@@ -309,9 +366,9 @@ export default async function AgendarPage({
                 })}
               </div>
 
-              {(!selectedBarberId || !selectedServiceId) && (
+              {(!selectedBarberId || selectedServiceIds.length === 0) && (
                 <p className="mt-3 text-xs text-zinc-500">
-                  Primeiro selecione o barbeiro e o servico para liberar as datas.
+                  Primeiro selecione o barbeiro e pelo menos um servico para liberar as datas.
                 </p>
               )}
             </div>
@@ -325,20 +382,40 @@ export default async function AgendarPage({
               <p className="text-sm text-zinc-400">
                 {selectedDate
                   ? `Data escolhida: ${new Date(`${selectedDate}T00:00:00`).toLocaleDateString("pt-BR")}`
-                  : "Escolha barbeiro, servico e data."}
+                  : "Escolha barbeiro, servicos e data."}
               </p>
             </div>
 
-            {selectedServiceDuration > 0 && (
+            {selectedServices.length > 0 && (
               <div className="rounded-xl border border-zinc-700 px-4 py-2 text-sm text-zinc-300">
-                Duracao do servico: {selectedServiceDuration} min
+                {selectedServices.length} servico(s) • {selectedBaseDuration} min base
+                {selectedTotalDuration > selectedBaseDuration
+                  ? ` • ${selectedTotalDuration} min ocupados`
+                  : ""}
+                {` • ${formatCurrency(selectedTotalPrice)}`}
               </div>
             )}
           </div>
 
-          {!selectedBarberId || !selectedServiceId || !selectedDate ? (
+          {selectedServices.length > 0 && (
+            <div className="mb-6 rounded-2xl border border-zinc-800 bg-zinc-950/70 p-4">
+              <p className="text-sm font-medium text-white">Combo selecionado</p>
+              <div className="mt-2 flex flex-wrap gap-2 text-sm text-zinc-300">
+                {selectedServices.map((service) => (
+                  <span
+                    key={service.id}
+                    className="rounded-full border border-zinc-700 px-3 py-1"
+                  >
+                    {service.name}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {!selectedBarberId || selectedServiceIds.length === 0 || !selectedDate ? (
             <p className="text-zinc-400">
-              Preencha barbeiro, servico e data para carregar os horarios.
+              Preencha barbeiro, servicos e data para carregar os horarios.
             </p>
           ) : !isDayAvailable ? (
             <p className="text-zinc-400">
@@ -351,7 +428,7 @@ export default async function AgendarPage({
                 slots={periodSlots.morning}
                 colorClass="text-sky-400"
                 barberId={selectedBarberId}
-                serviceId={selectedServiceId}
+                serviceIds={selectedServiceIds}
                 date={selectedDate}
               />
 
@@ -360,7 +437,7 @@ export default async function AgendarPage({
                 slots={periodSlots.afternoon}
                 colorClass="text-yellow-400"
                 barberId={selectedBarberId}
-                serviceId={selectedServiceId}
+                serviceIds={selectedServiceIds}
                 date={selectedDate}
               />
 
@@ -369,7 +446,7 @@ export default async function AgendarPage({
                 slots={periodSlots.night}
                 colorClass="text-purple-400"
                 barberId={selectedBarberId}
-                serviceId={selectedServiceId}
+                serviceIds={selectedServiceIds}
                 date={selectedDate}
               />
             </div>
@@ -385,41 +462,29 @@ function TimeSection({
   slots,
   colorClass,
   barberId,
-  serviceId,
+  serviceIds,
   date,
 }: {
   title: string;
   slots: string[];
   colorClass: string;
   barberId: string;
-  serviceId: string;
+  serviceIds: string[];
   date: string;
 }) {
   return (
     <div>
-      <h3 className={`mb-3 text-lg font-bold ${colorClass}`}>--- {title} ---</h3>
+      <h3 className={`mb-3 text-lg font-bold ${colorClass}`}>{title}</h3>
 
       {slots.length === 0 ? (
         <p className="text-sm text-zinc-500">Nenhum horario disponivel nesse periodo.</p>
       ) : (
-        <div className="flex flex-wrap gap-3">
-          {slots.map((slot) => (
-            <form key={slot} action={createAppointmentAction}>
-              <input type="hidden" name="barberId" value={barberId} />
-              <input type="hidden" name="serviceId" value={serviceId} />
-              <input type="hidden" name="date" value={date} />
-              <input type="hidden" name="time" value={slot} />
-              <input type="hidden" name="notes" value="" />
-
-              <button
-                type="submit"
-                className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2 text-sm transition hover:border-white hover:bg-zinc-800"
-              >
-                {slot}
-              </button>
-            </form>
-          ))}
-        </div>
+        <AppointmentSlotForm
+          barberId={barberId}
+          serviceIds={serviceIds}
+          date={date}
+          slots={slots}
+        />
       )}
     </div>
   );

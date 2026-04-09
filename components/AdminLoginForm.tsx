@@ -5,12 +5,12 @@ import { useFormState } from "react-dom";
 import AuthSubmitButton from "@/components/AuthSubmitButton";
 import AuthFormMessage from "@/components/AuthFormMessage";
 import { adminLoginAction } from "@/app/admin/login/actions";
-import { initialLoginFormState } from "@/lib/loginFormState";
+import { initialFormFeedbackState } from "@/lib/formFeedbackState";
 
 export default function AdminLoginForm() {
   const [state, formAction] = useFormState(
     adminLoginAction,
-    initialLoginFormState
+    initialFormFeedbackState
   );
 
   return (

@@ -1,17 +1,21 @@
-import Link from "next/link";
+import {
+  CalendarDays,
+  KeyRound,
+  Package,
+  SearchCheck,
+  UserRound,
+} from "lucide-react";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import PageHeader from "@/components/ui/PageHeader";
+import DashboardEntryCard from "@/components/ui/DashboardEntryCard";
 import { LogoutButton } from "@/components/LogoutButton";
-import {
-  appointmentStatusColor,
-  appointmentStatusLabel,
-} from "@/lib/appointmentStatus";
 
 export default async function CustomerPage() {
   const session = await auth();
 
-  if (!session?.user) {
+  if (!session?.user?.id) {
     redirect("/login");
   }
 
@@ -19,99 +23,84 @@ export default async function CustomerPage() {
     redirect("/painel");
   }
 
-  const appointments = await prisma.appointment.findMany({
-    where: {
-      customerId: session.user.id,
+  const [appointmentsCount, ordersCount] = await Promise.all([
+    prisma.appointment.count({
+      where: {
+        customerId: session.user.id,
+      },
+    }),
+    prisma.order.count({
+      where: {
+        customerId: session.user.id,
+      },
+    }),
+  ]);
+
+  const entries = [
+    {
+      href: "/customer/agendamentos",
+      icon: CalendarDays,
+      title: "Meus agendamentos",
+      description: "Acompanhe seus horarios marcados, veja barbeiro, servicos e status do atendimento.",
+      badge: appointmentsCount ? `${appointmentsCount}` : undefined,
     },
-    include: {
-      barber: true,
-      service: true,
+    {
+      href: "/meu-perfil",
+      icon: UserRound,
+      title: "Meu cadastro",
+      description: "Edite seus dados, preferencias, barbeiro favorito e historico pessoal.",
     },
-    orderBy: {
-      date: "asc",
+    {
+      href: "/forgot-password",
+      icon: KeyRound,
+      title: "Trocar senha",
+      description: "Use a recuperacao por e-mail para redefinir sua senha com seguranca.",
     },
-  });
+    {
+      href: "/meus-pedidos",
+      icon: Package,
+      title: "Meus pedidos",
+      description: "Veja compras recentes, itens do pedido, status e detalhes da entrega.",
+      badge: ordersCount ? `${ordersCount}` : undefined,
+    },
+    {
+      href: "/rastreio",
+      icon: SearchCheck,
+      title: "Rastreio",
+      description: "Abra a area de acompanhamento para consultar o andamento da entrega.",
+    },
+  ];
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10 text-white">
-      <div className="mb-8 flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Painel do Cliente</h1>
-          <p className="text-zinc-400">Bem-vindo, {session.user.name}</p>
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,#18233b_0%,#0b0e16_45%,#06070b_100%)]">
+      <div className="mx-auto max-w-6xl px-4 py-10 text-white">
+        <PageHeader
+          eyebrow="Minha Conta"
+          title="Painel do cliente"
+          description="Escolha uma opcao para abrir a pagina completa daquela funcao. No celular, cada card leva direto para o conteudo certo."
+          actions={
+            <div className="flex items-center gap-3">
+              <div className="rounded-2xl border border-zinc-800 bg-zinc-950/65 px-4 py-3 text-right">
+                <p className="text-sm text-zinc-400">Logado como</p>
+                <p className="font-medium text-white">{session.user.name || "Cliente"}</p>
+              </div>
+              <LogoutButton />
+            </div>
+          }
+        />
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          {entries.map((entry) => (
+            <DashboardEntryCard
+              key={entry.href}
+              href={entry.href}
+              icon={entry.icon}
+              title={entry.title}
+              description={entry.description}
+              badge={entry.badge}
+            />
+          ))}
         </div>
-
-        <LogoutButton />
-      </div>
-
-      <div className="mb-8 flex flex-wrap gap-3">
-        <Link
-          href="/agendar"
-          className="inline-block rounded-xl bg-white px-5 py-3 font-semibold text-black transition hover:opacity-90"
-        >
-          Novo agendamento
-        </Link>
-
-        <Link
-          href="/meu-perfil"
-          className="inline-block rounded-xl border border-zinc-700 px-5 py-3 font-semibold text-white transition hover:bg-zinc-800"
-        >
-          Meu perfil
-        </Link>
-      </div>
-
-      <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
-        <h2 className="mb-4 text-xl font-semibold">Meus agendamentos</h2>
-
-        {appointments.length === 0 ? (
-          <p className="text-zinc-400">Você ainda não possui agendamentos.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[950px] border-collapse">
-              <thead>
-                <tr className="border-b border-zinc-800 text-left text-sm text-zinc-400">
-                  <th className="px-4 py-3">Data</th>
-                  <th className="px-4 py-3">Hora</th>
-                  <th className="px-4 py-3">Barbeiro</th>
-                  <th className="px-4 py-3">Serviço</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Observações</th>
-                </tr>
-              </thead>
-              <tbody>
-                {appointments.map((appointment) => {
-                  const date = new Date(appointment.date);
-
-                  return (
-                    <tr
-                      key={appointment.id}
-                      className="border-b border-zinc-800 text-sm"
-                    >
-                      <td className="px-4 py-3">
-                        {date.toLocaleDateString("pt-BR")}
-                      </td>
-                      <td className="px-4 py-3">
-                        {date.toLocaleTimeString("pt-BR", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </td>
-                      <td className="px-4 py-3">{appointment.barber.name}</td>
-                      <td className="px-4 py-3">{appointment.service.name}</td>
-                      <td className="px-4 py-3">
-                        <span className={appointmentStatusColor(appointment.status)}>
-                          {appointmentStatusLabel(appointment.status)}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-zinc-400">
-                        {appointment.notes || "-"}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
       </div>
     </div>
   );

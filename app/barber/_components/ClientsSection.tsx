@@ -1,4 +1,6 @@
 import Link from "next/link";
+import EmptyState from "@/components/ui/EmptyState";
+import SectionCard from "@/components/ui/SectionCard";
 import { saveClientNoteAction } from "../actions";
 import type { getBarberDashboardData } from "../data";
 
@@ -6,18 +8,17 @@ type BarberDashboardData = Awaited<ReturnType<typeof getBarberDashboardData>>;
 
 export function ClientsSection({
   clients,
+  redirectTo,
 }: {
   clients: BarberDashboardData["clients"];
+  redirectTo: string;
 }) {
   return (
-    <section className="rounded-[28px] border border-zinc-800 bg-zinc-900/90 p-6 shadow-[0_18px_40px_rgba(0,0,0,0.18)]">
-      <div>
-        <h2 className="text-2xl font-semibold text-white">Clientes</h2>
-        <p className="mt-1 text-sm text-zinc-400">
-          Consulte quem ja passou pela sua cadeira e salve observacoes uteis.
-        </p>
-      </div>
-
+    <SectionCard
+      title="Clientes"
+      description="Consulte quem ja passou pela sua cadeira e salve observacoes uteis."
+      className="rounded-[28px] bg-zinc-900/90"
+    >
       <div className="mt-6 space-y-4">
         <form
           action="/barber/clientes"
@@ -40,9 +41,10 @@ export function ClientsSection({
         </form>
 
         {clients.length === 0 ? (
-          <div className="rounded-3xl border border-dashed border-zinc-700 bg-zinc-950/60 p-6 text-sm text-zinc-400">
-            Seus clientes aparecerao aqui conforme novos atendimentos forem feitos.
-          </div>
+          <EmptyState
+            title="Nenhum cliente encontrado"
+            description="Seus clientes aparecerao aqui conforme novos atendimentos forem realizados."
+          />
         ) : (
           clients.map((client) => (
             <div
@@ -85,6 +87,7 @@ export function ClientsSection({
                 </div>
 
                 <form action={saveClientNoteAction}>
+                  <input type="hidden" name="redirectTo" value={redirectTo} />
                   <input type="hidden" name="customerId" value={client.id} />
                   <label className="block">
                     <span className="mb-2 block text-sm text-zinc-300">Observacao</span>
@@ -108,6 +111,6 @@ export function ClientsSection({
           ))
         )}
       </div>
-    </section>
+    </SectionCard>
   );
 }

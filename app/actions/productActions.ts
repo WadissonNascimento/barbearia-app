@@ -1,6 +1,7 @@
 "use server";
 
 import { auth } from "@/auth";
+import { registerStockMovement } from "@/lib/inventory";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { normalizeProductImageUrl, saveProductImage } from "@/lib/productImages";
@@ -41,6 +42,13 @@ export async function createProduct(data: {
     },
   });
 
+  await registerStockMovement({
+    productId: product.id,
+    type: "IN",
+    quantity: Number(data.stock),
+    reason: "Cadastro inicial do produto",
+  });
+
   revalidateProductViews();
   return product;
 }
@@ -71,6 +79,13 @@ export async function createProductFromForm(formData: FormData) {
     },
   });
 
+  await registerStockMovement({
+    productId: product.id,
+    type: "IN",
+    quantity: stock,
+    reason: "Cadastro inicial do produto",
+  });
+
   revalidateProductViews();
   return product;
 }
@@ -88,6 +103,14 @@ export async function updateProduct(
 ) {
   await ensureProductAccess();
 
+  const currentProduct = await prisma.product.findUnique({
+    where: { id },
+  });
+
+  if (!currentProduct) {
+    throw new Error("Produto nao encontrado.");
+  }
+
   const product = await prisma.product.update({
     where: { id },
     data: {
@@ -98,6 +121,17 @@ export async function updateProduct(
           : normalizeProductImageUrl(data.imageUrl),
     },
   });
+
+  if (typeof data.stock === "number" && data.stock !== currentProduct.stock) {
+    const difference = data.stock - currentProduct.stock;
+
+    await registerStockMovement({
+      productId: id,
+      type: difference > 0 ? "ADJUST_IN" : "ADJUST_OUT",
+      quantity: Math.abs(difference),
+      reason: "Ajuste manual de estoque",
+    });
+  }
 
   revalidateProductViews();
   return product;

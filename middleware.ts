@@ -9,15 +9,26 @@ export default auth((req) => {
   const pathname = req.nextUrl.pathname;
   const role = req.auth?.user?.role;
 
-  const isAuthPage = pathname === "/login" || pathname === "/cadastro";
+  const isAuthPage =
+    pathname === "/login" ||
+    pathname === "/cadastro" ||
+    pathname === "/register" ||
+    pathname.startsWith("/register/") ||
+    pathname === "/forgot-password" ||
+    pathname.startsWith("/forgot-password/");
   const isPainelRoot = pathname === "/painel";
+  const isCustomerProtectedPage =
+    pathname.startsWith("/customer") ||
+    pathname.startsWith("/agendar") ||
+    pathname.startsWith("/meu-perfil") ||
+    pathname.startsWith("/meus-pedidos");
 
   if (
     !isLoggedIn &&
     (pathname.startsWith("/painel") ||
       pathname.startsWith("/admin") ||
-      pathname.startsWith("/customer") ||
-      pathname.startsWith("/barber"))
+      pathname.startsWith("/barber") ||
+      isCustomerProtectedPage)
   ) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
@@ -54,7 +65,7 @@ export default auth((req) => {
     return NextResponse.redirect(new URL("/painel", req.url));
   }
 
-  if (pathname.startsWith("/customer") && role !== "CUSTOMER") {
+  if (isCustomerProtectedPage && role !== "CUSTOMER") {
     return NextResponse.redirect(new URL("/painel", req.url));
   }
 
@@ -65,9 +76,16 @@ export const config = {
   matcher: [
     "/login",
     "/cadastro",
+    "/register",
+    "/register/:path*",
+    "/forgot-password",
+    "/forgot-password/:path*",
     "/painel/:path*",
     "/admin/:path*",
     "/barber/:path*",
     "/customer/:path*",
+    "/agendar/:path*",
+    "/meu-perfil/:path*",
+    "/meus-pedidos/:path*",
   ],
 };

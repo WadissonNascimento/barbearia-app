@@ -1,35 +1,18 @@
-import Link from "next/link";
+import {
+  CalendarRange,
+  Coins,
+  PackageSearch,
+  PercentCircle,
+  Scissors,
+  ShoppingBag,
+  UsersRound,
+} from "lucide-react";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
+import { prisma } from "@/lib/prisma";
+import PageHeader from "@/components/ui/PageHeader";
+import DashboardEntryCard from "@/components/ui/DashboardEntryCard";
 import { LogoutButton } from "@/components/LogoutButton";
-
-const adminSections = [
-  {
-    href: "/admin/barbeiros",
-    title: "CRUD de Barbeiros",
-    description: "Cadastrar, inativar, reativar e excluir barbeiros.",
-  },
-  {
-    href: "/admin/agenda",
-    title: "Agenda Geral",
-    description: "Visualize todos os agendamentos e filtre por barbeiro e periodo.",
-  },
-  {
-    href: "/admin/produtos",
-    title: "CRUD de Produtos",
-    description: "Criar, editar, ocultar e excluir produtos da loja.",
-  },
-  {
-    href: "/admin/servicos",
-    title: "Servicos Gerais",
-    description: "Gerencie os servicos padrao disponiveis para todos os barbeiros.",
-  },
-  {
-    href: "/admin/pedidos",
-    title: "Pedidos da Loja",
-    description: "Acompanhe pedidos, altere status e gerencie a operacao.",
-  },
-];
 
 export default async function AdminPage() {
   const session = await auth();
@@ -42,30 +25,105 @@ export default async function AdminPage() {
     redirect("/painel");
   }
 
+  const [activeBarbers, pendingOrders, activeProducts, openPayouts] = await Promise.all([
+    prisma.user.count({
+      where: {
+        role: "BARBER",
+        isActive: true,
+      },
+    }),
+    prisma.order.count({
+      where: {
+        status: {
+          in: ["PENDING", "CONFIRMED", "PREPARING", "SHIPPED", "READY_FOR_PICKUP"],
+        },
+      },
+    }),
+    prisma.product.count({
+      where: {
+        isActive: true,
+      },
+    }),
+    prisma.barberPayout.count({
+      where: {
+        status: {
+          in: ["OPEN", "CLOSED"],
+        },
+      },
+    }),
+  ]);
+
+  const entries = [
+    {
+      href: "/admin/barbeiros",
+      icon: UsersRound,
+      title: "Barbeiros",
+      description: "Convites, ativacao, desligamento e historico operacional da equipe.",
+      badge: activeBarbers ? `${activeBarbers}` : undefined,
+    },
+    {
+      href: "/admin/agenda",
+      icon: CalendarRange,
+      title: "Agenda geral",
+      description: "Veja todos os agendamentos e acompanhe a operacao da casa.",
+    },
+    {
+      href: "/admin/servicos",
+      icon: Scissors,
+      title: "Servicos",
+      description: "Gerencie servicos padrao, precos, duracao e comissoes administradas.",
+    },
+    {
+      href: "/admin/produtos",
+      icon: PackageSearch,
+      title: "Produtos",
+      description: "Organize o catalogo da loja, estoque e itens ativos para venda.",
+      badge: activeProducts ? `${activeProducts}` : undefined,
+    },
+    {
+      href: "/admin/pedidos",
+      icon: ShoppingBag,
+      title: "Pedidos",
+      description: "Acompanhe status, aprovacao, separacao e rastreio dos pedidos.",
+      badge: pendingOrders ? `${pendingOrders}` : undefined,
+    },
+    {
+      href: "/admin/cupons",
+      icon: PercentCircle,
+      title: "Cupons",
+      description: "Crie campanhas e regras promocionais para a loja da barbearia.",
+    },
+    {
+      href: "/admin/financeiro",
+      icon: Coins,
+      title: "Financeiro",
+      description: "Abra o painel de faturamento, comparativos, repasses e fechamentos.",
+      badge: openPayouts ? `${openPayouts}` : undefined,
+    },
+  ];
+
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10 text-white">
-      <div className="mb-8 flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Painel do Admin</h1>
-          <p className="text-zinc-400">Bem-vindo, {session.user.name}</p>
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,#18233b_0%,#0b0e16_45%,#06070b_100%)]">
+      <div className="mx-auto max-w-6xl px-4 py-10 text-white">
+        <PageHeader
+          eyebrow="Painel Admin"
+          title="Central administrativa"
+          description="Escolha uma area e abra direto a pagina completa daquela funcao, sem modulos aninhados no celular."
+          actions={<LogoutButton />}
+        />
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          {entries.map((entry) => (
+            <DashboardEntryCard
+              key={entry.href}
+              href={entry.href}
+              icon={entry.icon}
+              title={entry.title}
+              description={entry.description}
+              badge={entry.badge}
+            />
+          ))}
         </div>
-
-        <LogoutButton />
-      </div>
-
-      <div className="grid gap-6 md:grid-cols-2">
-        {adminSections.map((section) => (
-          <Link
-            key={section.href}
-            href={section.href}
-            className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6 transition hover:border-zinc-700 hover:bg-zinc-800"
-          >
-            <h2 className="text-xl font-semibold">{section.title}</h2>
-            <p className="mt-2 text-sm text-zinc-400">
-              {section.description}
-            </p>
-          </Link>
-        ))}
       </div>
     </div>
   );

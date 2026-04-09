@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { reserveInventoryForOrder } from "@/lib/orderInventory";
 import { prisma } from "@/lib/prisma";
 import { getMercadoPagoClient } from "@/lib/mercadopago";
 import { Payment } from "mercadopago";
@@ -31,7 +32,6 @@ export async function POST(request: Request) {
 
     const currentOrder = await prisma.order.findUnique({
       where: { id: orderId },
-      include: { items: true },
     });
 
     if (!currentOrder) {
@@ -44,12 +44,7 @@ export async function POST(request: Request) {
     });
 
     if (status === "CONFIRMED" && currentOrder.status !== "CONFIRMED") {
-      for (const item of currentOrder.items) {
-        await prisma.product.update({
-          where: { id: item.productId },
-          data: { stock: { decrement: item.quantity } },
-        });
-      }
+      await reserveInventoryForOrder(orderId);
     }
 
     return NextResponse.json({ ok: true });

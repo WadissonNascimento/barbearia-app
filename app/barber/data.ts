@@ -1,4 +1,8 @@
 import { prisma } from "@/lib/prisma";
+import {
+  getAppointmentDisplayName,
+  getAppointmentTotalPrice,
+} from "@/lib/appointmentServices";
 import { normalizeAppointmentStatus } from "@/lib/appointmentStatus";
 
 export type BarberDashboardFilters = {
@@ -69,14 +73,14 @@ export async function getBarberDashboardData(
     },
     include: {
       customer: true,
-      service: true,
+      services: true,
     },
     orderBy: {
       date: "asc",
     },
   });
 
-  const [appointmentsToday, completedToday, upcomingAppointments, services, availabilities, blocks, clientNotes, allBarberAppointments] =
+  const [appointmentsToday, completedToday, upcomingAppointments, services, availabilities, blocks, recurringBlocks, clientNotes, allBarberAppointments] =
     await Promise.all([
       prisma.appointment.count({
         where: {
@@ -111,7 +115,7 @@ export async function getBarberDashboardData(
         },
         include: {
           customer: true,
-          service: true,
+          services: true,
         },
         orderBy: {
           date: "asc",
@@ -142,6 +146,19 @@ export async function getBarberDashboardData(
         orderBy: {
           startDateTime: "asc",
         },
+      }),
+      prisma.recurringBarberBlock.findMany({
+        where: {
+          barberId,
+        },
+        orderBy: [
+          {
+            weekDay: "asc",
+          },
+          {
+            startTime: "asc",
+          },
+        ],
       }),
       prisma.clientNote.findMany({
         where: { barberId },
@@ -210,6 +227,7 @@ export async function getBarberDashboardData(
     services,
     availabilities,
     blocks,
+    recurringBlocks,
     clients: Array.from(clientsMap.values()),
   };
 }
@@ -246,12 +264,17 @@ export async function getBarberClientProfile(barberId: string, customerId: strin
       },
     },
     include: {
+      customerProfile: {
+        include: {
+          preferredBarber: true,
+        },
+      },
       customerAppointments: {
         where: {
           barberId,
         },
         include: {
-          service: true,
+          services: true,
         },
         orderBy: {
           date: "desc",
@@ -274,15 +297,15 @@ export async function getBarberClientProfile(barberId: string, customerId: strin
     (appointment) => normalizeAppointmentStatus(appointment.status) === "COMPLETED"
   ).length;
   const totalSpent = customer.customerAppointments.reduce(
-    (sum, appointment) => sum + appointment.service.price,
+    (sum, appointment) => sum + getAppointmentTotalPrice(appointment.services),
     0
   );
   const favoriteServiceMap = new Map<string, number>();
 
   for (const appointment of customer.customerAppointments) {
     favoriteServiceMap.set(
-      appointment.service.name,
-      (favoriteServiceMap.get(appointment.service.name) || 0) + 1
+      getAppointmentDisplayName(appointment.services),
+      (favoriteServiceMap.get(getAppointmentDisplayName(appointment.services)) || 0) + 1
     );
   }
 
@@ -298,6 +321,10 @@ export async function getBarberClientProfile(barberId: string, customerId: strin
       phone: customer.phone || null,
       createdAt: customer.createdAt,
       note: customer.customerClientNotes[0]?.note || "",
+      birthDate: customer.customerProfile?.birthDate || null,
+      allergies: customer.customerProfile?.allergies || "",
+      preferences: customer.customerProfile?.preferences || "",
+      preferredBarberName: customer.customerProfile?.preferredBarber?.name || null,
     },
     stats: {
       totalAppointments,

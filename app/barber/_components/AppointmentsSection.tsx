@@ -1,8 +1,15 @@
 import Link from "next/link";
 import {
-  appointmentStatusColor,
+  getAppointmentDisplayName,
+  getAppointmentServiceMetaLine,
+} from "@/lib/appointmentServices";
+import {
   appointmentStatusLabel,
+  appointmentStatusVariant,
 } from "@/lib/appointmentStatus";
+import EmptyState from "@/components/ui/EmptyState";
+import SectionCard from "@/components/ui/SectionCard";
+import StatusBadge from "@/components/ui/StatusBadge";
 import { updateAppointmentStatusAction } from "../actions";
 import type { getBarberDashboardData } from "../data";
 
@@ -11,6 +18,7 @@ type BarberDashboardData = Awaited<ReturnType<typeof getBarberDashboardData>>;
 type AppointmentsSectionProps = {
   appointments: BarberDashboardData["appointments"];
   filters: BarberDashboardData["filters"];
+  redirectTo: string;
 };
 
 function formatDateTime(value: Date) {
@@ -28,18 +36,16 @@ function formatDateTime(value: Date) {
 export function AppointmentsSection({
   appointments,
   filters,
+  redirectTo,
 }: AppointmentsSectionProps) {
   return (
-    <section className="rounded-[28px] border border-zinc-800 bg-zinc-900/90 p-6 shadow-[0_18px_40px_rgba(0,0,0,0.18)]">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-semibold text-white">Agenda</h2>
-          <p className="mt-1 text-sm text-zinc-400">
-            Veja apenas seus atendimentos e atualize o andamento do dia.
-          </p>
-        </div>
-
+    <SectionCard
+      title="Agenda"
+      description="Veja apenas seus atendimentos e atualize o andamento do dia."
+      className="rounded-[28px] bg-zinc-900/90"
+      actions={
         <form className="grid gap-3 sm:grid-cols-3">
+          <input type="hidden" name="section" value="agenda" />
           <select
             name="view"
             defaultValue={filters.view}
@@ -77,13 +83,15 @@ export function AppointmentsSection({
             Atualizar filtros
           </button>
         </form>
-      </div>
+      }
+    >
 
       <div className="mt-6 space-y-4">
         {appointments.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-zinc-700 bg-zinc-950/60 p-6 text-sm text-zinc-400">
-            Nenhum agendamento encontrado com os filtros atuais.
-          </div>
+          <EmptyState
+            title="Nenhum agendamento encontrado"
+            description="Ajuste os filtros acima para ver outros horarios ou volte mais tarde."
+          />
         ) : (
           appointments.map((appointment) => {
             const { date, time } = formatDateTime(appointment.date);
@@ -113,9 +121,11 @@ export function AppointmentsSection({
                     <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">
                       Servico
                     </p>
-                    <p className="mt-2 text-white">{appointment.service.name}</p>
+                    <p className="mt-2 text-white">
+                      {getAppointmentDisplayName(appointment.services)}
+                    </p>
                     <p className="mt-1 text-sm text-zinc-400">
-                      {appointment.service.duration} min
+                      {getAppointmentServiceMetaLine(appointment.services)}
                     </p>
                   </div>
 
@@ -131,9 +141,11 @@ export function AppointmentsSection({
                     <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">
                       Status
                     </p>
-                    <p className={`mt-2 text-sm font-semibold ${appointmentStatusColor(appointment.status)}`}>
-                      {appointmentStatusLabel(appointment.status)}
-                    </p>
+                    <div className="mt-2">
+                      <StatusBadge variant={appointmentStatusVariant(appointment.status)}>
+                        {appointmentStatusLabel(appointment.status)}
+                      </StatusBadge>
+                    </div>
                     <p className="mt-1 text-sm text-zinc-400">
                       {appointment.notes || "Sem observacoes"}
                     </p>
@@ -151,6 +163,7 @@ export function AppointmentsSection({
                         <StatusButton
                           appointmentId={appointment.id}
                           status="CONFIRMED"
+                          redirectTo={redirectTo}
                           className="bg-green-600 text-white hover:bg-green-500"
                         >
                           Confirmar
@@ -158,6 +171,7 @@ export function AppointmentsSection({
                         <StatusButton
                           appointmentId={appointment.id}
                           status="CANCELLED"
+                          redirectTo={redirectTo}
                           className="bg-red-600 text-white hover:bg-red-500"
                         >
                           Cancelar
@@ -165,6 +179,7 @@ export function AppointmentsSection({
                         <StatusButton
                           appointmentId={appointment.id}
                           status="NO_SHOW"
+                          redirectTo={redirectTo}
                           className="bg-orange-500 text-black hover:bg-orange-400"
                         >
                           Nao veio
@@ -177,6 +192,7 @@ export function AppointmentsSection({
                         <StatusButton
                           appointmentId={appointment.id}
                           status="COMPLETED"
+                          redirectTo={redirectTo}
                           className="bg-sky-600 text-white hover:bg-sky-500"
                         >
                           Concluir
@@ -184,6 +200,7 @@ export function AppointmentsSection({
                         <StatusButton
                           appointmentId={appointment.id}
                           status="NO_SHOW"
+                          redirectTo={redirectTo}
                           className="bg-orange-500 text-black hover:bg-orange-400"
                         >
                           Nao veio
@@ -191,6 +208,7 @@ export function AppointmentsSection({
                         <StatusButton
                           appointmentId={appointment.id}
                           status="CANCELLED"
+                          redirectTo={redirectTo}
                           className="bg-red-600 text-white hover:bg-red-500"
                         >
                           Cancelar
@@ -204,7 +222,7 @@ export function AppointmentsSection({
           })
         )}
       </div>
-    </section>
+    </SectionCard>
   );
 }
 
@@ -212,15 +230,18 @@ function StatusButton({
   appointmentId,
   status,
   className,
+  redirectTo,
   children,
 }: {
   appointmentId: string;
   status: string;
   className: string;
+  redirectTo: string;
   children: React.ReactNode;
 }) {
   return (
     <form action={updateAppointmentStatusAction}>
+      <input type="hidden" name="redirectTo" value={redirectTo} />
       <input type="hidden" name="appointmentId" value={appointmentId} />
       <input type="hidden" name="status" value={status} />
       <button

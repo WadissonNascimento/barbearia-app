@@ -1,6 +1,10 @@
 import Link from "next/link";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
+import { prisma } from "@/lib/prisma";
+import EmptyState from "@/components/ui/EmptyState";
+import PageHeader from "@/components/ui/PageHeader";
+import SectionCard from "@/components/ui/SectionCard";
 import { getBarberClientsDirectory } from "../data";
 
 type SearchParams = {
@@ -22,6 +26,21 @@ export default async function BarberClientsPage({
     redirect("/painel");
   }
 
+  const activeBarber = await prisma.user.findFirst({
+    where: {
+      id: session.user.id,
+      role: "BARBER",
+      isActive: true,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (!activeBarber) {
+    redirect("/login");
+  }
+
   const result = await getBarberClientsDirectory(
     session.user.id,
     searchParams.q || ""
@@ -30,22 +49,22 @@ export default async function BarberClientsPage({
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 text-white">
       <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">Clientes do barbeiro</h1>
-          <p className="text-zinc-400">
-            Pesquise um cliente e abra o perfil completo dele.
-          </p>
-        </div>
-
-        <Link
-          href="/barber"
-          className="rounded-xl border border-zinc-700 px-4 py-2 text-sm hover:bg-zinc-800"
-        >
-          Voltar ao painel
-        </Link>
+        <PageHeader
+          title="Clientes do barbeiro"
+          description="Pesquise um cliente e abra o perfil completo dele."
+          actions={
+            <Link
+              href="/barber"
+              className="rounded-xl border border-zinc-700 px-4 py-2 text-sm hover:bg-zinc-800"
+            >
+              Voltar ao painel
+            </Link>
+          }
+        />
       </div>
 
-      <form className="mb-6 rounded-3xl border border-zinc-800 bg-zinc-900 p-5">
+      <SectionCard title="Busca de clientes" description="Encontre por nome, e-mail ou telefone.">
+        <form>
         <div className="flex flex-col gap-3 sm:flex-row">
           <input
             type="text"
@@ -61,13 +80,15 @@ export default async function BarberClientsPage({
             Buscar
           </button>
         </div>
-      </form>
+        </form>
+      </SectionCard>
 
-      <div className="space-y-4">
+      <div className="mt-6 space-y-4">
         {result.clients.length === 0 ? (
-          <div className="rounded-3xl border border-dashed border-zinc-700 bg-zinc-900 p-6 text-sm text-zinc-400">
-            Nenhum cliente encontrado para esta busca.
-          </div>
+          <EmptyState
+            title="Nenhum cliente encontrado"
+            description="Revise a busca ou aguarde novos atendimentos para ampliar sua base."
+          />
         ) : (
           result.clients.map((client) => (
             <div

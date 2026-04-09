@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import {
+  buildCheckoutSummary,
+  findCouponByCode,
+  getCheckoutProducts,
+} from "@/lib/checkout";
 import { getPreferenceClient } from "@/lib/mercadopago";
 
 const schema = z.object({
@@ -8,6 +13,8 @@ const schema = z.object({
   customerEmail: z.string().email(),
   customerPhone: z.string().min(8),
   customerAddress: z.string().min(8),
+  shippingZipCode: z.string().min(8),
+  couponCode: z.string().optional().nullable(),
   items: z
     .array(
       z.object({
@@ -23,40 +30,25 @@ export async function POST(request: Request) {
     const body = await request.json();
     const parsed = schema.parse(body);
 
-    const dbProducts = await prisma.product.findMany({
-      where: { id: { in: parsed.items.map((item) => item.productId) } },
+    const dbProducts = await getCheckoutProducts(parsed.items);
+    const coupon = await findCouponByCode(parsed.couponCode);
+    const summary = buildCheckoutSummary({
+      items: parsed.items,
+      products: dbProducts,
+      zipCode: parsed.shippingZipCode,
+      coupon,
     });
-
-    const missing = parsed.items.find(
-      (item) => !dbProducts.find((product) => product.id === item.productId)
-    );
-    if (missing) {
-      return NextResponse.json(
-        { message: "Produto invalido no carrinho." },
-        { status: 400 }
-      );
-    }
-
-    const noStock = parsed.items.find((item) => {
-      const product = dbProducts.find((p) => p.id === item.productId)!;
-      return !product.isActive || product.stock < item.quantity;
-    });
-
-    if (noStock) {
-      return NextResponse.json(
-        { message: "Um ou mais produtos estao indisponiveis." },
-        { status: 400 }
-      );
-    }
-
-    const orderTotal = parsed.items.reduce((acc, item) => {
-      const product = dbProducts.find((p) => p.id === item.productId)!;
-      return acc + product.price * item.quantity;
-    }, 0);
 
     let customer = await prisma.user.findUnique({
       where: { email: parsed.customerEmail },
     });
+
+    if (customer && customer.role !== "CUSTOMER") {
+      return NextResponse.json(
+        { message: "Este e-mail ja esta vinculado a outro tipo de conta." },
+        { status: 400 }
+      );
+    }
 
     if (!customer) {
       customer = await prisma.user.create({
@@ -81,13 +73,22 @@ export async function POST(request: Request) {
     const order = await prisma.order.create({
       data: {
         customerId: customer.id,
-        total: orderTotal,
-        notes: `Endereco de entrega: ${parsed.customerAddress}`,
+        couponId: coupon?.id || null,
+        subtotal: summary.subtotal,
+        shippingCost: summary.shipping.cost,
+        discountTotal: summary.discountTotal,
+        total: summary.total,
+        shippingZipCode: summary.shipping.zipCode,
+        shippingMethod: summary.shipping.method,
+        shippingAddress: parsed.customerAddress,
+        notes: `Entrega prevista: ${summary.shipping.etaLabel}`,
         items: {
           create: parsed.items.map((item) => {
-            const product = dbProducts.find((p) => p.id === item.productId)!;
+            const product = dbProducts.find((entry) => entry.id === item.productId)!;
+
             return {
               productId: item.productId,
+              productNameSnapshot: product.name,
               quantity: item.quantity,
               unitPrice: product.price,
             };
@@ -105,6 +106,13 @@ export async function POST(request: Request) {
       return NextResponse.json({
         redirectTo: `${baseUrl}/rastreio?email=${encodeURIComponent(parsed.customerEmail)}`,
         orderId: order.id,
+        totals: {
+          subtotal: summary.subtotal,
+          shippingCost: summary.shipping.cost,
+          discountTotal: summary.discountTotal,
+          total: summary.total,
+          shippingMethod: summary.shipping.method,
+        },
       });
     }
 
@@ -133,16 +141,40 @@ export async function POST(request: Request) {
       };
       notification_url?: string;
     } = {
-      items: parsed.items.map((item) => {
-        const product = dbProducts.find((p) => p.id === item.productId)!;
-        return {
-          id: product.id,
-          title: product.name,
-          quantity: item.quantity,
-          unit_price: Number(product.price),
-          currency_id: "BRL",
-        };
-      }),
+      items: [
+        ...parsed.items.map((item) => {
+          const product = dbProducts.find((entry) => entry.id === item.productId)!;
+          return {
+            id: product.id,
+            title: product.name,
+            quantity: item.quantity,
+            unit_price: Number(product.price),
+            currency_id: "BRL",
+          };
+        }),
+        ...(summary.shipping.cost > 0
+          ? [
+              {
+                id: "shipping",
+                title: summary.shipping.method,
+                quantity: 1,
+                unit_price: Number(summary.shipping.cost),
+                currency_id: "BRL",
+              },
+            ]
+          : []),
+        ...(summary.discountTotal > 0
+          ? [
+              {
+                id: "discount",
+                title: `Desconto ${coupon?.code || ""}`.trim(),
+                quantity: 1,
+                unit_price: Number(-summary.discountTotal),
+                currency_id: "BRL",
+              },
+            ]
+          : []),
+      ],
       payer: {
         name: parsed.customerName,
         email: parsed.customerEmail,
@@ -176,13 +208,20 @@ export async function POST(request: Request) {
     return NextResponse.json({
       initPoint,
       preferenceId: preference.id,
+      totals: {
+        subtotal: summary.subtotal,
+        shippingCost: summary.shipping.cost,
+        discountTotal: summary.discountTotal,
+        total: summary.total,
+        shippingMethod: summary.shipping.method,
+      },
     });
   } catch (error) {
     console.error("Erro ao criar checkout Mercado Pago:", error);
     return NextResponse.json(
       {
-        message: "Erro ao criar checkout.",
-        error: error instanceof Error ? error.message : String(error),
+        message:
+          error instanceof Error ? error.message : "Erro ao criar checkout.",
       },
       { status: 500 }
     );

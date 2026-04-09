@@ -1,12 +1,15 @@
 "use server";
 
 import { auth } from "@/auth";
-import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import {
   APPOINTMENT_STATUSES,
   normalizeAppointmentStatus,
 } from "@/lib/appointmentStatus";
+import { syncAppointmentFinancialSnapshots } from "@/lib/financials";
+import { buildFeedbackRedirect } from "@/lib/pageFeedback";
+import { prisma } from "@/lib/prisma";
 
 async function requireBarber() {
   const session = await auth();
@@ -15,7 +18,26 @@ async function requireBarber() {
     throw new Error("Nao autorizado.");
   }
 
-  return session.user;
+  const barber = await prisma.user.findFirst({
+    where: {
+      id: session.user.id,
+      role: "BARBER",
+      isActive: true,
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      isActive: true,
+    },
+  });
+
+  if (!barber) {
+    throw new Error("Barbeiro inativo ou nao autorizado.");
+  }
+
+  return barber;
 }
 
 function isValidTimeRange(startTime: string, endTime: string) {
@@ -32,6 +54,20 @@ function revalidateBarberViews() {
   revalidatePath("/admin/agenda");
 }
 
+function getRedirectTo(formData: FormData, fallback: string) {
+  const redirectTo = String(formData.get("redirectTo") || "").trim();
+  return redirectTo || fallback;
+}
+
+function redirectWithFeedback(
+  formData: FormData,
+  fallback: string,
+  message: string,
+  tone: "error" | "success" | "info" = "success"
+): never {
+  redirect(buildFeedbackRedirect(getRedirectTo(formData, fallback), message, tone));
+}
+
 export async function updateAppointmentStatusAction(formData: FormData) {
   const barber = await requireBarber();
   const appointmentId = String(formData.get("appointmentId") || "");
@@ -40,7 +76,12 @@ export async function updateAppointmentStatusAction(formData: FormData) {
   );
 
   if (!appointmentId || !APPOINTMENT_STATUSES.includes(status as never)) {
-    throw new Error("Status de agendamento invalido.");
+    redirectWithFeedback(
+      formData,
+      "/barber",
+      "Status de agendamento invalido.",
+      "error"
+    );
   }
 
   const appointment = await prisma.appointment.findUnique({
@@ -48,7 +89,12 @@ export async function updateAppointmentStatusAction(formData: FormData) {
   });
 
   if (!appointment || appointment.barberId !== barber.id) {
-    throw new Error("Agendamento nao encontrado para este barbeiro.");
+    redirectWithFeedback(
+      formData,
+      "/barber",
+      "Agendamento nao encontrado para este barbeiro.",
+      "error"
+    );
   }
 
   await prisma.appointment.update({
@@ -56,7 +102,12 @@ export async function updateAppointmentStatusAction(formData: FormData) {
     data: { status },
   });
 
+  if (status === "COMPLETED") {
+    await syncAppointmentFinancialSnapshots(appointmentId);
+  }
+
   revalidateBarberViews();
+  redirectWithFeedback(formData, "/barber", "Status do agendamento atualizado.");
 }
 
 export async function createBarberServiceAction(formData: FormData) {
@@ -65,9 +116,20 @@ export async function createBarberServiceAction(formData: FormData) {
   const description = String(formData.get("description") || "").trim();
   const price = Number(formData.get("price") || 0);
   const duration = Number(formData.get("duration") || 0);
+  const bufferAfter = Number(formData.get("bufferAfter") || 0);
 
-  if (!name || price <= 0 || duration <= 0) {
-    throw new Error("Preencha nome, preco e duracao corretamente.");
+  if (
+    !name ||
+    price <= 0 ||
+    duration <= 0 ||
+    bufferAfter < 0
+  ) {
+    redirectWithFeedback(
+      formData,
+      "/barber",
+      "Preencha nome, preco, duracao e intervalo corretamente.",
+      "error"
+    );
   }
 
   await prisma.service.create({
@@ -77,11 +139,15 @@ export async function createBarberServiceAction(formData: FormData) {
       description: description || null,
       price,
       duration,
+      bufferAfter,
+      commissionType: "PERCENT",
+      commissionValue: 40,
       isActive: true,
     },
   });
 
   revalidateBarberViews();
+  redirectWithFeedback(formData, "/barber", "Servico criado com sucesso.");
 }
 
 export async function updateBarberServiceAction(formData: FormData) {
@@ -91,9 +157,21 @@ export async function updateBarberServiceAction(formData: FormData) {
   const description = String(formData.get("description") || "").trim();
   const price = Number(formData.get("price") || 0);
   const duration = Number(formData.get("duration") || 0);
+  const bufferAfter = Number(formData.get("bufferAfter") || 0);
 
-  if (!serviceId || !name || price <= 0 || duration <= 0) {
-    throw new Error("Preencha nome, preco e duracao corretamente.");
+  if (
+    !serviceId ||
+    !name ||
+    price <= 0 ||
+    duration <= 0 ||
+    bufferAfter < 0
+  ) {
+    redirectWithFeedback(
+      formData,
+      "/barber",
+      "Preencha nome, preco, duracao e intervalo corretamente.",
+      "error"
+    );
   }
 
   const service = await prisma.service.findUnique({
@@ -101,7 +179,12 @@ export async function updateBarberServiceAction(formData: FormData) {
   });
 
   if (!service || service.barberId !== barber.id) {
-    throw new Error("Servico nao encontrado para este barbeiro.");
+    redirectWithFeedback(
+      formData,
+      "/barber",
+      "Servico nao encontrado para este barbeiro.",
+      "error"
+    );
   }
 
   await prisma.service.update({
@@ -111,10 +194,12 @@ export async function updateBarberServiceAction(formData: FormData) {
       description: description || null,
       price,
       duration,
+      bufferAfter,
     },
   });
 
   revalidateBarberViews();
+  redirectWithFeedback(formData, "/barber", "Servico atualizado com sucesso.");
 }
 
 export async function toggleBarberServiceAction(formData: FormData) {
@@ -126,7 +211,12 @@ export async function toggleBarberServiceAction(formData: FormData) {
   });
 
   if (!service || service.barberId !== barber.id) {
-    throw new Error("Servico nao encontrado para este barbeiro.");
+    redirectWithFeedback(
+      formData,
+      "/barber",
+      "Servico nao encontrado para este barbeiro.",
+      "error"
+    );
   }
 
   await prisma.service.update({
@@ -137,6 +227,11 @@ export async function toggleBarberServiceAction(formData: FormData) {
   });
 
   revalidateBarberViews();
+  redirectWithFeedback(
+    formData,
+    "/barber",
+    service.isActive ? "Servico desativado." : "Servico ativado."
+  );
 }
 
 export async function deleteBarberServiceAction(formData: FormData) {
@@ -148,7 +243,12 @@ export async function deleteBarberServiceAction(formData: FormData) {
   });
 
   if (!service || service.barberId !== barber.id) {
-    throw new Error("Servico nao encontrado para este barbeiro.");
+    redirectWithFeedback(
+      formData,
+      "/barber",
+      "Servico nao encontrado para este barbeiro.",
+      "error"
+    );
   }
 
   await prisma.service.delete({
@@ -156,6 +256,7 @@ export async function deleteBarberServiceAction(formData: FormData) {
   });
 
   revalidateBarberViews();
+  redirectWithFeedback(formData, "/barber", "Servico removido com sucesso.");
 }
 
 export async function saveBarberAvailabilityAction(formData: FormData) {
@@ -166,7 +267,12 @@ export async function saveBarberAvailabilityAction(formData: FormData) {
   const isActive = String(formData.get("isActive") || "false") === "true";
 
   if (weekDay < 0 || weekDay > 6 || !isValidTimeRange(startTime, endTime)) {
-    throw new Error("Disponibilidade invalida.");
+    redirectWithFeedback(
+      formData,
+      "/barber",
+      "Disponibilidade invalida.",
+      "error"
+    );
   }
 
   await prisma.barberAvailability.upsert({
@@ -191,6 +297,7 @@ export async function saveBarberAvailabilityAction(formData: FormData) {
   });
 
   revalidateBarberViews();
+  redirectWithFeedback(formData, "/barber", "Disponibilidade atualizada.");
 }
 
 export async function saveWeeklyBarberAvailabilityAction(formData: FormData) {
@@ -203,7 +310,12 @@ export async function saveWeeklyBarberAvailabilityAction(formData: FormData) {
       String(formData.get(`day-${weekDay}-isActive`) || "false") === "true";
 
     if (!isValidTimeRange(startTime, endTime)) {
-      throw new Error(`Horario invalido para o dia ${weekDay}.`);
+      redirectWithFeedback(
+        formData,
+        "/barber",
+        `Horario invalido para o dia ${weekDay}.`,
+        "error"
+      );
     }
 
     return {
@@ -240,6 +352,11 @@ export async function saveWeeklyBarberAvailabilityAction(formData: FormData) {
   );
 
   revalidateBarberViews();
+  redirectWithFeedback(
+    formData,
+    "/barber",
+    "Disponibilidade da semana salva com sucesso."
+  );
 }
 
 export async function createBarberBlockAction(formData: FormData) {
@@ -253,7 +370,12 @@ export async function createBarberBlockAction(formData: FormData) {
     Number.isNaN(endDateTime.getTime()) ||
     startDateTime >= endDateTime
   ) {
-    throw new Error("Periodo de bloqueio invalido.");
+    redirectWithFeedback(
+      formData,
+      "/barber",
+      "Periodo de bloqueio invalido.",
+      "error"
+    );
   }
 
   await prisma.barberBlock.create({
@@ -266,6 +388,67 @@ export async function createBarberBlockAction(formData: FormData) {
   });
 
   revalidateBarberViews();
+  redirectWithFeedback(formData, "/barber", "Bloqueio criado com sucesso.");
+}
+
+export async function createRecurringBarberBlockAction(formData: FormData) {
+  const barber = await requireBarber();
+  const weekDay = Number(formData.get("weekDay") || -1);
+  const startTime = String(formData.get("startTime") || "");
+  const endTime = String(formData.get("endTime") || "");
+  const reason = String(formData.get("reason") || "").trim();
+
+  if (weekDay < 0 || weekDay > 6 || !isValidTimeRange(startTime, endTime)) {
+    redirectWithFeedback(
+      formData,
+      "/barber",
+      "Bloqueio recorrente invalido.",
+      "error"
+    );
+  }
+
+  await prisma.recurringBarberBlock.create({
+    data: {
+      barberId: barber.id,
+      weekDay,
+      startTime,
+      endTime,
+      reason: reason || null,
+      isActive: true,
+    },
+  });
+
+  revalidateBarberViews();
+  redirectWithFeedback(
+    formData,
+    "/barber",
+    "Bloqueio recorrente criado com sucesso."
+  );
+}
+
+export async function deleteRecurringBarberBlockAction(formData: FormData) {
+  const barber = await requireBarber();
+  const recurringBlockId = String(formData.get("recurringBlockId") || "");
+
+  const recurringBlock = await prisma.recurringBarberBlock.findUnique({
+    where: { id: recurringBlockId },
+  });
+
+  if (!recurringBlock || recurringBlock.barberId !== barber.id) {
+    redirectWithFeedback(
+      formData,
+      "/barber",
+      "Bloqueio recorrente nao encontrado para este barbeiro.",
+      "error"
+    );
+  }
+
+  await prisma.recurringBarberBlock.delete({
+    where: { id: recurringBlockId },
+  });
+
+  revalidateBarberViews();
+  redirectWithFeedback(formData, "/barber", "Bloqueio recorrente removido.");
 }
 
 export async function deleteBarberBlockAction(formData: FormData) {
@@ -277,7 +460,12 @@ export async function deleteBarberBlockAction(formData: FormData) {
   });
 
   if (!block || block.barberId !== barber.id) {
-    throw new Error("Bloqueio nao encontrado para este barbeiro.");
+    redirectWithFeedback(
+      formData,
+      "/barber",
+      "Bloqueio nao encontrado para este barbeiro.",
+      "error"
+    );
   }
 
   await prisma.barberBlock.delete({
@@ -285,6 +473,7 @@ export async function deleteBarberBlockAction(formData: FormData) {
   });
 
   revalidateBarberViews();
+  redirectWithFeedback(formData, "/barber", "Bloqueio removido.");
 }
 
 export async function saveClientNoteAction(formData: FormData) {
@@ -293,7 +482,12 @@ export async function saveClientNoteAction(formData: FormData) {
   const note = String(formData.get("note") || "").trim();
 
   if (!customerId || !note) {
-    throw new Error("Anotacao invalida.");
+    redirectWithFeedback(
+      formData,
+      "/barber",
+      "Anotacao invalida.",
+      "error"
+    );
   }
 
   const hasAppointment = await prisma.appointment.findFirst({
@@ -307,7 +501,12 @@ export async function saveClientNoteAction(formData: FormData) {
   });
 
   if (!hasAppointment) {
-    throw new Error("Cliente nao vinculado a este barbeiro.");
+    redirectWithFeedback(
+      formData,
+      "/barber",
+      "Cliente nao vinculado a este barbeiro.",
+      "error"
+    );
   }
 
   await prisma.clientNote.upsert({
@@ -329,4 +528,9 @@ export async function saveClientNoteAction(formData: FormData) {
 
   revalidateBarberViews();
   revalidatePath(`/barber/clientes/${customerId}`);
+  redirectWithFeedback(
+    formData,
+    `/barber/clientes/${customerId}`,
+    "Observacao salva com sucesso."
+  );
 }

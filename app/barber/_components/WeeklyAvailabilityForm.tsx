@@ -11,6 +11,7 @@ type WeeklyAvailabilityFormProps = {
     endTime: string;
     isActive: boolean;
   }>;
+  redirectTo: string;
 };
 
 type DayState = {
@@ -23,6 +24,7 @@ type DayState = {
 
 export function WeeklyAvailabilityForm({
   availabilities,
+  redirectTo,
 }: WeeklyAvailabilityFormProps) {
   const availabilityMap = new Map(
     availabilities.map((item) => [item.weekDay, item] as const)
@@ -51,6 +53,7 @@ export function WeeklyAvailabilityForm({
 
   return (
     <form action={saveWeeklyBarberAvailabilityAction} className="grid gap-4">
+      <input type="hidden" name="redirectTo" value={redirectTo} />
       {days.map((day) => (
         <div
           key={day.weekDay}

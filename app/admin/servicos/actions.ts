@@ -26,9 +26,10 @@ export async function createGlobalServiceAction(formData: FormData) {
   const description = String(formData.get("description") || "").trim();
   const price = Number(formData.get("price") || 0);
   const duration = Number(formData.get("duration") || 0);
+  const commissionValue = Number(formData.get("commissionValue") || 0);
 
-  if (!name || price <= 0 || duration <= 0) {
-    throw new Error("Preencha nome, preco e duracao corretamente.");
+  if (!name || price <= 0 || duration <= 0 || commissionValue < 0 || commissionValue > 100) {
+    throw new Error("Preencha nome, preco, duracao e comissao corretamente.");
   }
 
   await prisma.service.create({
@@ -38,6 +39,8 @@ export async function createGlobalServiceAction(formData: FormData) {
       description: description || null,
       price,
       duration,
+      commissionType: "PERCENT",
+      commissionValue,
       isActive: true,
     },
   });
@@ -53,17 +56,25 @@ export async function updateGlobalServiceAction(formData: FormData) {
   const description = String(formData.get("description") || "").trim();
   const price = Number(formData.get("price") || 0);
   const duration = Number(formData.get("duration") || 0);
+  const commissionValue = Number(formData.get("commissionValue") || 0);
 
-  if (!serviceId || !name || price <= 0 || duration <= 0) {
-    throw new Error("Preencha nome, preco e duracao corretamente.");
+  if (
+    !serviceId ||
+    !name ||
+    price <= 0 ||
+    duration <= 0 ||
+    commissionValue < 0 ||
+    commissionValue > 100
+  ) {
+    throw new Error("Preencha nome, preco, duracao e comissao corretamente.");
   }
 
   const service = await prisma.service.findUnique({
     where: { id: serviceId },
   });
 
-  if (!service || service.barberId !== null) {
-    throw new Error("Servico geral nao encontrado.");
+  if (!service) {
+    throw new Error("Servico nao encontrado.");
   }
 
   await prisma.service.update({
@@ -73,6 +84,8 @@ export async function updateGlobalServiceAction(formData: FormData) {
       description: description || null,
       price,
       duration,
+      commissionType: "PERCENT",
+      commissionValue,
     },
   });
 
@@ -87,8 +100,8 @@ export async function toggleGlobalServiceAction(formData: FormData) {
     where: { id: serviceId },
   });
 
-  if (!service || service.barberId !== null) {
-    throw new Error("Servico geral nao encontrado.");
+  if (!service) {
+    throw new Error("Servico nao encontrado.");
   }
 
   await prisma.service.update({
@@ -109,8 +122,8 @@ export async function deleteGlobalServiceAction(formData: FormData) {
     where: { id: serviceId },
   });
 
-  if (!service || service.barberId !== null) {
-    throw new Error("Servico geral nao encontrado.");
+  if (!service) {
+    throw new Error("Servico nao encontrado.");
   }
 
   await prisma.service.delete({

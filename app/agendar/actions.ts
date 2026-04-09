@@ -1,16 +1,23 @@
 "use server";
 
 import { auth } from "@/auth";
-import { prisma } from "@/lib/prisma";
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import {
+  getAppointmentServicesOccupiedDuration,
   isActiveAppointmentStatus,
   isBlockedPeriod,
+  isBlockedByRecurringBlock,
   toMinutes,
 } from "@/lib/barberSchedule";
+import type { FormFeedbackState } from "@/lib/formFeedbackState";
+import { calculateServiceFinancials } from "@/lib/financials";
+import { prisma } from "@/lib/prisma";
 
-export async function createAppointmentAction(formData: FormData) {
+export async function createAppointmentAction(
+  _prevState: FormFeedbackState,
+  formData: FormData
+): Promise<FormFeedbackState> {
   const session = await auth();
 
   if (!session?.user) {
@@ -22,13 +29,19 @@ export async function createAppointmentAction(formData: FormData) {
   }
 
   const barberId = String(formData.get("barberId") || "");
-  const serviceId = String(formData.get("serviceId") || "");
+  const serviceIds = String(formData.get("serviceIds") || "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
   const date = String(formData.get("date") || "");
   const time = String(formData.get("time") || "");
   const notes = String(formData.get("notes") || "").trim();
 
-  if (!barberId || !serviceId || !date || !time) {
-    throw new Error("Barbeiro, servico, data e horario sao obrigatorios.");
+  if (!barberId || serviceIds.length === 0 || !date || !time) {
+    return {
+      error: "Selecione barbeiro, servicos, data e horario para continuar.",
+      success: null,
+    };
   }
 
   const barber = await prisma.user.findFirst({
@@ -40,30 +53,44 @@ export async function createAppointmentAction(formData: FormData) {
   });
 
   if (!barber) {
-    throw new Error("Barbeiro invalido ou inativo.");
+    return {
+      error: "O barbeiro selecionado nao esta mais disponivel.",
+      success: null,
+    };
   }
 
-  const service = await prisma.service.findFirst({
+  const services = await prisma.service.findMany({
     where: {
-      id: serviceId,
+      id: {
+        in: serviceIds,
+      },
       OR: [{ barberId }, { barberId: null }],
       isActive: true,
     },
   });
 
-  if (!service) {
-    throw new Error("Servico invalido ou indisponivel para este barbeiro.");
+  if (services.length !== serviceIds.length) {
+    return {
+      error: "Um ou mais servicos escolhidos nao estao disponiveis para esse barbeiro.",
+      success: null,
+    };
   }
 
   const appointmentDate = new Date(`${date}T${time}:00`);
 
   if (Number.isNaN(appointmentDate.getTime())) {
-    throw new Error("Data ou horario invalido.");
+    return {
+      error: "Data ou horario invalido.",
+      success: null,
+    };
   }
 
   const now = new Date();
   if (appointmentDate.getTime() <= now.getTime()) {
-    throw new Error("Nao e possivel agendar em data ou horario que ja passou.");
+    return {
+      error: "Nao e possivel agendar em um horario que ja passou.",
+      success: null,
+    };
   }
 
   const selectedDay = new Date(`${date}T00:00:00`);
@@ -71,7 +98,7 @@ export async function createAppointmentAction(formData: FormData) {
   const dayStart = new Date(`${date}T00:00:00`);
   const dayEnd = new Date(`${date}T23:59:59.999`);
 
-  const [availability, sameDayAppointments, blocks] = await Promise.all([
+  const [availability, sameDayAppointments, blocks, recurringBlocks] = await Promise.all([
     prisma.barberAvailability.findFirst({
       where: {
         barberId,
@@ -88,7 +115,7 @@ export async function createAppointmentAction(formData: FormData) {
         },
       },
       include: {
-        service: true,
+        services: true,
       },
     }),
     prisma.barberBlock.findMany({
@@ -102,14 +129,30 @@ export async function createAppointmentAction(formData: FormData) {
         },
       },
     }),
+    prisma.recurringBarberBlock.findMany({
+      where: {
+        barberId,
+        weekDay: dayOfWeek,
+        isActive: true,
+      },
+    }),
   ]);
 
   if (!availability) {
-    throw new Error("Este barbeiro nao atende nesse dia.");
+    return {
+      error: "Este barbeiro nao atende nesse dia.",
+      success: null,
+    };
   }
 
   const selectedStartMinutes = toMinutes(time);
-  const selectedEndMinutes = selectedStartMinutes + service.duration;
+  const selectedEndMinutes =
+    selectedStartMinutes + getAppointmentServicesOccupiedDuration(
+      services.map((service) => ({
+        durationSnapshot: service.duration,
+        bufferAfter: service.bufferAfter,
+      }))
+    );
   const availabilityStart = toMinutes(availability.startTime);
   const availabilityEnd = toMinutes(availability.endTime);
 
@@ -117,12 +160,34 @@ export async function createAppointmentAction(formData: FormData) {
     selectedStartMinutes < availabilityStart ||
     selectedEndMinutes > availabilityEnd
   ) {
-    throw new Error("O horario escolhido esta fora da disponibilidade do barbeiro.");
+    return {
+      error: "O horario escolhido esta fora da disponibilidade do barbeiro.",
+      success: null,
+    };
   }
 
-  const endDate = new Date(appointmentDate.getTime() + service.duration * 60000);
+  const endDate = new Date(
+    appointmentDate.getTime() +
+      getAppointmentServicesOccupiedDuration(
+        services.map((service) => ({
+          durationSnapshot: service.duration,
+          bufferAfter: service.bufferAfter,
+        }))
+      ) *
+        60000
+  );
   if (isBlockedPeriod(appointmentDate, endDate, blocks)) {
-    throw new Error("O horario escolhido esta bloqueado pelo barbeiro.");
+    return {
+      error: "O horario escolhido esta bloqueado pelo barbeiro.",
+      success: null,
+    };
+  }
+
+  if (isBlockedByRecurringBlock(selectedStartMinutes, selectedEndMinutes, recurringBlocks)) {
+    return {
+      error: "O horario escolhido entra em um bloqueio recorrente do barbeiro.",
+      success: null,
+    };
   }
 
   const conflict = sameDayAppointments.some((appointment) => {
@@ -134,7 +199,8 @@ export async function createAppointmentAction(formData: FormData) {
     const existingStartMinutes =
       existingDate.getHours() * 60 + existingDate.getMinutes();
     const existingEndMinutes =
-      existingStartMinutes + appointment.service.duration;
+      existingStartMinutes +
+      getAppointmentServicesOccupiedDuration(appointment.services);
 
     return (
       selectedStartMinutes < existingEndMinutes &&
@@ -143,17 +209,37 @@ export async function createAppointmentAction(formData: FormData) {
   });
 
   if (conflict) {
-    throw new Error("Esse horario nao esta mais disponivel.");
+    return {
+      error: "Esse horario acabou de ser reservado. Escolha outro horario.",
+      success: null,
+    };
   }
 
   await prisma.appointment.create({
     data: {
       barberId,
       customerId: session.user.id,
-      serviceId,
       date: appointmentDate,
       notes: notes || null,
       status: "PENDING",
+      services: {
+        create: services.map((service, index) => {
+          const financials = calculateServiceFinancials(service);
+
+          return {
+            serviceId: service.id,
+            orderIndex: index,
+            nameSnapshot: service.name,
+            priceSnapshot: service.price,
+            durationSnapshot: service.duration,
+            bufferAfter: service.bufferAfter || 0,
+            commissionTypeSnapshot: financials.commissionType,
+            commissionValueSnapshot: financials.commissionValue,
+            barberPayoutSnapshot: financials.barberPayout,
+            shopRevenueSnapshot: financials.shopRevenue,
+          };
+        }),
+      },
     },
   });
 

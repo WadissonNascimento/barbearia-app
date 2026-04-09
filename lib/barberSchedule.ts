@@ -47,6 +47,42 @@ export function isBlockedPeriod(
   });
 }
 
+export function isBlockedByRecurringBlock(
+  startMinutes: number,
+  endMinutes: number,
+  blocks: Array<{ startTime: string; endTime: string; isActive?: boolean }>
+) {
+  return blocks.some((block) => {
+    if (block.isActive === false) {
+      return false;
+    }
+
+    const blockStart = toMinutes(block.startTime);
+    const blockEnd = toMinutes(block.endTime);
+
+    return startMinutes < blockEnd && endMinutes > blockStart;
+  });
+}
+
+export function getServiceOccupiedDuration(service: {
+  duration: number;
+  bufferAfter?: number | null;
+}) {
+  return service.duration + Math.max(0, service.bufferAfter || 0);
+}
+
+export function getAppointmentServicesOccupiedDuration(
+  services: Array<{
+    durationSnapshot: number;
+    bufferAfter?: number | null;
+  }>
+) {
+  return services.reduce(
+    (sum, service) => sum + service.durationSnapshot + Math.max(0, service.bufferAfter || 0),
+    0
+  );
+}
+
 export function isActiveAppointmentStatus(status: string) {
   const normalized = normalizeAppointmentStatus(status);
   return normalized !== "CANCELLED" && normalized !== "NO_SHOW";

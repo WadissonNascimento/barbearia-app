@@ -1,5 +1,9 @@
+import EmptyState from "@/components/ui/EmptyState";
+import PageHeader from "@/components/ui/PageHeader";
+import SectionCard from "@/components/ui/SectionCard";
+import StatusBadge from "@/components/ui/StatusBadge";
 import { prisma } from "@/lib/prisma";
-import { orderStatusLabel } from "@/lib/orderStatus";
+import { orderStatusLabel, orderStatusVariant } from "@/lib/orderStatus";
 import { buildTrackingUrl } from "@/lib/tracking";
 
 export default async function RastreioPage({
@@ -34,53 +38,71 @@ export default async function RastreioPage({
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-10 text-white">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold">Acompanhar rastreio</h1>
-        <p className="mt-2 text-zinc-400">
-          Digite o e-mail usado na compra para ver seus pedidos e o codigo de rastreio.
-        </p>
-      </div>
+      <PageHeader
+        title="Acompanhar rastreio"
+        description="Digite o e-mail usado na compra para ver seus pedidos e o codigo de rastreio."
+      />
 
-      <form method="GET" className="mb-8 rounded-2xl border border-white/10 bg-white/[0.04] p-5">
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <input
-            name="email"
-            type="email"
-            defaultValue={email}
-            placeholder="Digite seu e-mail"
-            className="flex-1 rounded-xl bg-[#0a1324] px-4 py-3 text-white outline-none"
-            required
-          />
-          <button className="rounded-xl bg-sky-500 px-5 py-3 font-semibold text-white">
-            Buscar pedidos
-          </button>
-        </div>
-      </form>
+      <SectionCard
+        title="Buscar pedidos"
+        description="Consulte a situacao da entrega pelo e-mail da compra."
+      >
+        <form method="GET">
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <input
+              name="email"
+              type="email"
+              defaultValue={email}
+              placeholder="Digite seu e-mail"
+              className="flex-1 rounded-xl bg-[#0a1324] px-4 py-3 text-white outline-none"
+              required
+            />
+            <button className="rounded-xl bg-sky-500 px-5 py-3 font-semibold text-white">
+              Buscar pedidos
+            </button>
+          </div>
+        </form>
+      </SectionCard>
 
       {email && orders.length === 0 && (
-        <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-6 text-zinc-300">
-          Nenhum pedido encontrado para esse e-mail.
+        <div className="mt-8">
+          <EmptyState
+            title="Nenhum pedido encontrado"
+            description="Revise o e-mail informado e tente novamente."
+          />
         </div>
       )}
 
-      <div className="space-y-4">
+      <div className="mt-8 space-y-4">
         {orders.map((order) => {
           const trackingUrl = order.trackingCode
             ? buildTrackingUrl(order.trackingCode)
             : null;
 
           return (
-            <div key={order.id} className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
+            <SectionCard
+              key={order.id}
+              title={`Pedido de ${new Date(order.createdAt).toLocaleDateString("pt-BR")}`}
+              description={`Cliente: ${order.customer.name || order.customer.email}`}
+            >
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
-                  <p>
-                    <b>Status:</b> {orderStatusLabel[order.status]}
-                  </p>
+                  <div className="mb-3">
+                    <StatusBadge variant={orderStatusVariant[order.status] || "neutral"}>
+                      {orderStatusLabel[order.status]}
+                    </StatusBadge>
+                  </div>
                   <p>
                     <b>Total:</b> R$ {order.total.toFixed(2)}
                   </p>
                   <p>
-                    <b>Endereco:</b> {order.notes || "Nao informado"}
+                    <b>Endereco:</b> {order.shippingAddress || "Nao informado"}
+                  </p>
+                  <p>
+                    <b>Frete:</b> {order.shippingMethod || "Nao informado"} - R$ {order.shippingCost.toFixed(2)}
+                  </p>
+                  <p>
+                    <b>Desconto:</b> R$ {order.discountTotal.toFixed(2)}
                   </p>
                   <p>
                     <b>Codigo de rastreio:</b> {order.trackingCode || "Aguardando envio"}
@@ -108,11 +130,11 @@ export default async function RastreioPage({
               <div className="mt-4 space-y-1">
                 {order.items.map((item) => (
                   <p key={item.id}>
-                    {item.product.name} x{item.quantity}
+                    {item.productNameSnapshot} x{item.quantity}
                   </p>
                 ))}
               </div>
-            </div>
+            </SectionCard>
           );
         })}
       </div>

@@ -45,3 +45,17 @@ export function appointmentStatusColor(status: string) {
       return "text-yellow-400";
   }
 }
+
+export function appointmentStatusVariant(status: string) {
+  switch (normalizeAppointmentStatus(status)) {
+    case "CONFIRMED":
+    case "COMPLETED":
+      return "success";
+    case "CANCELLED":
+      return "danger";
+    case "NO_SHOW":
+      return "warning";
+    default:
+      return "info";
+  }
+}

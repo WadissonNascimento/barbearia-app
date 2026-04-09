@@ -1,11 +1,13 @@
 "use server";
 
 import { auth } from "@/auth";
+import { reserveInventoryForOrder } from "@/lib/orderInventory";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
 const orderInclude = {
   customer: true,
+  coupon: true,
   items: {
     include: {
       product: true,
@@ -49,6 +51,7 @@ export async function createOrder(data: {
 
       return {
         productId: item.productId,
+        productNameSnapshot: product.name,
         quantity: item.quantity,
         unitPrice: product.price,
       };
@@ -123,12 +126,14 @@ export async function confirmOrder(orderId: string) {
     where: { id: orderId },
     data: {
       status: "CONFIRMED",
-      adminApproved: true,
     },
   });
 
+  await reserveInventoryForOrder(orderId);
+
   revalidatePath("/admin/pedidos");
   revalidatePath("/meus-pedidos");
+  revalidatePath("/admin/produtos");
 }
 
 export async function saveTrackingCode(orderId: string, trackingCode: string) {
@@ -168,8 +173,13 @@ export async function updateOrderStatus(orderId: string, status: string) {
     data: { status },
   });
 
+  if (status === "CONFIRMED") {
+    await reserveInventoryForOrder(orderId);
+  }
+
   revalidatePath("/admin/pedidos");
   revalidatePath("/meus-pedidos");
+  revalidatePath("/admin/produtos");
 }
 
 export async function deleteOrder(orderId: string) {

@@ -2,34 +2,121 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import FeedbackMessage from "@/components/FeedbackMessage";
 import { useCart } from "@/context/CartContext";
 import { formatCurrency } from "@/lib/utils";
 
+type CartFeedback = {
+  message: string;
+  tone: "error" | "success" | "info";
+};
+
+type CheckoutQuote = {
+  subtotal: number;
+  shippingCost: number;
+  shippingMethod: string;
+  shippingEta: string;
+  discountTotal: number;
+  total: number;
+  couponCode: string | null;
+};
+
 export default function CarrinhoPage() {
-  const {
-    cart,
-    cartTotal,
-    removeFromCart,
-    updateQuantity,
-    clearCart,
-  } = useCart();
+  const { cart, cartTotal, removeFromCart, updateQuantity, clearCart } = useCart();
   const [loading, setLoading] = useState(false);
+  const [quoteLoading, setQuoteLoading] = useState(false);
   const [customerName, setCustomerName] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [customerAddress, setCustomerAddress] = useState("");
+  const [shippingZipCode, setShippingZipCode] = useState("");
+  const [couponCode, setCouponCode] = useState("");
+  const [feedback, setFeedback] = useState<CartFeedback | null>(null);
+  const [quote, setQuote] = useState<CheckoutQuote | null>(null);
+
+  async function calcularResumo() {
+    if (!cart.length) {
+      setFeedback({
+        message: "Seu carrinho esta vazio.",
+        tone: "info",
+      });
+      return;
+    }
+
+    if (!shippingZipCode) {
+      setFeedback({
+        message: "Informe o CEP para calcular o frete.",
+        tone: "error",
+      });
+      return;
+    }
+
+    setQuoteLoading(true);
+    setFeedback(null);
+
+    try {
+      const response = await fetch("/api/checkout/quote", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          shippingZipCode,
+          couponCode: couponCode || null,
+          items: cart.map((item) => ({
+            productId: item.productId,
+            quantity: item.quantity,
+          })),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Nao foi possivel calcular o pedido.");
+      }
+
+      setQuote(data);
+      setFeedback({
+        message: "Resumo atualizado com frete e cupom.",
+        tone: "success",
+      });
+    } catch (error) {
+      setQuote(null);
+      setFeedback({
+        message:
+          error instanceof Error ? error.message : "Nao foi possivel calcular o pedido.",
+        tone: "error",
+      });
+    } finally {
+      setQuoteLoading(false);
+    }
+  }
 
   async function finalizarPedido() {
     if (!cart.length) {
-      alert("Seu carrinho esta vazio.");
+      setFeedback({
+        message: "Seu carrinho esta vazio.",
+        tone: "info",
+      });
       return;
     }
 
-    if (!customerName || !customerEmail || !customerPhone || !customerAddress) {
-      alert("Preencha nome, e-mail, telefone e endereco para finalizar.");
+    if (
+      !customerName ||
+      !customerEmail ||
+      !customerPhone ||
+      !customerAddress ||
+      !shippingZipCode
+    ) {
+      setFeedback({
+        message: "Preencha nome, e-mail, telefone, endereco e CEP para finalizar.",
+        tone: "error",
+      });
       return;
     }
 
+    setFeedback(null);
     setLoading(true);
 
     try {
@@ -43,6 +130,8 @@ export default function CarrinhoPage() {
           customerEmail,
           customerPhone,
           customerAddress,
+          shippingZipCode,
+          couponCode: couponCode || null,
           items: cart.map((item) => ({
             productId: item.productId,
             quantity: item.quantity,
@@ -62,7 +151,11 @@ export default function CarrinhoPage() {
         data.redirectTo ||
         `/rastreio?email=${encodeURIComponent(customerEmail)}`;
     } catch (error) {
-      alert(error instanceof Error ? error.message : "Erro ao finalizar pedido.");
+      setFeedback({
+        message:
+          error instanceof Error ? error.message : "Erro ao finalizar pedido.",
+        tone: "error",
+      });
     } finally {
       setLoading(false);
     }
@@ -74,7 +167,7 @@ export default function CarrinhoPage() {
         <div>
           <h1 className="text-3xl font-bold">Carrinho</h1>
           <p className="text-zinc-400">
-            Revise seus itens e finalize o pedido.
+            Revise seus itens, calcule frete, aplique cupom e finalize o pedido.
           </p>
         </div>
 
@@ -91,7 +184,7 @@ export default function CarrinhoPage() {
           <p className="text-zinc-300">Seu carrinho esta vazio.</p>
         </div>
       ) : (
-        <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
+        <div className="grid gap-8 lg:grid-cols-[1fr_380px]">
           <div className="space-y-4">
             {cart.map((item) => (
               <div
@@ -148,6 +241,13 @@ export default function CarrinhoPage() {
           <aside className="h-fit rounded-3xl border border-white/10 bg-white/[0.04] p-5">
             <h2 className="text-xl font-semibold">Finalizar compra</h2>
 
+            <div className="mt-4">
+              <FeedbackMessage
+                message={feedback?.message ?? null}
+                tone={feedback?.tone ?? "error"}
+              />
+            </div>
+
             <div className="mt-4 space-y-3">
               <input
                 value={customerName}
@@ -174,12 +274,65 @@ export default function CarrinhoPage() {
                 placeholder="Endereco para entrega"
                 className="min-h-28 w-full rounded-xl bg-[#0a1324] px-4 py-3 text-white outline-none"
               />
+              <input
+                value={shippingZipCode}
+                onChange={(e) => setShippingZipCode(e.target.value)}
+                placeholder="CEP"
+                className="w-full rounded-xl bg-[#0a1324] px-4 py-3 text-white outline-none"
+              />
+              <div className="flex gap-2">
+                <input
+                  value={couponCode}
+                  onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                  placeholder="Cupom"
+                  className="flex-1 rounded-xl bg-[#0a1324] px-4 py-3 text-white outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={calcularResumo}
+                  disabled={quoteLoading}
+                  className="rounded-xl border border-white/10 px-4 py-3 text-sm font-semibold hover:bg-white/5 disabled:opacity-60"
+                >
+                  {quoteLoading ? "Calculando..." : "Calcular"}
+                </button>
+              </div>
             </div>
 
-            <div className="mt-5 border-t border-white/10 pt-4">
-              <div className="flex items-center justify-between text-sm text-zinc-300">
+            <div className="mt-5 space-y-3 border-t border-white/10 pt-4 text-sm">
+              <div className="flex items-center justify-between text-zinc-300">
+                <span>Subtotal</span>
+                <strong className="text-white">
+                  {formatCurrency(quote?.subtotal ?? cartTotal)}
+                </strong>
+              </div>
+
+              <div className="flex items-center justify-between text-zinc-300">
+                <span>Frete</span>
+                <strong className="text-white">
+                  {quote ? formatCurrency(quote.shippingCost) : "Calcule"}
+                </strong>
+              </div>
+
+              <div className="flex items-center justify-between text-zinc-300">
+                <span>Desconto</span>
+                <strong className="text-emerald-300">
+                  {formatCurrency(-(quote?.discountTotal ?? 0))}
+                </strong>
+              </div>
+
+              {quote && (
+                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 text-xs text-zinc-400">
+                  <p>{quote.shippingMethod}</p>
+                  <p>Prazo estimado: {quote.shippingEta}</p>
+                  {quote.couponCode && <p>Cupom aplicado: {quote.couponCode}</p>}
+                </div>
+              )}
+
+              <div className="flex items-center justify-between text-base text-zinc-200">
                 <span>Total</span>
-                <strong className="text-white">{formatCurrency(cartTotal)}</strong>
+                <strong className="text-white">
+                  {formatCurrency(quote?.total ?? cartTotal)}
+                </strong>
               </div>
             </div>
 

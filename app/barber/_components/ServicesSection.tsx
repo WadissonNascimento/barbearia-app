@@ -1,3 +1,5 @@
+import EmptyState from "@/components/ui/EmptyState";
+import SectionCard from "@/components/ui/SectionCard";
 import {
   createBarberServiceAction,
   deleteBarberServiceAction,
@@ -10,25 +12,23 @@ type BarberDashboardData = Awaited<ReturnType<typeof getBarberDashboardData>>;
 
 export function ServicesSection({
   services,
+  redirectTo,
 }: {
   services: BarberDashboardData["services"];
+  redirectTo: string;
 }) {
   return (
-    <section className="rounded-[28px] border border-zinc-800 bg-zinc-900/90 p-6 shadow-[0_18px_40px_rgba(0,0,0,0.18)]">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-semibold text-white">Servicos</h2>
-          <p className="mt-1 text-sm text-zinc-400">
-            Cadastre, edite e exclua apenas os servicos exclusivos do seu perfil.
-          </p>
-        </div>
-      </div>
-
+    <SectionCard
+      title="Servicos"
+      description="Cadastre, edite e exclua apenas os servicos exclusivos do seu perfil."
+      className="rounded-[28px] bg-zinc-900/90"
+    >
       <div className="mt-6 grid gap-6 xl:grid-cols-[360px_1fr]">
         <form
           action={createBarberServiceAction}
           className="rounded-3xl border border-zinc-800 bg-zinc-950/70 p-5"
         >
+          <input type="hidden" name="redirectTo" value={redirectTo} />
           <h3 className="text-lg font-semibold text-white">Novo servico</h3>
           <div className="mt-4 space-y-4">
             <Field label="Nome">
@@ -71,6 +71,17 @@ export function ServicesSection({
               </Field>
             </div>
 
+            <Field label="Intervalo depois do servico (min)">
+              <input
+                type="number"
+                min="0"
+                step="5"
+                name="bufferAfter"
+                defaultValue={0}
+                className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-3 text-sm text-white outline-none"
+              />
+            </Field>
+
             <button
               type="submit"
               className="w-full rounded-xl bg-[#d4a15d] px-4 py-3 font-semibold text-black transition hover:brightness-110"
@@ -82,9 +93,10 @@ export function ServicesSection({
 
         <div className="space-y-4">
           {services.length === 0 ? (
-            <div className="rounded-3xl border border-dashed border-zinc-700 bg-zinc-950/60 p-6 text-sm text-zinc-400">
-              Ainda nao ha servicos cadastrados para este barbeiro.
-            </div>
+            <EmptyState
+              title="Nenhum servico cadastrado"
+              description="Crie seu primeiro servico para liberar novos agendamentos exclusivos."
+            />
           ) : (
             services.map((service) => (
               <div
@@ -97,9 +109,14 @@ export function ServicesSection({
                     <p className="text-sm text-zinc-400">
                       {service.isActive ? "Ativo para agendamento" : "Indisponivel no momento"}
                     </p>
+                    <p className="text-xs text-zinc-500">
+                      {service.duration} min
+                      {service.bufferAfter > 0 ? ` + ${service.bufferAfter} min de intervalo` : ""}
+                    </p>
                   </div>
 
                   <form action={toggleBarberServiceAction}>
+                    <input type="hidden" name="redirectTo" value={redirectTo} />
                     <input type="hidden" name="serviceId" value={service.id} />
                     <button
                       type="submit"
@@ -114,6 +131,7 @@ export function ServicesSection({
                   </form>
 
                   <form action={deleteBarberServiceAction}>
+                    <input type="hidden" name="redirectTo" value={redirectTo} />
                     <input type="hidden" name="serviceId" value={service.id} />
                     <button
                       type="submit"
@@ -125,6 +143,7 @@ export function ServicesSection({
                 </div>
 
                 <form action={updateBarberServiceAction} className="grid gap-4">
+                  <input type="hidden" name="redirectTo" value={redirectTo} />
                   <input type="hidden" name="serviceId" value={service.id} />
 
                   <Field label="Nome">
@@ -171,6 +190,17 @@ export function ServicesSection({
                     </Field>
                   </div>
 
+                  <Field label="Intervalo depois do servico (min)">
+                    <input
+                      type="number"
+                      min="0"
+                      step="5"
+                      name="bufferAfter"
+                      defaultValue={service.bufferAfter}
+                      className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-3 text-sm text-white outline-none"
+                    />
+                  </Field>
+
                   <button
                     type="submit"
                     className="justify-self-start rounded-xl border border-zinc-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800"
@@ -183,7 +213,7 @@ export function ServicesSection({
           )}
         </div>
       </div>
-    </section>
+    </SectionCard>
   );
 }
 
