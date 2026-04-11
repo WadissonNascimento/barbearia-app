@@ -16,7 +16,7 @@ export default function LoginPage({
       : null;
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[#020b1a] px-4 text-white">
+    <main className="flex min-h-screen items-center justify-center px-4 py-8 text-white">
       <LoginForm successMessage={successMessage} />
     </main>
   );

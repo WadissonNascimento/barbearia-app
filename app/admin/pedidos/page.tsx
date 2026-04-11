@@ -1,12 +1,6 @@
 import Link from "next/link";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
-import {
-  confirmOrder,
-  saveTrackingCode,
-  deleteOrder,
-} from "@/app/actions/orderActions";
-import FormFeedback from "@/components/FormFeedback";
 import EmptyState from "@/components/ui/EmptyState";
 import PageHeader from "@/components/ui/PageHeader";
 import SectionCard from "@/components/ui/SectionCard";
@@ -15,8 +9,9 @@ import {
   ADMIN_ORDER_STATUSES,
   getAdminOrdersReport,
 } from "@/lib/adminReports";
-import { buildFeedbackRedirect, readPageFeedback } from "@/lib/pageFeedback";
 import { orderStatusLabel, orderStatusVariant } from "@/lib/orderStatus";
+import OrderActionPanel from "./OrderActionPanel";
+import OrdersFilters from "./OrdersFilters";
 
 export default async function AdminPedidosPage({
   searchParams,
@@ -39,7 +34,6 @@ export default async function AdminPedidosPage({
   const status = searchParams?.status || "";
   const filters = { dateFrom, dateTo, status };
   const { orders, summary } = await getAdminOrdersReport(filters);
-  const feedback = readPageFeedback(searchParams);
   const exportParams = new URLSearchParams(
     Object.entries(filters).filter(([, value]) => Boolean(value))
   ).toString();
@@ -59,63 +53,20 @@ export default async function AdminPedidosPage({
         }
       />
 
-      <FormFeedback
-        success={feedback?.tone === "success" ? feedback.message : null}
-        error={feedback?.tone === "error" ? feedback.message : null}
-        info={feedback?.tone === "info" ? feedback.message : null}
-      />
-
       <SectionCard
         title="Filtros"
         description="Refine os pedidos por periodo e status antes de exportar."
         className="mt-6"
       >
-        <form className="grid gap-4 md:grid-cols-4">
-          <div>
-            <label className="mb-2 block text-sm text-zinc-300">De</label>
-            <input
-              type="date"
-              name="dateFrom"
-              defaultValue={dateFrom}
-              className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 outline-none"
-            />
-          </div>
-
-          <div>
-            <label className="mb-2 block text-sm text-zinc-300">Ate</label>
-            <input
-              type="date"
-              name="dateTo"
-              defaultValue={dateTo}
-              className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 outline-none"
-            />
-          </div>
-
-          <div>
-            <label className="mb-2 block text-sm text-zinc-300">Status</label>
-            <select
-              name="status"
-              defaultValue={status}
-              className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 outline-none"
-            >
-              <option value="">Todos</option>
-              {ADMIN_ORDER_STATUSES.map((orderStatus) => (
-                <option key={orderStatus} value={orderStatus}>
-                  {orderStatusLabel[orderStatus]}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="flex items-end">
-            <button
-              type="submit"
-              className="w-full rounded-xl bg-white px-5 py-3 font-semibold text-black transition hover:opacity-90"
-            >
-              Filtrar
-            </button>
-          </div>
-        </form>
+        <OrdersFilters
+          dateFrom={dateFrom}
+          dateTo={dateTo}
+          status={status}
+          statusOptions={ADMIN_ORDER_STATUSES.map((orderStatus) => ({
+            value: orderStatus,
+            label: orderStatusLabel[orderStatus],
+          }))}
+        />
       </SectionCard>
 
       <div className="mt-6 grid gap-4 md:grid-cols-4">
@@ -211,82 +162,12 @@ export default async function AdminPedidosPage({
                   </p>
                 </div>
 
-                <div className="flex flex-wrap gap-2">
-                  {order.status === "PENDING" && (
-                    <form
-                      action={async () => {
-                        "use server";
-                        await confirmOrder(order.id);
-                        redirect(
-                          buildFeedbackRedirect(
-                            "/admin/pedidos",
-                            "Pedido confirmado com sucesso."
-                          )
-                        );
-                      }}
-                    >
-                      <button className="rounded bg-green-600 px-3 py-2 text-sm font-semibold">
-                        Aceitar
-                      </button>
-                    </form>
-                  )}
-
-                  <form
-                    action={async () => {
-                      "use server";
-                      await deleteOrder(order.id);
-                      redirect(
-                        buildFeedbackRedirect(
-                          "/admin/pedidos",
-                          "Pedido excluido com sucesso."
-                        )
-                      );
-                    }}
-                  >
-                    <button className="rounded bg-red-600 px-3 py-2 text-sm font-semibold">
-                      Excluir
-                    </button>
-                  </form>
-                </div>
-              </div>
-
-              <form
-                action={async (formData) => {
-                  "use server";
-                  const trackingCode = String(formData.get("trackingCode") || "");
-
-                  try {
-                    await saveTrackingCode(order.id, trackingCode);
-                    redirect(
-                      buildFeedbackRedirect(
-                        "/admin/pedidos",
-                        "Codigo de rastreio salvo com sucesso."
-                      )
-                    );
-                  } catch (error) {
-                    redirect(
-                      buildFeedbackRedirect(
-                        "/admin/pedidos",
-                        error instanceof Error
-                          ? error.message
-                          : "Nao foi possivel salvar o rastreio.",
-                        "error"
-                      )
-                    );
-                  }
-                }}
-                className="mt-4 flex flex-wrap gap-2"
-              >
-                <input
-                  name="trackingCode"
-                  defaultValue={order.trackingCode || ""}
-                  placeholder="Codigo de rastreio"
-                  className="min-w-[240px] rounded bg-black px-3 py-2 text-white outline-none"
+                <OrderActionPanel
+                  orderId={order.id}
+                  status={order.status}
+                  trackingCode={order.trackingCode}
                 />
-                <button className="rounded bg-sky-600 px-3 py-2 text-sm font-semibold">
-                  Salvar rastreio
-                </button>
-              </form>
+              </div>
 
               <div className="mt-4">
                 {order.items.map((item) => (

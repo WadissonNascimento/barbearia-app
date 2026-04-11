@@ -2,14 +2,17 @@
 
 import { auth } from "@/auth";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
-import { buildFeedbackRedirect } from "@/lib/pageFeedback";
+import {
+  mutationError,
+  mutationSuccess,
+  type MutationResult,
+} from "@/lib/mutationResult";
 import { prisma } from "@/lib/prisma";
 
-export async function updateCustomerProfileAction(formData: FormData) {
+export async function updateCustomerProfileAction(
+  formData: FormData
+): Promise<MutationResult> {
   const session = await auth();
-
-  const redirectTo = String(formData.get("redirectTo") || "/meu-perfil");
 
   if (!session?.user?.id || session.user.role !== "CUSTOMER") {
     throw new Error("Nao autorizado.");
@@ -23,13 +26,32 @@ export async function updateCustomerProfileAction(formData: FormData) {
   const preferences = String(formData.get("preferences") || "").trim();
 
   if (!name) {
-    redirect(buildFeedbackRedirect(redirectTo, "Informe seu nome.", "error"));
+    return mutationError("Informe seu nome.");
   }
 
   const birthDate = birthDateValue ? new Date(`${birthDateValue}T00:00:00`) : null;
 
   if (birthDate && Number.isNaN(birthDate.getTime())) {
-    redirect(buildFeedbackRedirect(redirectTo, "Data de nascimento invalida.", "error"));
+    return mutationError("Data de nascimento invalida.");
+  }
+
+  if (preferredBarberId) {
+    const preferredBarber = await prisma.user.findFirst({
+      where: {
+        id: preferredBarberId,
+        role: "BARBER",
+        isActive: true,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!preferredBarber) {
+      return mutationError(
+        "O barbeiro preferido selecionado nao esta disponivel."
+      );
+    }
   }
 
   await prisma.$transaction([
@@ -62,5 +84,5 @@ export async function updateCustomerProfileAction(formData: FormData) {
 
   revalidatePath("/meu-perfil");
   revalidatePath("/customer");
-  redirect(buildFeedbackRedirect(redirectTo, "Perfil atualizado com sucesso."));
+  return mutationSuccess("Perfil atualizado com sucesso.");
 }

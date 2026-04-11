@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { reserveInventoryForOrder } from "@/lib/orderInventory";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { ORDER_STATUSES } from "@/lib/orderStatus";
 
 const orderInclude = {
   customer: true,
@@ -29,6 +30,17 @@ export async function createOrder(data: {
 
   if (data.items.length === 0) {
     throw new Error("O pedido precisa ter pelo menos um item.");
+  }
+
+  if (
+    data.items.some(
+      (item) =>
+        !item.productId ||
+        !Number.isInteger(item.quantity) ||
+        item.quantity <= 0
+    )
+  ) {
+    throw new Error("Os itens enviados para o pedido sao invalidos.");
   }
 
   let total = 0;
@@ -122,6 +134,10 @@ export async function confirmOrder(orderId: string) {
     throw new Error("Nao autorizado.");
   }
 
+  if (!orderId) {
+    throw new Error("Pedido invalido.");
+  }
+
   await prisma.order.update({
     where: { id: orderId },
     data: {
@@ -141,6 +157,10 @@ export async function saveTrackingCode(orderId: string, trackingCode: string) {
 
   if (!session?.user || session.user.role !== "ADMIN") {
     throw new Error("Nao autorizado.");
+  }
+
+  if (!orderId) {
+    throw new Error("Pedido invalido.");
   }
 
   const normalizedCode = trackingCode.trim().toUpperCase();
@@ -168,6 +188,10 @@ export async function updateOrderStatus(orderId: string, status: string) {
     throw new Error("Nao autorizado.");
   }
 
+  if (!orderId || !ORDER_STATUSES.includes(status as never)) {
+    throw new Error("Status de pedido invalido.");
+  }
+
   await prisma.order.update({
     where: { id: orderId },
     data: { status },
@@ -187,6 +211,10 @@ export async function deleteOrder(orderId: string) {
 
   if (!session?.user || session.user.role !== "ADMIN") {
     throw new Error("Nao autorizado.");
+  }
+
+  if (!orderId) {
+    throw new Error("Pedido invalido.");
   }
 
   await prisma.order.delete({

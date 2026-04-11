@@ -15,6 +15,8 @@ function getExpirationDate() {
   return new Date(Date.now() + 10 * 60 * 1000);
 }
 
+const MAX_CODE_ATTEMPTS = 5;
+
 function buildVerificationUrl(email: string) {
   const baseUrl =
     process.env.NEXT_PUBLIC_APP_URL ||
@@ -151,6 +153,13 @@ export async function verifyRegistrationCodeAction(
     };
   }
 
+  if (pending.attempts >= MAX_CODE_ATTEMPTS) {
+    return {
+      error: "Muitas tentativas invalidas. Solicite um novo codigo.",
+      success: null,
+    };
+  }
+
   if (pending.code !== code) {
     await prisma.pendingRegistration.update({
       where: { email },
@@ -224,6 +233,13 @@ export async function resendRegistrationCodeAction(
   if (!pending) {
     return {
       error: "Nao encontramos um cadastro pendente para esse e-mail.",
+      success: null,
+    };
+  }
+
+  if (pending.expiresAt.getTime() < Date.now()) {
+    return {
+      error: "O codigo anterior expirou. Recomece o cadastro para receber um novo.",
       success: null,
     };
   }

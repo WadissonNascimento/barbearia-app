@@ -13,7 +13,7 @@ import { requireActiveBarber } from "./guard";
 export default async function BarberPage() {
   const { session } = await requireActiveBarber();
   const dashboard = await getBarberDashboardData(session.user.id, {
-    view: "today",
+    view: "day",
     status: "ALL",
   });
 

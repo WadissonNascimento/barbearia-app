@@ -16,12 +16,12 @@ export default function SectionCard({
   return (
     <section
       id={id}
-      className={`rounded-3xl border border-zinc-800 bg-zinc-900 p-6 shadow-[0_18px_40px_rgba(0,0,0,0.18)] ${className}`.trim()}
+      className={`surface-card rounded-[28px] p-4 sm:p-6 ${className}`.trim()}
     >
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-semibold text-white">{title}</h2>
-          {description && <p className="mt-1 text-sm text-zinc-400">{description}</p>}
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="max-w-2xl">
+          <h2 className="text-xl font-semibold text-white sm:text-[1.35rem]">{title}</h2>
+          {description && <p className="mt-1 text-sm leading-6 text-zinc-400">{description}</p>}
         </div>
         {actions}
       </div>

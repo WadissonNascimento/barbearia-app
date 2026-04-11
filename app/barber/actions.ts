@@ -2,13 +2,19 @@
 
 import { auth } from "@/auth";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import {
   APPOINTMENT_STATUSES,
   normalizeAppointmentStatus,
 } from "@/lib/appointmentStatus";
-import { syncAppointmentFinancialSnapshots } from "@/lib/financials";
-import { buildFeedbackRedirect } from "@/lib/pageFeedback";
+import {
+  AppointmentMutationError,
+  updateAppointmentStatusForBarber,
+} from "@/lib/appointmentMutations";
+import {
+  mutationError,
+  mutationSuccess,
+  type MutationResult,
+} from "@/lib/mutationResult";
 import { prisma } from "@/lib/prisma";
 
 async function requireBarber() {
@@ -48,27 +54,18 @@ function isValidTimeRange(startTime: string, endTime: string) {
 
 function revalidateBarberViews() {
   revalidatePath("/barber");
+  revalidatePath("/barber/agenda");
+  revalidatePath("/barber/servicos");
+  revalidatePath("/barber/disponibilidade");
   revalidatePath("/barber/clientes");
   revalidatePath("/agendar");
   revalidatePath("/customer");
   revalidatePath("/admin/agenda");
 }
 
-function getRedirectTo(formData: FormData, fallback: string) {
-  const redirectTo = String(formData.get("redirectTo") || "").trim();
-  return redirectTo || fallback;
-}
-
-function redirectWithFeedback(
-  formData: FormData,
-  fallback: string,
-  message: string,
-  tone: "error" | "success" | "info" = "success"
-): never {
-  redirect(buildFeedbackRedirect(getRedirectTo(formData, fallback), message, tone));
-}
-
-export async function updateAppointmentStatusAction(formData: FormData) {
+export async function updateAppointmentStatusAction(
+  formData: FormData
+): Promise<MutationResult> {
   const barber = await requireBarber();
   const appointmentId = String(formData.get("appointmentId") || "");
   const status = normalizeAppointmentStatus(
@@ -76,41 +73,30 @@ export async function updateAppointmentStatusAction(formData: FormData) {
   );
 
   if (!appointmentId || !APPOINTMENT_STATUSES.includes(status as never)) {
-    redirectWithFeedback(
-      formData,
-      "/barber",
-      "Status de agendamento invalido.",
-      "error"
-    );
+    return mutationError("Status de agendamento invalido.");
   }
 
-  const appointment = await prisma.appointment.findUnique({
-    where: { id: appointmentId },
-  });
+  try {
+    await updateAppointmentStatusForBarber({
+      appointmentId,
+      barberId: barber.id,
+      status,
+    });
+  } catch (error) {
+    if (error instanceof AppointmentMutationError) {
+      return mutationError(error.message);
+    }
 
-  if (!appointment || appointment.barberId !== barber.id) {
-    redirectWithFeedback(
-      formData,
-      "/barber",
-      "Agendamento nao encontrado para este barbeiro.",
-      "error"
-    );
-  }
-
-  await prisma.appointment.update({
-    where: { id: appointmentId },
-    data: { status },
-  });
-
-  if (status === "COMPLETED") {
-    await syncAppointmentFinancialSnapshots(appointmentId);
+    throw error;
   }
 
   revalidateBarberViews();
-  redirectWithFeedback(formData, "/barber", "Status do agendamento atualizado.");
+  return mutationSuccess("Status do agendamento atualizado.");
 }
 
-export async function createBarberServiceAction(formData: FormData) {
+export async function createBarberServiceAction(
+  formData: FormData
+): Promise<MutationResult> {
   const barber = await requireBarber();
   const name = String(formData.get("name") || "").trim();
   const description = String(formData.get("description") || "").trim();
@@ -124,11 +110,8 @@ export async function createBarberServiceAction(formData: FormData) {
     duration <= 0 ||
     bufferAfter < 0
   ) {
-    redirectWithFeedback(
-      formData,
-      "/barber",
-      "Preencha nome, preco, duracao e intervalo corretamente.",
-      "error"
+    return mutationError(
+      "Preencha nome, preco, duracao e intervalo corretamente."
     );
   }
 
@@ -147,10 +130,12 @@ export async function createBarberServiceAction(formData: FormData) {
   });
 
   revalidateBarberViews();
-  redirectWithFeedback(formData, "/barber", "Servico criado com sucesso.");
+  return mutationSuccess("Servico criado com sucesso.");
 }
 
-export async function updateBarberServiceAction(formData: FormData) {
+export async function updateBarberServiceAction(
+  formData: FormData
+): Promise<MutationResult> {
   const barber = await requireBarber();
   const serviceId = String(formData.get("serviceId") || "");
   const name = String(formData.get("name") || "").trim();
@@ -166,11 +151,8 @@ export async function updateBarberServiceAction(formData: FormData) {
     duration <= 0 ||
     bufferAfter < 0
   ) {
-    redirectWithFeedback(
-      formData,
-      "/barber",
-      "Preencha nome, preco, duracao e intervalo corretamente.",
-      "error"
+    return mutationError(
+      "Preencha nome, preco, duracao e intervalo corretamente."
     );
   }
 
@@ -179,12 +161,7 @@ export async function updateBarberServiceAction(formData: FormData) {
   });
 
   if (!service || service.barberId !== barber.id) {
-    redirectWithFeedback(
-      formData,
-      "/barber",
-      "Servico nao encontrado para este barbeiro.",
-      "error"
-    );
+    return mutationError("Servico nao encontrado para este barbeiro.");
   }
 
   await prisma.service.update({
@@ -199,10 +176,12 @@ export async function updateBarberServiceAction(formData: FormData) {
   });
 
   revalidateBarberViews();
-  redirectWithFeedback(formData, "/barber", "Servico atualizado com sucesso.");
+  return mutationSuccess("Servico atualizado com sucesso.");
 }
 
-export async function toggleBarberServiceAction(formData: FormData) {
+export async function toggleBarberServiceAction(
+  formData: FormData
+): Promise<MutationResult> {
   const barber = await requireBarber();
   const serviceId = String(formData.get("serviceId") || "");
 
@@ -211,12 +190,7 @@ export async function toggleBarberServiceAction(formData: FormData) {
   });
 
   if (!service || service.barberId !== barber.id) {
-    redirectWithFeedback(
-      formData,
-      "/barber",
-      "Servico nao encontrado para este barbeiro.",
-      "error"
-    );
+    return mutationError("Servico nao encontrado para este barbeiro.");
   }
 
   await prisma.service.update({
@@ -227,14 +201,14 @@ export async function toggleBarberServiceAction(formData: FormData) {
   });
 
   revalidateBarberViews();
-  redirectWithFeedback(
-    formData,
-    "/barber",
+  return mutationSuccess(
     service.isActive ? "Servico desativado." : "Servico ativado."
   );
 }
 
-export async function deleteBarberServiceAction(formData: FormData) {
+export async function deleteBarberServiceAction(
+  formData: FormData
+): Promise<MutationResult> {
   const barber = await requireBarber();
   const serviceId = String(formData.get("serviceId") || "");
 
@@ -243,12 +217,7 @@ export async function deleteBarberServiceAction(formData: FormData) {
   });
 
   if (!service || service.barberId !== barber.id) {
-    redirectWithFeedback(
-      formData,
-      "/barber",
-      "Servico nao encontrado para este barbeiro.",
-      "error"
-    );
+    return mutationError("Servico nao encontrado para este barbeiro.");
   }
 
   await prisma.service.delete({
@@ -256,10 +225,12 @@ export async function deleteBarberServiceAction(formData: FormData) {
   });
 
   revalidateBarberViews();
-  redirectWithFeedback(formData, "/barber", "Servico removido com sucesso.");
+  return mutationSuccess("Servico removido com sucesso.");
 }
 
-export async function saveBarberAvailabilityAction(formData: FormData) {
+export async function saveBarberAvailabilityAction(
+  formData: FormData
+): Promise<MutationResult> {
   const barber = await requireBarber();
   const weekDay = Number(formData.get("weekDay") || -1);
   const startTime = String(formData.get("startTime") || "");
@@ -267,12 +238,7 @@ export async function saveBarberAvailabilityAction(formData: FormData) {
   const isActive = String(formData.get("isActive") || "false") === "true";
 
   if (weekDay < 0 || weekDay > 6 || !isValidTimeRange(startTime, endTime)) {
-    redirectWithFeedback(
-      formData,
-      "/barber",
-      "Disponibilidade invalida.",
-      "error"
-    );
+    return mutationError("Disponibilidade invalida.");
   }
 
   await prisma.barberAvailability.upsert({
@@ -297,10 +263,12 @@ export async function saveBarberAvailabilityAction(formData: FormData) {
   });
 
   revalidateBarberViews();
-  redirectWithFeedback(formData, "/barber", "Disponibilidade atualizada.");
+  return mutationSuccess("Disponibilidade atualizada.");
 }
 
-export async function saveWeeklyBarberAvailabilityAction(formData: FormData) {
+export async function saveWeeklyBarberAvailabilityAction(
+  formData: FormData
+): Promise<MutationResult> {
   const barber = await requireBarber();
 
   const entries = Array.from({ length: 7 }, (_, weekDay) => {
@@ -310,12 +278,7 @@ export async function saveWeeklyBarberAvailabilityAction(formData: FormData) {
       String(formData.get(`day-${weekDay}-isActive`) || "false") === "true";
 
     if (!isValidTimeRange(startTime, endTime)) {
-      redirectWithFeedback(
-        formData,
-        "/barber",
-        `Horario invalido para o dia ${weekDay}.`,
-        "error"
-      );
+      throw new Error(`Horario invalido para o dia ${weekDay}.`);
     }
 
     return {
@@ -326,40 +289,48 @@ export async function saveWeeklyBarberAvailabilityAction(formData: FormData) {
     };
   });
 
-  await prisma.$transaction(
-    entries.map((entry) =>
-      prisma.barberAvailability.upsert({
-        where: {
-          barberId_weekDay: {
+  try {
+    await prisma.$transaction(
+      entries.map((entry) =>
+        prisma.barberAvailability.upsert({
+          where: {
+            barberId_weekDay: {
+              barberId: barber.id,
+              weekDay: entry.weekDay,
+            },
+          },
+          update: {
+            startTime: entry.startTime,
+            endTime: entry.endTime,
+            isActive: entry.isActive,
+          },
+          create: {
             barberId: barber.id,
             weekDay: entry.weekDay,
+            startTime: entry.startTime,
+            endTime: entry.endTime,
+            isActive: entry.isActive,
           },
-        },
-        update: {
-          startTime: entry.startTime,
-          endTime: entry.endTime,
-          isActive: entry.isActive,
-        },
-        create: {
-          barberId: barber.id,
-          weekDay: entry.weekDay,
-          startTime: entry.startTime,
-          endTime: entry.endTime,
-          isActive: entry.isActive,
-        },
-      })
-    )
-  );
+        })
+      )
+    );
+  } catch (error) {
+    if (error instanceof Error) {
+      return mutationError(error.message);
+    }
+
+    throw error;
+  }
 
   revalidateBarberViews();
-  redirectWithFeedback(
-    formData,
-    "/barber",
+  return mutationSuccess(
     "Disponibilidade da semana salva com sucesso."
   );
 }
 
-export async function createBarberBlockAction(formData: FormData) {
+export async function createBarberBlockAction(
+  formData: FormData
+): Promise<MutationResult> {
   const barber = await requireBarber();
   const startDateTime = new Date(String(formData.get("startDateTime") || ""));
   const endDateTime = new Date(String(formData.get("endDateTime") || ""));
@@ -370,12 +341,7 @@ export async function createBarberBlockAction(formData: FormData) {
     Number.isNaN(endDateTime.getTime()) ||
     startDateTime >= endDateTime
   ) {
-    redirectWithFeedback(
-      formData,
-      "/barber",
-      "Periodo de bloqueio invalido.",
-      "error"
-    );
+    return mutationError("Periodo de bloqueio invalido.");
   }
 
   await prisma.barberBlock.create({
@@ -388,10 +354,12 @@ export async function createBarberBlockAction(formData: FormData) {
   });
 
   revalidateBarberViews();
-  redirectWithFeedback(formData, "/barber", "Bloqueio criado com sucesso.");
+  return mutationSuccess("Bloqueio criado com sucesso.");
 }
 
-export async function createRecurringBarberBlockAction(formData: FormData) {
+export async function createRecurringBarberBlockAction(
+  formData: FormData
+): Promise<MutationResult> {
   const barber = await requireBarber();
   const weekDay = Number(formData.get("weekDay") || -1);
   const startTime = String(formData.get("startTime") || "");
@@ -399,12 +367,7 @@ export async function createRecurringBarberBlockAction(formData: FormData) {
   const reason = String(formData.get("reason") || "").trim();
 
   if (weekDay < 0 || weekDay > 6 || !isValidTimeRange(startTime, endTime)) {
-    redirectWithFeedback(
-      formData,
-      "/barber",
-      "Bloqueio recorrente invalido.",
-      "error"
-    );
+    return mutationError("Bloqueio recorrente invalido.");
   }
 
   await prisma.recurringBarberBlock.create({
@@ -419,14 +382,14 @@ export async function createRecurringBarberBlockAction(formData: FormData) {
   });
 
   revalidateBarberViews();
-  redirectWithFeedback(
-    formData,
-    "/barber",
+  return mutationSuccess(
     "Bloqueio recorrente criado com sucesso."
   );
 }
 
-export async function deleteRecurringBarberBlockAction(formData: FormData) {
+export async function deleteRecurringBarberBlockAction(
+  formData: FormData
+): Promise<MutationResult> {
   const barber = await requireBarber();
   const recurringBlockId = String(formData.get("recurringBlockId") || "");
 
@@ -435,11 +398,8 @@ export async function deleteRecurringBarberBlockAction(formData: FormData) {
   });
 
   if (!recurringBlock || recurringBlock.barberId !== barber.id) {
-    redirectWithFeedback(
-      formData,
-      "/barber",
-      "Bloqueio recorrente nao encontrado para este barbeiro.",
-      "error"
+    return mutationError(
+      "Bloqueio recorrente nao encontrado para este barbeiro."
     );
   }
 
@@ -448,10 +408,12 @@ export async function deleteRecurringBarberBlockAction(formData: FormData) {
   });
 
   revalidateBarberViews();
-  redirectWithFeedback(formData, "/barber", "Bloqueio recorrente removido.");
+  return mutationSuccess("Bloqueio recorrente removido.");
 }
 
-export async function deleteBarberBlockAction(formData: FormData) {
+export async function deleteBarberBlockAction(
+  formData: FormData
+): Promise<MutationResult> {
   const barber = await requireBarber();
   const blockId = String(formData.get("blockId") || "");
 
@@ -460,12 +422,7 @@ export async function deleteBarberBlockAction(formData: FormData) {
   });
 
   if (!block || block.barberId !== barber.id) {
-    redirectWithFeedback(
-      formData,
-      "/barber",
-      "Bloqueio nao encontrado para este barbeiro.",
-      "error"
-    );
+    return mutationError("Bloqueio nao encontrado para este barbeiro.");
   }
 
   await prisma.barberBlock.delete({
@@ -473,21 +430,18 @@ export async function deleteBarberBlockAction(formData: FormData) {
   });
 
   revalidateBarberViews();
-  redirectWithFeedback(formData, "/barber", "Bloqueio removido.");
+  return mutationSuccess("Bloqueio removido.");
 }
 
-export async function saveClientNoteAction(formData: FormData) {
+export async function saveClientNoteAction(
+  formData: FormData
+): Promise<MutationResult> {
   const barber = await requireBarber();
   const customerId = String(formData.get("customerId") || "");
   const note = String(formData.get("note") || "").trim();
 
   if (!customerId || !note) {
-    redirectWithFeedback(
-      formData,
-      "/barber",
-      "Anotacao invalida.",
-      "error"
-    );
+    return mutationError("Anotacao invalida.");
   }
 
   const hasAppointment = await prisma.appointment.findFirst({
@@ -501,12 +455,7 @@ export async function saveClientNoteAction(formData: FormData) {
   });
 
   if (!hasAppointment) {
-    redirectWithFeedback(
-      formData,
-      "/barber",
-      "Cliente nao vinculado a este barbeiro.",
-      "error"
-    );
+    return mutationError("Cliente nao vinculado a este barbeiro.");
   }
 
   await prisma.clientNote.upsert({
@@ -528,9 +477,5 @@ export async function saveClientNoteAction(formData: FormData) {
 
   revalidateBarberViews();
   revalidatePath(`/barber/clientes/${customerId}`);
-  redirectWithFeedback(
-    formData,
-    `/barber/clientes/${customerId}`,
-    "Observacao salva com sucesso."
-  );
+  return mutationSuccess("Observacao salva com sucesso.");
 }

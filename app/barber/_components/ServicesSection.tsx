@@ -1,3 +1,8 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import { useState, useTransition, type ReactNode } from "react";
+import FeedbackMessage from "@/components/FeedbackMessage";
 import EmptyState from "@/components/ui/EmptyState";
 import SectionCard from "@/components/ui/SectionCard";
 import {
@@ -12,23 +17,66 @@ type BarberDashboardData = Awaited<ReturnType<typeof getBarberDashboardData>>;
 
 export function ServicesSection({
   services,
-  redirectTo,
 }: {
   services: BarberDashboardData["services"];
-  redirectTo: string;
 }) {
+  const router = useRouter();
+  const [feedback, setFeedback] = useState<{
+    message: string | null;
+    tone: "success" | "error" | "info";
+  }>({ message: null, tone: "success" });
+  const [pendingKey, setPendingKey] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  function runAction(
+    key: string,
+    action: (formData: FormData) => Promise<{
+      ok: boolean;
+      message: string;
+      tone: "success" | "error" | "info";
+    }>,
+    buildFormData: () => FormData,
+    onDone?: () => void
+  ) {
+    setPendingKey(key);
+    startTransition(async () => {
+      const result = await action(buildFormData());
+      setFeedback({ message: result.message, tone: result.tone });
+
+      if (result.ok) {
+        onDone?.();
+        router.refresh();
+      }
+
+      setPendingKey(null);
+    });
+  }
+
   return (
     <SectionCard
       title="Servicos"
       description="Cadastre, edite e exclua apenas os servicos exclusivos do seu perfil."
       className="rounded-[28px] bg-zinc-900/90"
     >
+      <div className="mt-6 space-y-3">
+        <FeedbackMessage message={feedback.message} tone={feedback.tone} />
+      </div>
+
       <div className="mt-6 grid gap-6 xl:grid-cols-[360px_1fr]">
         <form
-          action={createBarberServiceAction}
           className="rounded-3xl border border-zinc-800 bg-zinc-950/70 p-5"
+          onSubmit={(event) => {
+            event.preventDefault();
+            const form = event.currentTarget;
+
+            runAction(
+              "create-service",
+              createBarberServiceAction,
+              () => new FormData(form),
+              () => form.reset()
+            );
+          }}
         >
-          <input type="hidden" name="redirectTo" value={redirectTo} />
           <h3 className="text-lg font-semibold text-white">Novo servico</h3>
           <div className="mt-4 space-y-4">
             <Field label="Nome">
@@ -84,9 +132,12 @@ export function ServicesSection({
 
             <button
               type="submit"
-              className="w-full rounded-xl bg-[#d4a15d] px-4 py-3 font-semibold text-black transition hover:brightness-110"
+              disabled={isPending && pendingKey === "create-service"}
+              className="w-full rounded-xl bg-[var(--brand)] px-4 py-3 font-semibold text-white shadow-[0_12px_24px_rgba(37,99,235,0.28)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Criar servico
+              {isPending && pendingKey === "create-service"
+                ? "Criando..."
+                : "Criar servico"}
             </button>
           </div>
         </form>
@@ -115,35 +166,60 @@ export function ServicesSection({
                     </p>
                   </div>
 
-                  <form action={toggleBarberServiceAction}>
-                    <input type="hidden" name="redirectTo" value={redirectTo} />
-                    <input type="hidden" name="serviceId" value={service.id} />
-                    <button
-                      type="submit"
-                      className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
-                        service.isActive
-                          ? "bg-zinc-800 text-white hover:bg-zinc-700"
-                          : "bg-green-600 text-white hover:bg-green-500"
-                      }`}
-                    >
-                      {service.isActive ? "Desativar" : "Ativar"}
-                    </button>
-                  </form>
+                  <button
+                    type="button"
+                    disabled={isPending && pendingKey === `toggle-${service.id}`}
+                    onClick={() =>
+                      runAction(`toggle-${service.id}`, toggleBarberServiceAction, () => {
+                        const formData = new FormData();
+                        formData.set("serviceId", service.id);
+                        return formData;
+                      })
+                    }
+                    className={`rounded-xl px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                      service.isActive
+                        ? "bg-zinc-800 text-white hover:bg-zinc-700"
+                        : "bg-green-600 text-white hover:bg-green-500"
+                    }`}
+                  >
+                    {isPending && pendingKey === `toggle-${service.id}`
+                      ? "Salvando..."
+                      : service.isActive
+                      ? "Desativar"
+                      : "Ativar"}
+                  </button>
 
-                  <form action={deleteBarberServiceAction}>
-                    <input type="hidden" name="redirectTo" value={redirectTo} />
-                    <input type="hidden" name="serviceId" value={service.id} />
-                    <button
-                      type="submit"
-                      className="rounded-xl border border-red-500/40 px-4 py-2 text-sm font-semibold text-red-300 transition hover:bg-red-500/10"
-                    >
-                      Excluir
-                    </button>
-                  </form>
+                  <button
+                    type="button"
+                    disabled={isPending && pendingKey === `delete-${service.id}`}
+                    onClick={() =>
+                      runAction(`delete-${service.id}`, deleteBarberServiceAction, () => {
+                        const formData = new FormData();
+                        formData.set("serviceId", service.id);
+                        return formData;
+                      })
+                    }
+                    className="rounded-xl border border-red-500/40 px-4 py-2 text-sm font-semibold text-red-300 transition hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {isPending && pendingKey === `delete-${service.id}`
+                      ? "Excluindo..."
+                      : "Excluir"}
+                  </button>
                 </div>
 
-                <form action={updateBarberServiceAction} className="grid gap-4">
-                  <input type="hidden" name="redirectTo" value={redirectTo} />
+                <form
+                  className="grid gap-4"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    const form = event.currentTarget;
+
+                    runAction(
+                      `update-${service.id}`,
+                      updateBarberServiceAction,
+                      () => new FormData(form)
+                    );
+                  }}
+                >
                   <input type="hidden" name="serviceId" value={service.id} />
 
                   <Field label="Nome">
@@ -203,9 +279,12 @@ export function ServicesSection({
 
                   <button
                     type="submit"
-                    className="justify-self-start rounded-xl border border-zinc-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800"
+                    disabled={isPending && pendingKey === `update-${service.id}`}
+                    className="justify-self-start rounded-xl border border-zinc-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    Salvar alteracoes
+                    {isPending && pendingKey === `update-${service.id}`
+                      ? "Salvando..."
+                      : "Salvar alteracoes"}
                   </button>
                 </form>
               </div>
@@ -222,7 +301,7 @@ function Field({
   children,
 }: {
   label: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <label className="block">

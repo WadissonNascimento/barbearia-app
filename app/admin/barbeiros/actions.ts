@@ -3,10 +3,13 @@
 import bcrypt from "bcryptjs";
 import { randomInt } from "crypto";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { sendVerificationCodeEmail } from "@/lib/mail";
-import { buildFeedbackRedirect } from "@/lib/pageFeedback";
+import {
+  mutationError,
+  mutationSuccess,
+  type MutationResult,
+} from "@/lib/mutationResult";
 import { prisma } from "@/lib/prisma";
 
 async function requireAdmin() {
@@ -36,14 +39,9 @@ function buildVerificationUrl(email: string) {
   return `${baseUrl}/register/verify?email=${encodeURIComponent(email)}`;
 }
 
-function redirectToBarbers(
-  message: string,
-  tone: "success" | "error" | "info" = "success"
-): never {
-  redirect(buildFeedbackRedirect("/admin/barbeiros", message, tone));
-}
-
-export async function createBarberAction(formData: FormData) {
+export async function createBarberAction(
+  formData: FormData
+): Promise<MutationResult> {
   await requireAdmin();
 
   const name = String(formData.get("name") || "").trim();
@@ -52,11 +50,11 @@ export async function createBarberAction(formData: FormData) {
   const phone = String(formData.get("phone") || "").trim();
 
   if (!name || !email || !password) {
-    redirectToBarbers("Nome, e-mail e senha sao obrigatorios.", "error");
+    return mutationError("Nome, e-mail e senha sao obrigatorios.");
   }
 
   if (password.length < 6) {
-    redirectToBarbers("A senha deve ter pelo menos 6 caracteres.", "error");
+    return mutationError("A senha deve ter pelo menos 6 caracteres.");
   }
 
   const [existingUser, existingPendingRegistration] = await Promise.all([
@@ -69,18 +67,16 @@ export async function createBarberAction(formData: FormData) {
   ]);
 
   if (existingUser) {
-    redirectToBarbers(
+    return mutationError(
       existingUser.isActive
         ? "Ja existe uma conta ativa com esse e-mail."
-        : "Ja existe um barbeiro desligado com esse e-mail. Reative a conta existente em vez de criar outra.",
-      "error"
+        : "Ja existe um barbeiro desligado com esse e-mail. Reative a conta existente em vez de criar outra."
     );
   }
 
   if (existingPendingRegistration) {
-    redirectToBarbers(
-      "Ja existe um cadastro pendente com esse e-mail. O barbeiro precisa concluir a verificacao antes de um novo convite.",
-      "error"
+    return mutationError(
+      "Ja existe um cadastro pendente com esse e-mail. O barbeiro precisa concluir a verificacao antes de um novo convite."
     );
   }
 
@@ -117,26 +113,43 @@ export async function createBarberAction(formData: FormData) {
       });
     }
 
-    redirectToBarbers(
+    return mutationError(
       error instanceof Error
         ? error.message
-        : "Nao foi possivel enviar o convite do barbeiro.",
-      "error"
+        : "Nao foi possivel enviar o convite do barbeiro."
     );
   }
 
   revalidatePath("/admin/barbeiros");
-  redirectToBarbers("Convite enviado. O barbeiro precisa confirmar o e-mail para ativar a conta.");
+  return mutationSuccess(
+    "Convite enviado. O barbeiro precisa confirmar o e-mail para ativar a conta."
+  );
 }
 
-export async function toggleBarberStatusAction(formData: FormData) {
+export async function toggleBarberStatusAction(
+  formData: FormData
+): Promise<MutationResult> {
   await requireAdmin();
 
   const barberId = String(formData.get("barberId") || "");
   const currentActive = String(formData.get("currentActive") || "") === "true";
 
   if (!barberId) {
-    redirectToBarbers("Barbeiro invalido.", "error");
+    return mutationError("Barbeiro invalido.");
+  }
+
+  const barber = await prisma.user.findFirst({
+    where: {
+      id: barberId,
+      role: "BARBER",
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (!barber) {
+    return mutationError("Barbeiro nao encontrado.");
   }
 
   await prisma.user.update({
@@ -148,16 +161,20 @@ export async function toggleBarberStatusAction(formData: FormData) {
 
   revalidatePath("/admin/barbeiros");
   revalidatePath("/admin/agenda");
-  redirectToBarbers(currentActive ? "Barbeiro inativado." : "Barbeiro reativado.");
+  return mutationSuccess(
+    currentActive ? "Barbeiro inativado." : "Barbeiro reativado."
+  );
 }
 
-export async function deleteBarberAction(formData: FormData) {
+export async function deleteBarberAction(
+  formData: FormData
+): Promise<MutationResult> {
   await requireAdmin();
 
   const barberId = String(formData.get("barberId") || "");
 
   if (!barberId) {
-    redirectToBarbers("Barbeiro invalido.", "error");
+    return mutationError("Barbeiro invalido.");
   }
 
   const barber = await prisma.user.findFirst({
@@ -172,11 +189,11 @@ export async function deleteBarberAction(formData: FormData) {
   });
 
   if (!barber) {
-    redirectToBarbers("Barbeiro nao encontrado.", "error");
+    return mutationError("Barbeiro nao encontrado.");
   }
 
   if (!barber.isActive) {
-    redirectToBarbers("Esse barbeiro ja esta desligado.", "info");
+    return mutationSuccess("Esse barbeiro ja esta desligado.", undefined, "info");
   }
 
   await prisma.user.update({
@@ -192,7 +209,7 @@ export async function deleteBarberAction(formData: FormData) {
   revalidatePath("/admin/servicos");
   revalidatePath("/agendar");
   revalidatePath("/meu-perfil");
-  redirectToBarbers(
+  return mutationSuccess(
     "Barbeiro desligado com sucesso. Historico, servicos prestados e fechamentos foram preservados."
   );
 }

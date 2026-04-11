@@ -1,4 +1,10 @@
 import { prisma } from "@/lib/prisma";
+import type { PrismaClient } from "@prisma/client";
+
+type FinancialsPrismaClient = Pick<
+  PrismaClient,
+  "appointment" | "appointmentService" | "$transaction"
+>;
 
 export type FinancialServiceInput = {
   price: number;
@@ -27,8 +33,11 @@ export function calculateServiceFinancials(service: FinancialServiceInput) {
   };
 }
 
-export async function syncAppointmentFinancialSnapshots(appointmentId: string) {
-  const appointment = await prisma.appointment.findUnique({
+export async function syncAppointmentFinancialSnapshots(
+  appointmentId: string,
+  db: FinancialsPrismaClient = prisma
+) {
+  const appointment = await db.appointment.findUnique({
     where: { id: appointmentId },
     include: {
       services: {
@@ -43,7 +52,7 @@ export async function syncAppointmentFinancialSnapshots(appointmentId: string) {
     throw new Error("Agendamento nao encontrado.");
   }
 
-  await prisma.$transaction(
+  await db.$transaction(
     appointment.services.map((item) => {
       const financials = calculateServiceFinancials({
         price: item.priceSnapshot,
@@ -51,7 +60,7 @@ export async function syncAppointmentFinancialSnapshots(appointmentId: string) {
         commissionValue: item.commissionValueSnapshot || item.service.commissionValue,
       });
 
-      return prisma.appointmentService.update({
+      return db.appointmentService.update({
         where: { id: item.id },
         data: {
           commissionTypeSnapshot: financials.commissionType,

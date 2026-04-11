@@ -14,7 +14,7 @@ function SlotButton({ slot }: { slot: string }) {
       name="time"
       value={slot}
       disabled={pending}
-      className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2 text-sm transition hover:border-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60"
+      className="min-h-12 rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm font-semibold transition hover:border-[var(--brand)]/50 hover:bg-[var(--brand-muted)] disabled:cursor-not-allowed disabled:opacity-60"
     >
       {pending ? "Reservando..." : slot}
     </button>
@@ -44,7 +44,7 @@ export default function AppointmentSlotForm({
       <input type="hidden" name="date" value={date} />
       <input type="hidden" name="notes" value="" />
 
-      <div className="flex flex-wrap gap-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {slots.map((slot) => (
           <SlotButton key={slot} slot={slot} />
         ))}

@@ -1,4 +1,12 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useMemo, useState, useTransition, type ReactNode } from "react";
+import FeedbackMessage from "@/components/FeedbackMessage";
+import EmptyState from "@/components/ui/EmptyState";
+import SectionCard from "@/components/ui/SectionCard";
+import StatusBadge from "@/components/ui/StatusBadge";
 import {
   getAppointmentDisplayName,
   getAppointmentServiceMetaLine,
@@ -7,9 +15,6 @@ import {
   appointmentStatusLabel,
   appointmentStatusVariant,
 } from "@/lib/appointmentStatus";
-import EmptyState from "@/components/ui/EmptyState";
-import SectionCard from "@/components/ui/SectionCard";
-import StatusBadge from "@/components/ui/StatusBadge";
 import { updateAppointmentStatusAction } from "../actions";
 import type { getBarberDashboardData } from "../data";
 
@@ -18,7 +23,6 @@ type BarberDashboardData = Awaited<ReturnType<typeof getBarberDashboardData>>;
 type AppointmentsSectionProps = {
   appointments: BarberDashboardData["appointments"];
   filters: BarberDashboardData["filters"];
-  redirectTo: string;
 };
 
 function formatDateTime(value: Date) {
@@ -36,29 +40,87 @@ function formatDateTime(value: Date) {
 export function AppointmentsSection({
   appointments,
   filters,
-  redirectTo,
 }: AppointmentsSectionProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const [feedback, setFeedback] = useState<{
+    message: string | null;
+    tone: "success" | "error" | "info";
+  }>({ message: null, tone: "success" });
+  const [isFilterPending, startFilterTransition] = useTransition();
+  const [selectedView, setSelectedView] = useState(filters.view);
+  const [selectedStatus, setSelectedStatus] = useState(filters.status);
+  const [selectedDate, setSelectedDate] = useState(filters.date);
+
+  const filterDefaults = useMemo(
+    () => ({
+      view: filters.view,
+      status: filters.status,
+      date: filters.date,
+    }),
+    [filters.date, filters.status, filters.view]
+  );
+
+  useEffect(() => {
+    setSelectedView(filterDefaults.view);
+    setSelectedStatus(filterDefaults.status);
+    setSelectedDate(filterDefaults.date);
+  }, [filterDefaults.date, filterDefaults.status, filterDefaults.view]);
+
+  function applyFilters() {
+    const params = new URLSearchParams();
+    const view = selectedView || "day";
+    const status = selectedStatus || "ALL";
+    const date = selectedDate || "";
+
+    if (view && view !== "day") {
+      params.set("view", view);
+    }
+
+    if (status && status !== "ALL") {
+      params.set("status", status);
+    }
+
+    if (view === "day" && date) {
+      params.set("date", date);
+    }
+
+    startFilterTransition(() => {
+      router.replace(
+        params.toString() ? `${pathname}?${params.toString()}` : pathname,
+        { scroll: false }
+      );
+    });
+  }
+
   return (
     <SectionCard
       title="Agenda"
       description="Veja apenas seus atendimentos e atualize o andamento do dia."
       className="rounded-[28px] bg-zinc-900/90"
       actions={
-        <form className="grid gap-3 sm:grid-cols-3">
-          <input type="hidden" name="section" value="agenda" />
+        <form
+          className="grid gap-3 sm:grid-cols-3"
+          onSubmit={(event) => {
+            event.preventDefault();
+            applyFilters();
+          }}
+        >
           <select
             name="view"
-            defaultValue={filters.view}
+            value={selectedView}
+            onChange={(event) => setSelectedView(event.target.value as typeof filters.view)}
             className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm text-white outline-none"
           >
-            <option value="today">Hoje</option>
+            <option value="day">Dia</option>
             <option value="upcoming">Proximos</option>
             <option value="all">Todos</option>
           </select>
 
           <select
             name="status"
-            defaultValue={filters.status}
+            value={selectedStatus}
+            onChange={(event) => setSelectedStatus(event.target.value)}
             className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm text-white outline-none"
           >
             <option value="ALL">Todos os status</option>
@@ -72,19 +134,35 @@ export function AppointmentsSection({
           <input
             type="date"
             name="date"
-            defaultValue={filters.date}
-            className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm text-white outline-none"
+            value={selectedDate}
+            onChange={(event) => setSelectedDate(event.target.value)}
+            disabled={selectedView !== "day"}
+            className={`rounded-xl border px-4 py-3 text-sm text-white outline-none ${
+              selectedView === "day"
+                ? "border-zinc-700 bg-zinc-950"
+                : "cursor-not-allowed border-zinc-800 bg-zinc-900 text-zinc-500"
+            }`}
           />
 
           <button
             type="submit"
-            className="rounded-xl bg-[#d4a15d] px-4 py-3 text-sm font-semibold text-black transition hover:brightness-110 sm:col-span-3"
+            disabled={isFilterPending}
+            className="rounded-xl bg-[var(--brand)] px-4 py-3 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(37,99,235,0.28)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60 sm:col-span-3"
           >
-            Atualizar filtros
+            {isFilterPending ? "Atualizando..." : "Atualizar filtros"}
           </button>
+
+          {selectedView !== "day" ? (
+            <p className="text-xs text-zinc-500 sm:col-span-3">
+              A data so vale quando o filtro estiver em Dia.
+            </p>
+          ) : null}
         </form>
       }
     >
+      <div className="mt-6 space-y-3">
+        <FeedbackMessage message={feedback.message} tone={feedback.tone} />
+      </div>
 
       <div className="mt-6 space-y-4">
         {appointments.length === 0 ? (
@@ -108,7 +186,7 @@ export function AppointmentsSection({
                     </p>
                     <Link
                       href={`/barber/clientes/${appointment.customer.id}`}
-                      className="mt-2 block text-lg font-medium text-white transition hover:text-[#d4a15d]"
+                      className="mt-2 block text-lg font-medium text-white transition hover:text-[var(--brand)]"
                     >
                       {appointment.customer.name || "Cliente"}
                     </Link>
@@ -154,33 +232,34 @@ export function AppointmentsSection({
                   <div className="flex flex-wrap gap-2 lg:justify-end">
                     <Link
                       href={`/barber/clientes/${appointment.customer.id}`}
-                      className="rounded-xl border border-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:border-[#d4a15d] hover:text-[#d4a15d]"
+                      className="rounded-xl border border-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:border-[var(--brand)] hover:text-[var(--brand)]"
                     >
                       Ver perfil
                     </Link>
+
                     {appointment.status === "PENDING" && (
                       <>
                         <StatusButton
                           appointmentId={appointment.id}
                           status="CONFIRMED"
-                          redirectTo={redirectTo}
                           className="bg-green-600 text-white hover:bg-green-500"
+                          onFeedback={setFeedback}
                         >
                           Confirmar
                         </StatusButton>
                         <StatusButton
                           appointmentId={appointment.id}
                           status="CANCELLED"
-                          redirectTo={redirectTo}
                           className="bg-red-600 text-white hover:bg-red-500"
+                          onFeedback={setFeedback}
                         >
                           Cancelar
                         </StatusButton>
                         <StatusButton
                           appointmentId={appointment.id}
                           status="NO_SHOW"
-                          redirectTo={redirectTo}
                           className="bg-orange-500 text-black hover:bg-orange-400"
+                          onFeedback={setFeedback}
                         >
                           Nao veio
                         </StatusButton>
@@ -192,24 +271,24 @@ export function AppointmentsSection({
                         <StatusButton
                           appointmentId={appointment.id}
                           status="COMPLETED"
-                          redirectTo={redirectTo}
                           className="bg-sky-600 text-white hover:bg-sky-500"
+                          onFeedback={setFeedback}
                         >
                           Concluir
                         </StatusButton>
                         <StatusButton
                           appointmentId={appointment.id}
                           status="NO_SHOW"
-                          redirectTo={redirectTo}
                           className="bg-orange-500 text-black hover:bg-orange-400"
+                          onFeedback={setFeedback}
                         >
                           Nao veio
                         </StatusButton>
                         <StatusButton
                           appointmentId={appointment.id}
                           status="CANCELLED"
-                          redirectTo={redirectTo}
                           className="bg-red-600 text-white hover:bg-red-500"
+                          onFeedback={setFeedback}
                         >
                           Cancelar
                         </StatusButton>
@@ -230,26 +309,42 @@ function StatusButton({
   appointmentId,
   status,
   className,
-  redirectTo,
   children,
+  onFeedback,
 }: {
   appointmentId: string;
   status: string;
   className: string;
-  redirectTo: string;
-  children: React.ReactNode;
+  children: ReactNode;
+  onFeedback: (feedback: {
+    message: string | null;
+    tone: "success" | "error" | "info";
+  }) => void;
 }) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+
   return (
-    <form action={updateAppointmentStatusAction}>
-      <input type="hidden" name="redirectTo" value={redirectTo} />
-      <input type="hidden" name="appointmentId" value={appointmentId} />
-      <input type="hidden" name="status" value={status} />
-      <button
-        type="submit"
-        className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${className}`}
-      >
-        {children}
-      </button>
-    </form>
+    <button
+      type="button"
+      disabled={isPending}
+      onClick={() => {
+        startTransition(async () => {
+          const formData = new FormData();
+          formData.set("appointmentId", appointmentId);
+          formData.set("status", status);
+
+          const result = await updateAppointmentStatusAction(formData);
+          onFeedback({ message: result.message, tone: result.tone });
+
+          if (result.ok) {
+            router.refresh();
+          }
+        });
+      }}
+      className={`rounded-xl px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
+    >
+      {isPending ? "Salvando..." : children}
+    </button>
   );
 }

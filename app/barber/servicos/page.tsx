@@ -1,22 +1,18 @@
 import Link from "next/link";
-import FormFeedback from "@/components/FormFeedback";
 import PageHeader from "@/components/ui/PageHeader";
 import { ServicesSection } from "../_components/ServicesSection";
-import { readPageFeedback } from "@/lib/pageFeedback";
 import { getBarberDashboardData } from "../data";
 import { requireActiveBarber } from "../guard";
 
 export default async function BarberServicesPage({
-  searchParams,
 }: {
   searchParams?: { feedback?: string; tone?: string };
 }) {
   const { session } = await requireActiveBarber();
   const dashboard = await getBarberDashboardData(session.user.id, {
-    view: "today",
+    view: "day",
     status: "ALL",
   });
-  const feedback = readPageFeedback(searchParams);
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 text-white">
@@ -33,14 +29,8 @@ export default async function BarberServicesPage({
         }
       />
 
-      <FormFeedback
-        success={feedback?.tone === "success" ? feedback.message : null}
-        error={feedback?.tone === "error" ? feedback.message : null}
-        info={feedback?.tone === "info" ? feedback.message : null}
-      />
-
       <div className="mt-6">
-        <ServicesSection services={dashboard.services} redirectTo="/barber/servicos" />
+        <ServicesSection services={dashboard.services} />
       </div>
     </div>
   );

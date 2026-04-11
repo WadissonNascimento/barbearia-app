@@ -1,6 +1,11 @@
 "use server";
 
 import { auth } from "@/auth";
+import {
+  mutationError,
+  mutationSuccess,
+  type MutationResult,
+} from "@/lib/mutationResult";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
@@ -18,7 +23,9 @@ function revalidateCoupons() {
   revalidatePath("/carrinho");
 }
 
-export async function createCouponAction(formData: FormData) {
+export async function createCouponAction(
+  formData: FormData
+): Promise<MutationResult> {
   await requireAdmin();
 
   const code = String(formData.get("code") || "").trim().toUpperCase();
@@ -31,7 +38,7 @@ export async function createCouponAction(formData: FormData) {
   const expiresAtRaw = String(formData.get("expiresAt") || "").trim();
 
   if (!code || discountValue <= 0) {
-    throw new Error("Preencha codigo e valor do desconto corretamente.");
+    return mutationError("Preencha codigo e valor do desconto corretamente.");
   }
 
   await prisma.coupon.create({
@@ -48,9 +55,12 @@ export async function createCouponAction(formData: FormData) {
   });
 
   revalidateCoupons();
+  return mutationSuccess("Cupom criado com sucesso.");
 }
 
-export async function updateCouponAction(formData: FormData) {
+export async function updateCouponAction(
+  formData: FormData
+): Promise<MutationResult> {
   await requireAdmin();
 
   const couponId = String(formData.get("couponId") || "");
@@ -63,7 +73,7 @@ export async function updateCouponAction(formData: FormData) {
   const expiresAtRaw = String(formData.get("expiresAt") || "").trim();
 
   if (!couponId || discountValue <= 0) {
-    throw new Error("Dados do cupom invalidos.");
+    return mutationError("Dados do cupom invalidos.");
   }
 
   await prisma.coupon.update({
@@ -80,9 +90,12 @@ export async function updateCouponAction(formData: FormData) {
   });
 
   revalidateCoupons();
+  return mutationSuccess("Cupom atualizado com sucesso.");
 }
 
-export async function toggleCouponAction(formData: FormData) {
+export async function toggleCouponAction(
+  formData: FormData
+): Promise<MutationResult> {
   await requireAdmin();
 
   const couponId = String(formData.get("couponId") || "");
@@ -91,7 +104,7 @@ export async function toggleCouponAction(formData: FormData) {
   });
 
   if (!coupon) {
-    throw new Error("Cupom nao encontrado.");
+    return mutationError("Cupom nao encontrado.");
   }
 
   await prisma.coupon.update({
@@ -102,15 +115,18 @@ export async function toggleCouponAction(formData: FormData) {
   });
 
   revalidateCoupons();
+  return mutationSuccess(coupon.isActive ? "Cupom desativado." : "Cupom ativado.");
 }
 
-export async function deleteCouponAction(formData: FormData) {
+export async function deleteCouponAction(
+  formData: FormData
+): Promise<MutationResult> {
   await requireAdmin();
 
   const couponId = String(formData.get("couponId") || "");
 
   if (!couponId) {
-    throw new Error("Cupom invalido.");
+    return mutationError("Cupom invalido.");
   }
 
   await prisma.coupon.delete({
@@ -118,4 +134,5 @@ export async function deleteCouponAction(formData: FormData) {
   });
 
   revalidateCoupons();
+  return mutationSuccess("Cupom excluido com sucesso.");
 }

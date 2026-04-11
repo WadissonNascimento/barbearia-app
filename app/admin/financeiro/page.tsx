@@ -2,21 +2,15 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import EmptyState from "@/components/ui/EmptyState";
-import FormFeedback from "@/components/FormFeedback";
 import PageHeader from "@/components/ui/PageHeader";
 import SectionCard from "@/components/ui/SectionCard";
 import StatusBadge from "@/components/ui/StatusBadge";
-import { readPageFeedback } from "@/lib/pageFeedback";
 import { getFinanceDashboardData } from "@/lib/financeReports";
-import { AutoSubmitFilters } from "@/app/agendar/AutoSubmitFilters";
 import ComparisonControls from "./ComparisonControls";
-import {
-  closeBarberPayoutAction,
-  deleteBarberPayoutAction,
-  generateBarberPayoutsAction,
-  markBarberPayoutAsPaidAction,
-  reopenBarberPayoutAction,
-} from "./actions";
+import FinancePeriodFilters from "./FinancePeriodFilters";
+import FinanceHistoryFilters from "./FinanceHistoryFilters";
+import GeneratePayoutsButton from "./GeneratePayoutsButton";
+import PayoutActionPanel from "./PayoutActionPanel";
 
 function formatCurrency(value: number) {
   return value.toLocaleString("pt-BR", {
@@ -55,8 +49,6 @@ export default async function AdminFinanceiroPage({
     compareMode?: "auto" | "custom";
     compareStart?: string;
     compareEnd?: string;
-    feedback?: string;
-    tone?: string;
   };
 }) {
   const session = await auth();
@@ -74,7 +66,6 @@ export default async function AdminFinanceiroPage({
     compareStart: searchParams?.compareStart,
     compareEnd: searchParams?.compareEnd,
   });
-  const feedback = readPageFeedback(searchParams);
   const maxDailyRevenue = Math.max(
     ...data.analytics.dailySeries.map((item) => item.grossRevenue),
     1
@@ -95,8 +86,6 @@ export default async function AdminFinanceiroPage({
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 text-white">
-      <AutoSubmitFilters />
-
       <PageHeader
         title="Financeiro"
         description="Feche repasses, acompanhe faturamento e registre pagamentos por barbeiro."
@@ -110,63 +99,16 @@ export default async function AdminFinanceiroPage({
         }
       />
 
-      <FormFeedback
-        success={feedback?.tone === "success" ? feedback.message : null}
-        error={feedback?.tone === "error" ? feedback.message : null}
-        info={feedback?.tone === "info" ? feedback.message : null}
-      />
-
       <SectionCard
         title="Periodo do fechamento"
         description="Escolha a janela de apuracao antes de gerar ou pagar os repasses."
         className="mt-6"
       >
-        <form data-auto-submit="true" className="grid gap-4 md:grid-cols-3">
-          <div>
-            <label className="mb-2 block text-sm text-zinc-300">Periodo</label>
-            <select
-              name="period"
-              defaultValue={data.filters.period}
-              className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 outline-none"
-            >
-              <option value="week">Semana atual</option>
-              <option value="month">Mes atual</option>
-              <option value="custom">Personalizado</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="mb-2 block text-sm text-zinc-300">Inicio</label>
-            <input
-              type="date"
-              name="start"
-              defaultValue={data.filters.start}
-              readOnly={data.filters.period !== "custom"}
-              aria-disabled={data.filters.period !== "custom"}
-              className={`w-full rounded-xl border px-4 py-3 outline-none ${
-                data.filters.period === "custom"
-                  ? "border-zinc-700 bg-zinc-950"
-                  : "cursor-not-allowed border-zinc-800 bg-zinc-900 text-zinc-500"
-              }`}
-            />
-          </div>
-
-          <div>
-            <label className="mb-2 block text-sm text-zinc-300">Fim</label>
-            <input
-              type="date"
-              name="end"
-              defaultValue={data.filters.end}
-              readOnly={data.filters.period !== "custom"}
-              aria-disabled={data.filters.period !== "custom"}
-              className={`w-full rounded-xl border px-4 py-3 outline-none ${
-                data.filters.period === "custom"
-                  ? "border-zinc-700 bg-zinc-950"
-                  : "cursor-not-allowed border-zinc-800 bg-zinc-900 text-zinc-500"
-              }`}
-            />
-          </div>
-        </form>
+        <FinancePeriodFilters
+          period={data.filters.period}
+          start={data.filters.start}
+          end={data.filters.end}
+        />
       </SectionCard>
 
       <div className="mt-6 grid gap-4 md:grid-cols-4">
@@ -795,19 +737,18 @@ export default async function AdminFinanceiroPage({
         description="Gerencie o fechamento do periodo sem perder a leitura analitica acima."
         className="mt-8"
         actions={
-          <form action={generateBarberPayoutsAction}>
-            <input type="hidden" name="period" value={data.filters.period} />
-            <input type="hidden" name="start" value={data.filters.start} />
-            <input type="hidden" name="end" value={data.filters.end} />
-            <input type="hidden" name="historyStart" value={data.filters.historyStart} />
-            <input type="hidden" name="historyEnd" value={data.filters.historyEnd} />
-            <input type="hidden" name="compareMode" value={data.filters.compareMode} />
-            <input type="hidden" name="compareStart" value={data.filters.compareStart} />
-            <input type="hidden" name="compareEnd" value={data.filters.compareEnd} />
-            <button className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-black">
-              Gerar fechamento
-            </button>
-          </form>
+          <GeneratePayoutsButton
+            filters={{
+              period: data.filters.period,
+              start: data.filters.start,
+              end: data.filters.end,
+              historyStart: data.filters.historyStart,
+              historyEnd: data.filters.historyEnd,
+              compareMode: data.filters.compareMode,
+              compareStart: data.filters.compareStart,
+              compareEnd: data.filters.compareEnd,
+            }}
+          />
         }
       >
         {data.barberPayouts.length === 0 ? (
@@ -864,57 +805,11 @@ export default async function AdminFinanceiroPage({
                 </div>
 
                 {item.savedPayoutId && (
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {item.savedStatus === "OPEN" && (
-                      <form action={closeBarberPayoutAction}>
-                        <input type="hidden" name="payoutId" value={item.savedPayoutId} />
-                        <input type="hidden" name="period" value={data.filters.period} />
-                        <input type="hidden" name="start" value={data.filters.start} />
-                        <input type="hidden" name="end" value={data.filters.end} />
-                        <input type="hidden" name="historyStart" value={data.filters.historyStart} />
-                        <input type="hidden" name="historyEnd" value={data.filters.historyEnd} />
-                        <input type="hidden" name="compareMode" value={data.filters.compareMode} />
-                        <input type="hidden" name="compareStart" value={data.filters.compareStart} />
-                        <input type="hidden" name="compareEnd" value={data.filters.compareEnd} />
-                        <button className="rounded-xl border border-zinc-700 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800">
-                          Fechar novamente
-                        </button>
-                      </form>
-                    )}
-
-                    {item.savedStatus !== "PAID" && (
-                      <form action={markBarberPayoutAsPaidAction}>
-                        <input type="hidden" name="payoutId" value={item.savedPayoutId} />
-                        <input type="hidden" name="period" value={data.filters.period} />
-                        <input type="hidden" name="start" value={data.filters.start} />
-                        <input type="hidden" name="end" value={data.filters.end} />
-                        <input type="hidden" name="historyStart" value={data.filters.historyStart} />
-                        <input type="hidden" name="historyEnd" value={data.filters.historyEnd} />
-                        <input type="hidden" name="compareMode" value={data.filters.compareMode} />
-                        <input type="hidden" name="compareStart" value={data.filters.compareStart} />
-                        <input type="hidden" name="compareEnd" value={data.filters.compareEnd} />
-                        <button className="rounded-xl bg-green-600 px-4 py-2 text-sm font-semibold text-white">
-                          Marcar como pago
-                        </button>
-                      </form>
-                    )}
-
-                    {(item.savedStatus === "PAID" || item.savedStatus === "CLOSED") && (
-                      <form action={reopenBarberPayoutAction}>
-                        <input type="hidden" name="payoutId" value={item.savedPayoutId} />
-                        <input type="hidden" name="period" value={data.filters.period} />
-                        <input type="hidden" name="start" value={data.filters.start} />
-                        <input type="hidden" name="end" value={data.filters.end} />
-                        <input type="hidden" name="historyStart" value={data.filters.historyStart} />
-                        <input type="hidden" name="historyEnd" value={data.filters.historyEnd} />
-                        <input type="hidden" name="compareMode" value={data.filters.compareMode} />
-                        <input type="hidden" name="compareStart" value={data.filters.compareStart} />
-                        <input type="hidden" name="compareEnd" value={data.filters.compareEnd} />
-                        <button className="rounded-xl border border-zinc-700 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800">
-                          Reabrir fechamento
-                        </button>
-                      </form>
-                    )}
+                  <div className="mt-4">
+                    <PayoutActionPanel
+                      payoutId={item.savedPayoutId}
+                      status={item.savedStatus || "OPEN"}
+                    />
                   </div>
                 )}
               </div>
@@ -928,29 +823,10 @@ export default async function AdminFinanceiroPage({
         description="Ultimos fechamentos criados e pagos para consulta rapida."
         className="mt-8"
         actions={
-          <form data-auto-submit="true" className="flex flex-wrap items-end gap-3">
-            <input type="hidden" name="period" value={data.filters.period} />
-            <input type="hidden" name="start" value={data.filters.start} />
-            <input type="hidden" name="end" value={data.filters.end} />
-            <div>
-              <label className="mb-2 block text-xs text-zinc-400">De</label>
-              <input
-                type="date"
-                name="historyStart"
-                defaultValue={data.filters.historyStart}
-                className="rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm outline-none"
-              />
-            </div>
-            <div>
-              <label className="mb-2 block text-xs text-zinc-400">Ate</label>
-              <input
-                type="date"
-                name="historyEnd"
-                defaultValue={data.filters.historyEnd}
-                className="rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm outline-none"
-              />
-            </div>
-          </form>
+          <FinanceHistoryFilters
+            historyStart={data.filters.historyStart}
+            historyEnd={data.filters.historyEnd}
+          />
         }
       >
         {data.history.length === 0 ? (
@@ -1007,73 +883,12 @@ export default async function AdminFinanceiroPage({
                         : "-"}
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex flex-wrap gap-2">
-                        {item.status === "OPEN" && (
-                          <form action={closeBarberPayoutAction}>
-                            <input type="hidden" name="payoutId" value={item.id} />
-                            <input type="hidden" name="period" value={data.filters.period} />
-                            <input type="hidden" name="start" value={data.filters.start} />
-                            <input type="hidden" name="end" value={data.filters.end} />
-                            <input type="hidden" name="historyStart" value={data.filters.historyStart} />
-                            <input type="hidden" name="historyEnd" value={data.filters.historyEnd} />
-                            <input type="hidden" name="compareMode" value={data.filters.compareMode} />
-                            <input type="hidden" name="compareStart" value={data.filters.compareStart} />
-                            <input type="hidden" name="compareEnd" value={data.filters.compareEnd} />
-                            <button className="rounded-lg border border-zinc-700 px-3 py-2 text-xs font-semibold text-white hover:bg-zinc-800">
-                              Fechar
-                            </button>
-                          </form>
-                        )}
-
-                        {item.status !== "PAID" && (
-                          <form action={markBarberPayoutAsPaidAction}>
-                            <input type="hidden" name="payoutId" value={item.id} />
-                            <input type="hidden" name="period" value={data.filters.period} />
-                            <input type="hidden" name="start" value={data.filters.start} />
-                            <input type="hidden" name="end" value={data.filters.end} />
-                            <input type="hidden" name="historyStart" value={data.filters.historyStart} />
-                            <input type="hidden" name="historyEnd" value={data.filters.historyEnd} />
-                            <input type="hidden" name="compareMode" value={data.filters.compareMode} />
-                            <input type="hidden" name="compareStart" value={data.filters.compareStart} />
-                            <input type="hidden" name="compareEnd" value={data.filters.compareEnd} />
-                            <button className="rounded-lg bg-green-600 px-3 py-2 text-xs font-semibold text-white">
-                              Pagar
-                            </button>
-                          </form>
-                        )}
-
-                        {(item.status === "PAID" || item.status === "CLOSED") && (
-                          <form action={reopenBarberPayoutAction}>
-                            <input type="hidden" name="payoutId" value={item.id} />
-                            <input type="hidden" name="period" value={data.filters.period} />
-                            <input type="hidden" name="start" value={data.filters.start} />
-                            <input type="hidden" name="end" value={data.filters.end} />
-                            <input type="hidden" name="historyStart" value={data.filters.historyStart} />
-                            <input type="hidden" name="historyEnd" value={data.filters.historyEnd} />
-                            <input type="hidden" name="compareMode" value={data.filters.compareMode} />
-                            <input type="hidden" name="compareStart" value={data.filters.compareStart} />
-                            <input type="hidden" name="compareEnd" value={data.filters.compareEnd} />
-                            <button className="rounded-lg border border-zinc-700 px-3 py-2 text-xs font-semibold text-white hover:bg-zinc-800">
-                              Reabrir
-                            </button>
-                          </form>
-                        )}
-
-                        <form action={deleteBarberPayoutAction}>
-                          <input type="hidden" name="payoutId" value={item.id} />
-                          <input type="hidden" name="period" value={data.filters.period} />
-                          <input type="hidden" name="start" value={data.filters.start} />
-                          <input type="hidden" name="end" value={data.filters.end} />
-                          <input type="hidden" name="historyStart" value={data.filters.historyStart} />
-                          <input type="hidden" name="historyEnd" value={data.filters.historyEnd} />
-                          <input type="hidden" name="compareMode" value={data.filters.compareMode} />
-                          <input type="hidden" name="compareStart" value={data.filters.compareStart} />
-                          <input type="hidden" name="compareEnd" value={data.filters.compareEnd} />
-                          <button className="rounded-lg border border-red-700 px-3 py-2 text-xs font-semibold text-red-300 hover:bg-red-950/40">
-                            Excluir
-                          </button>
-                        </form>
-                      </div>
+                      <PayoutActionPanel
+                        payoutId={item.id}
+                        status={item.status}
+                        showDelete
+                        size="sm"
+                      />
                     </td>
                   </tr>
                 ))}

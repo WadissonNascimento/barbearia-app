@@ -6,10 +6,20 @@ import {
 import { normalizeAppointmentStatus } from "@/lib/appointmentStatus";
 
 export type BarberDashboardFilters = {
-  view?: "today" | "upcoming" | "all";
+  view?: "day" | "today" | "upcoming" | "all";
   status?: string;
   date?: string;
 };
+
+function normalizeDashboardView(
+  view?: BarberDashboardFilters["view"]
+): "day" | "upcoming" | "all" {
+  if (view === "upcoming" || view === "all") {
+    return view;
+  }
+
+  return "day";
+}
 
 function matchesSearch(value: string, search: string) {
   return value.toLowerCase().includes(search.toLowerCase());
@@ -40,10 +50,10 @@ export async function getBarberDashboardData(
   barberId: string,
   filters: BarberDashboardFilters
 ) {
+  const view = normalizeDashboardView(filters.view);
   const selectedDate = getSelectedDate(filters);
   const { start: selectedStart, end: selectedEnd } = getDayRange(selectedDate);
   const { start: todayStart, end: todayEnd } = getDayRange(new Date());
-  const view = filters.view || "today";
   const status = normalizeAppointmentStatus(filters.status || "ALL");
 
   const appointmentWhere =
@@ -213,7 +223,7 @@ export async function getBarberDashboardData(
     filters: {
       view,
       status,
-      date: selectedDate.toISOString().slice(0, 10),
+      date: view === "day" ? selectedDate.toISOString().slice(0, 10) : "",
     },
     summary: {
       appointmentsToday,

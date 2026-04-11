@@ -2,7 +2,6 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { redirect, notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import FormFeedback from "@/components/FormFeedback";
 import EmptyState from "@/components/ui/EmptyState";
 import PageHeader from "@/components/ui/PageHeader";
 import SectionCard from "@/components/ui/SectionCard";
@@ -15,13 +14,11 @@ import {
   appointmentStatusLabel,
   appointmentStatusVariant,
 } from "@/lib/appointmentStatus";
-import { readPageFeedback } from "@/lib/pageFeedback";
+import { ClientNoteForm } from "../../_components/ClientNoteForm";
 import { getBarberClientProfile } from "../../data";
-import { saveClientNoteAction } from "../../actions";
 
 export default async function BarberClientProfilePage({
   params,
-  searchParams,
 }: {
   params: { customerId: string };
   searchParams?: { feedback?: string; tone?: string };
@@ -52,7 +49,6 @@ export default async function BarberClientProfilePage({
   }
 
   const profile = await getBarberClientProfile(session.user.id, params.customerId);
-  const feedback = readPageFeedback(searchParams);
 
   if (!profile) {
     notFound();
@@ -79,12 +75,6 @@ export default async function BarberClientProfilePage({
             </Link>
           </div>
         }
-      />
-
-      <FormFeedback
-        success={feedback?.tone === "success" ? feedback.message : null}
-        error={feedback?.tone === "error" ? feedback.message : null}
-        info={feedback?.tone === "info" ? feedback.message : null}
       />
 
       <div className="grid gap-8 lg:grid-cols-[360px_1fr]">
@@ -133,30 +123,11 @@ export default async function BarberClientProfilePage({
             </div>
           </div>
 
-          <form action={saveClientNoteAction} className="mt-6">
-            <input
-              type="hidden"
-              name="redirectTo"
-              value={`/barber/clientes/${profile.customer.id}`}
-            />
-            <input type="hidden" name="customerId" value={profile.customer.id} />
-            <label className="block">
-              <span className="mb-2 block text-sm text-zinc-300">Observacao interna</span>
-              <textarea
-                name="note"
-                defaultValue={profile.customer.note}
-                rows={5}
-                placeholder="Preferencias, cuidados, observacoes importantes..."
-                className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm outline-none"
-              />
-            </label>
-            <button
-              type="submit"
-              className="mt-3 rounded-xl bg-[#d4a15d] px-4 py-3 text-sm font-semibold text-black transition hover:brightness-110"
-            >
-              Salvar observacao
-            </button>
-          </form>
+          <ClientNoteForm
+            customerId={profile.customer.id}
+            initialNote={profile.customer.note}
+            rows={5}
+          />
         </section>
 
         <div className="space-y-8">

@@ -32,20 +32,28 @@ export async function createProduct(data: {
 }) {
   await ensureProductAccess();
 
+  const name = data.name.trim();
+  const price = Number(data.price);
+  const stock = Number(data.stock);
+
+  if (!name || !Number.isFinite(price) || price <= 0 || !Number.isInteger(stock) || stock < 0) {
+    throw new Error("Preencha nome, preco e estoque corretamente.");
+  }
+
   const product = await prisma.product.create({
     data: {
-      name: data.name.trim(),
+      name,
       description: data.description?.trim() || null,
-      price: Number(data.price),
+      price,
       imageUrl: normalizeProductImageUrl(data.imageUrl?.trim() || null),
-      stock: Number(data.stock),
+      stock,
     },
   });
 
   await registerStockMovement({
     productId: product.id,
     type: "IN",
-    quantity: Number(data.stock),
+    quantity: stock,
     reason: "Cadastro inicial do produto",
   });
 
@@ -62,7 +70,13 @@ export async function createProductFromForm(formData: FormData) {
   const stock = Number(formData.get("stock") || 0);
   const imageFile = formData.get("image");
 
-  if (!name || !price || stock < 0) {
+  if (
+    !name ||
+    !Number.isFinite(price) ||
+    price <= 0 ||
+    !Number.isInteger(stock) ||
+    stock < 0
+  ) {
     throw new Error("Preencha nome, preco e estoque corretamente.");
   }
 
@@ -111,10 +125,20 @@ export async function updateProduct(
     throw new Error("Produto nao encontrado.");
   }
 
+  if (
+    (typeof data.name === "string" && !data.name.trim()) ||
+    (typeof data.price === "number" && (!Number.isFinite(data.price) || data.price <= 0)) ||
+    (typeof data.stock === "number" &&
+      (!Number.isInteger(data.stock) || data.stock < 0))
+  ) {
+    throw new Error("Dados de produto invalidos.");
+  }
+
   const product = await prisma.product.update({
     where: { id },
     data: {
       ...data,
+      name: data.name?.trim(),
       imageUrl:
         data.imageUrl === undefined
           ? undefined

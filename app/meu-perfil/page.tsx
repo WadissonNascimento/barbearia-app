@@ -3,7 +3,6 @@ import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { LogoutButton } from "@/components/LogoutButton";
-import FormFeedback from "@/components/FormFeedback";
 import EmptyState from "@/components/ui/EmptyState";
 import PageHeader from "@/components/ui/PageHeader";
 import SectionCard from "@/components/ui/SectionCard";
@@ -12,20 +11,13 @@ import {
   getAppointmentDisplayName,
   getAppointmentTotalPrice,
 } from "@/lib/appointmentServices";
-import { readPageFeedback } from "@/lib/pageFeedback";
-import { updateCustomerProfileAction } from "./actions";
 import {
   appointmentStatusLabel,
   appointmentStatusVariant,
 } from "@/lib/appointmentStatus";
-
-function toDateInput(value?: Date | null) {
-  if (!value) return "";
-  return new Date(value).toISOString().slice(0, 10);
-}
+import ProfileForm from "./ProfileForm";
 
 export default async function MeuPerfilPage({
-  searchParams,
 }: {
   searchParams?: { feedback?: string; tone?: string };
 }) {
@@ -105,7 +97,6 @@ export default async function MeuPerfilPage({
   const favoriteService = Array.from(favoriteServiceMap.entries()).sort(
     (a, b) => b[1] - a[1]
   )[0]?.[0] || null;
-  const feedback = readPageFeedback(searchParams);
   const profile = customer?.customerProfile;
 
   return (
@@ -126,102 +117,28 @@ export default async function MeuPerfilPage({
         }
       />
 
-      <FormFeedback
-        success={feedback?.tone === "success" ? feedback.message : null}
-        error={feedback?.tone === "error" ? feedback.message : null}
-        info={feedback?.tone === "info" ? feedback.message : null}
-      />
-
       <div className="mt-6 grid gap-8 lg:grid-cols-[380px_1fr]">
         <section className="rounded-3xl border border-zinc-800 bg-zinc-900 p-6">
           <h2 className="text-xl font-semibold">Informacoes pessoais</h2>
 
-          <form action={updateCustomerProfileAction} className="mt-5 space-y-4">
-            <input type="hidden" name="redirectTo" value="/meu-perfil" />
-
-            <label className="block">
-              <span className="mb-2 block text-sm text-zinc-300">Nome</span>
-              <input
-                name="name"
-                defaultValue={customer?.name || ""}
-                required
-                className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm outline-none"
-              />
-            </label>
-
-            <label className="block">
-              <span className="mb-2 block text-sm text-zinc-300">E-mail</span>
-              <input
-                value={customer?.email || ""}
-                readOnly
-                className="w-full rounded-xl border border-zinc-800 bg-zinc-950/70 px-4 py-3 text-sm text-zinc-400 outline-none"
-              />
-            </label>
-
-            <label className="block">
-              <span className="mb-2 block text-sm text-zinc-300">Telefone</span>
-              <input
-                name="phone"
-                defaultValue={customer?.phone || ""}
-                className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm outline-none"
-              />
-            </label>
-
-            <label className="block">
-              <span className="mb-2 block text-sm text-zinc-300">Data de nascimento</span>
-              <input
-                type="date"
-                name="birthDate"
-                defaultValue={toDateInput(profile?.birthDate)}
-                className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm outline-none"
-              />
-            </label>
-
-            <label className="block">
-              <span className="mb-2 block text-sm text-zinc-300">Barbeiro preferido</span>
-              <select
-                name="preferredBarberId"
-                defaultValue={profile?.preferredBarberId || ""}
-                className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm outline-none"
-              >
-                <option value="">Sem preferencia</option>
-                {barbers.map((barber) => (
-                  <option key={barber.id} value={barber.id}>
-                    {barber.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="block">
-              <span className="mb-2 block text-sm text-zinc-300">Alergias ou cuidados</span>
-              <textarea
-                name="allergies"
-                rows={3}
-                defaultValue={profile?.allergies || ""}
-                placeholder="Ex.: sensibilidade a determinados produtos"
-                className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm outline-none"
-              />
-            </label>
-
-            <label className="block">
-              <span className="mb-2 block text-sm text-zinc-300">Preferencias</span>
-              <textarea
-                name="preferences"
-                rows={3}
-                defaultValue={profile?.preferences || ""}
-                placeholder="Ex.: estilo de corte, acabamento, horario favorito"
-                className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm outline-none"
-              />
-            </label>
-
-            <button
-              type="submit"
-              className="w-full rounded-xl bg-white px-4 py-3 font-semibold text-black transition hover:opacity-90"
-            >
-              Salvar perfil
-            </button>
-          </form>
+          <ProfileForm
+            customer={{
+              name: customer?.name || "",
+              email: customer?.email || "",
+              phone: customer?.phone || "",
+            }}
+            profile={
+              profile
+                ? {
+                    birthDate: profile.birthDate,
+                    preferredBarberId: profile.preferredBarberId,
+                    allergies: profile.allergies,
+                    preferences: profile.preferences,
+                  }
+                : null
+            }
+            barbers={barbers}
+          />
 
           <div className="mt-6 grid gap-3">
             <div className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-4">

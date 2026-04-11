@@ -26,7 +26,7 @@ export function resolveFinanceRange(filters: FinanceFilters) {
     };
   }
 
-  if (filters.period === "week") {
+  if (filters.period !== "month") {
     const { start, end } = getWeekRange();
     return {
       period: "week" as const,

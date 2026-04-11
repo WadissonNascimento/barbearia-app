@@ -31,7 +31,7 @@ export default function AddToCartButton({ product }: { product: Product }) {
     <button
       type="button"
       onClick={handleAdd}
-      className="w-full rounded-xl bg-emerald-500 px-4 py-3 font-medium text-black transition hover:bg-emerald-400"
+      className="w-full rounded-xl bg-[var(--brand)] px-4 py-3 font-medium text-white shadow-[0_12px_30px_rgba(14,165,233,0.28)] transition hover:brightness-110"
     >
       {added ? "Adicionado" : "Adicionar ao carrinho"}
     </button>

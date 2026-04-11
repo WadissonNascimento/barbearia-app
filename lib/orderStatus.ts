@@ -1,3 +1,15 @@
+export const ORDER_STATUSES = [
+  "PENDING",
+  "CONFIRMED",
+  "PREPARING",
+  "SHIPPED",
+  "READY_FOR_PICKUP",
+  "DELIVERED",
+  "CANCELLED",
+] as const;
+
+export type OrderStatus = (typeof ORDER_STATUSES)[number];
+
 export const orderStatusLabel: Record<string, string> = {
   PENDING: "Aguardando confirmacao",
   CONFIRMED: "Confirmado",

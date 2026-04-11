@@ -2,8 +2,11 @@
 
 import { auth } from "@/auth";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
-import { buildFeedbackRedirect } from "@/lib/pageFeedback";
+import {
+  mutationError,
+  mutationSuccess,
+  type MutationResult,
+} from "@/lib/mutationResult";
 import { prisma } from "@/lib/prisma";
 import {
   getBarberPayoutSnapshot,
@@ -19,39 +22,13 @@ async function requireAdmin() {
   }
 }
 
-function buildFinanceRedirect(
-  formData: FormData,
-  message: string,
-  tone: "success" | "error" | "info" = "success"
-) {
-  const period = String(formData.get("period") || "month");
-  const start = String(formData.get("start") || "");
-  const end = String(formData.get("end") || "");
-  const historyStart = String(formData.get("historyStart") || "");
-  const historyEnd = String(formData.get("historyEnd") || "");
-  const compareMode = String(formData.get("compareMode") || "auto");
-  const compareStart = String(formData.get("compareStart") || "");
-  const compareEnd = String(formData.get("compareEnd") || "");
-  const params = new URLSearchParams();
-
-  if (period) params.set("period", period);
-  if (start) params.set("start", start);
-  if (end) params.set("end", end);
-  if (historyStart) params.set("historyStart", historyStart);
-  if (historyEnd) params.set("historyEnd", historyEnd);
-  if (compareMode) params.set("compareMode", compareMode);
-  if (compareStart) params.set("compareStart", compareStart);
-  if (compareEnd) params.set("compareEnd", compareEnd);
-
-  const base = `/admin/financeiro${params.toString() ? `?${params.toString()}` : ""}`;
-  return buildFeedbackRedirect(base, message, tone);
-}
-
-export async function generateBarberPayoutsAction(formData: FormData) {
+export async function generateBarberPayoutsAction(
+  formData: FormData
+): Promise<MutationResult> {
   await requireAdmin();
 
   const range = resolveFinanceRange({
-    period: String(formData.get("period") || "month") as "week" | "month" | "custom",
+    period: String(formData.get("period") || "week") as "week" | "month" | "custom",
     start: String(formData.get("start") || ""),
     end: String(formData.get("end") || ""),
   });
@@ -96,16 +73,18 @@ export async function generateBarberPayoutsAction(formData: FormData) {
 
   revalidatePath("/admin");
   revalidatePath("/admin/financeiro");
-  redirect(buildFinanceRedirect(formData, "Fechamento financeiro gerado com sucesso."));
+  return mutationSuccess("Fechamento financeiro gerado com sucesso.");
 }
 
-export async function markBarberPayoutAsPaidAction(formData: FormData) {
+export async function markBarberPayoutAsPaidAction(
+  formData: FormData
+): Promise<MutationResult> {
   await requireAdmin();
 
   const payoutId = String(formData.get("payoutId") || "");
 
   if (!payoutId) {
-    redirect(buildFinanceRedirect(formData, "Fechamento invalido.", "error"));
+    return mutationError("Fechamento invalido.");
   }
 
   await prisma.barberPayout.update({
@@ -118,16 +97,18 @@ export async function markBarberPayoutAsPaidAction(formData: FormData) {
 
   revalidatePath("/admin");
   revalidatePath("/admin/financeiro");
-  redirect(buildFinanceRedirect(formData, "Pagamento marcado com sucesso."));
+  return mutationSuccess("Pagamento marcado com sucesso.");
 }
 
-export async function reopenBarberPayoutAction(formData: FormData) {
+export async function reopenBarberPayoutAction(
+  formData: FormData
+): Promise<MutationResult> {
   await requireAdmin();
 
   const payoutId = String(formData.get("payoutId") || "");
 
   if (!payoutId) {
-    redirect(buildFinanceRedirect(formData, "Fechamento invalido.", "error"));
+    return mutationError("Fechamento invalido.");
   }
 
   await prisma.barberPayout.update({
@@ -140,16 +121,18 @@ export async function reopenBarberPayoutAction(formData: FormData) {
 
   revalidatePath("/admin");
   revalidatePath("/admin/financeiro");
-  redirect(buildFinanceRedirect(formData, "Fechamento reaberto para revisao.", "info"));
+  return mutationSuccess("Fechamento reaberto para revisao.", undefined, "info");
 }
 
-export async function closeBarberPayoutAction(formData: FormData) {
+export async function closeBarberPayoutAction(
+  formData: FormData
+): Promise<MutationResult> {
   await requireAdmin();
 
   const payoutId = String(formData.get("payoutId") || "");
 
   if (!payoutId) {
-    redirect(buildFinanceRedirect(formData, "Fechamento invalido.", "error"));
+    return mutationError("Fechamento invalido.");
   }
 
   const payout = await prisma.barberPayout.findUnique({
@@ -157,7 +140,7 @@ export async function closeBarberPayoutAction(formData: FormData) {
   });
 
   if (!payout) {
-    redirect(buildFinanceRedirect(formData, "Fechamento nao encontrado.", "error"));
+    return mutationError("Fechamento nao encontrado.");
   }
 
   const snapshot = await getBarberPayoutSnapshot({
@@ -179,16 +162,18 @@ export async function closeBarberPayoutAction(formData: FormData) {
 
   revalidatePath("/admin");
   revalidatePath("/admin/financeiro");
-  redirect(buildFinanceRedirect(formData, "Fechamento atualizado e fechado novamente."));
+  return mutationSuccess("Fechamento atualizado e fechado novamente.");
 }
 
-export async function deleteBarberPayoutAction(formData: FormData) {
+export async function deleteBarberPayoutAction(
+  formData: FormData
+): Promise<MutationResult> {
   await requireAdmin();
 
   const payoutId = String(formData.get("payoutId") || "");
 
   if (!payoutId) {
-    redirect(buildFinanceRedirect(formData, "Fechamento invalido.", "error"));
+    return mutationError("Fechamento invalido.");
   }
 
   const payout = await prisma.barberPayout.findUnique({
@@ -197,7 +182,7 @@ export async function deleteBarberPayoutAction(formData: FormData) {
   });
 
   if (!payout) {
-    redirect(buildFinanceRedirect(formData, "Fechamento nao encontrado.", "error"));
+    return mutationError("Fechamento nao encontrado.");
   }
 
   await prisma.barberPayout.delete({
@@ -206,5 +191,5 @@ export async function deleteBarberPayoutAction(formData: FormData) {
 
   revalidatePath("/admin");
   revalidatePath("/admin/financeiro");
-  redirect(buildFinanceRedirect(formData, "Fechamento excluido com sucesso."));
+  return mutationSuccess("Fechamento excluido com sucesso.");
 }

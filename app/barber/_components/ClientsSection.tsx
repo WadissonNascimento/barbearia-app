@@ -33,7 +33,7 @@ export function ClientsSection({
             />
             <button
               type="submit"
-              className="rounded-xl bg-[#d4a15d] px-5 py-3 text-sm font-semibold text-black transition hover:brightness-110"
+              className="rounded-xl bg-[var(--brand)] px-5 py-3 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(37,99,235,0.28)] transition hover:brightness-110"
             >
               Pesquisar cliente
             </button>
@@ -55,7 +55,7 @@ export function ClientsSection({
                 <div>
                   <Link
                     href={`/barber/clientes/${client.id}`}
-                    className="text-lg font-semibold text-white transition hover:text-[#d4a15d]"
+                    className="text-lg font-semibold text-white transition hover:text-[var(--brand)]"
                   >
                     {client.name}
                   </Link>
@@ -64,7 +64,7 @@ export function ClientsSection({
                   </p>
                   <Link
                     href={`/barber/clientes/${client.id}`}
-                    className="mt-3 inline-flex rounded-xl border border-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:border-[#d4a15d] hover:text-[#d4a15d]"
+                    className="mt-3 inline-flex rounded-xl border border-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:border-[var(--brand)] hover:text-[var(--brand)]"
                   >
                     Abrir perfil
                   </Link>
@@ -86,7 +86,12 @@ export function ClientsSection({
                   <p className="mt-2 text-sm text-white">{client.totalAppointments}</p>
                 </div>
 
-                <form action={saveClientNoteAction}>
+                <form
+                  action={async (formData) => {
+                    "use server";
+                    await saveClientNoteAction(formData);
+                  }}
+                >
                   <input type="hidden" name="redirectTo" value={redirectTo} />
                   <input type="hidden" name="customerId" value={client.id} />
                   <label className="block">

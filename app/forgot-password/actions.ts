@@ -15,6 +15,8 @@ function getExpirationDate() {
   return new Date(Date.now() + 10 * 60 * 1000);
 }
 
+const MAX_RESET_ATTEMPTS = 5;
+
 export async function requestPasswordResetAction(
   _prevState: FormFeedbackState,
   formData: FormData
@@ -186,6 +188,13 @@ export async function resetPasswordWithCodeAction(
   if (resetRequest.expiresAt.getTime() < Date.now()) {
     return {
       error: "Esse codigo expirou. Solicite um novo envio.",
+      success: null,
+    };
+  }
+
+  if (resetRequest.attempts >= MAX_RESET_ATTEMPTS) {
+    return {
+      error: "Muitas tentativas invalidas. Solicite um novo codigo.",
       success: null,
     };
   }

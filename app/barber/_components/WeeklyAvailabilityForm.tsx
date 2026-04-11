@@ -2,16 +2,16 @@
 
 import { useState } from "react";
 import { weekDays } from "@/lib/barberSchedule";
-import { saveWeeklyBarberAvailabilityAction } from "../actions";
 
 type WeeklyAvailabilityFormProps = {
   availabilities: Array<{
     weekDay: number;
     startTime: string;
     endTime: string;
-    isActive: boolean;
+      isActive: boolean;
   }>;
-  redirectTo: string;
+  onSave: (formData: FormData) => void;
+  isPending?: boolean;
 };
 
 type DayState = {
@@ -24,7 +24,8 @@ type DayState = {
 
 export function WeeklyAvailabilityForm({
   availabilities,
-  redirectTo,
+  onSave,
+  isPending = false,
 }: WeeklyAvailabilityFormProps) {
   const availabilityMap = new Map(
     availabilities.map((item) => [item.weekDay, item] as const)
@@ -52,8 +53,13 @@ export function WeeklyAvailabilityForm({
   }
 
   return (
-    <form action={saveWeeklyBarberAvailabilityAction} className="grid gap-4">
-      <input type="hidden" name="redirectTo" value={redirectTo} />
+    <form
+      className="grid gap-4"
+      onSubmit={(event) => {
+        event.preventDefault();
+        onSave(new FormData(event.currentTarget));
+      }}
+    >
       {days.map((day) => (
         <div
           key={day.weekDay}
@@ -122,9 +128,10 @@ export function WeeklyAvailabilityForm({
 
       <button
         type="submit"
-        className="rounded-xl bg-[#d4a15d] px-4 py-3 text-sm font-semibold text-black transition hover:brightness-110"
+        disabled={isPending}
+        className="rounded-xl bg-[var(--brand)] px-4 py-3 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(37,99,235,0.28)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        Salvar disponibilidade da semana
+        {isPending ? "Salvando..." : "Salvar disponibilidade da semana"}
       </button>
     </form>
   );

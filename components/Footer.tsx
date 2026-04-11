@@ -3,11 +3,11 @@ import Link from "next/link";
 
 export default function Footer() {
   return (
-    <footer className="relative mt-20 border-t border-white/10 bg-[#030712] text-white">
-      <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_bottom,_rgba(59,130,246,0.15),_transparent_40%)]" />
+    <footer className="relative mt-14 border-t border-white/10 bg-[#030712] text-white">
+      <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_bottom,_rgba(56,189,248,0.16),_transparent_36%)]" />
 
       <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-        <div className="flex flex-col items-center justify-between gap-6 border-b border-white/10 pb-8 sm:flex-row">
+        <div className="flex flex-col gap-6 border-b border-white/10 pb-8 md:flex-row md:items-center md:justify-between">
           <Link href="/" className="flex items-center gap-3">
             <Image
               src="/logo.png"
@@ -19,16 +19,33 @@ export default function Footer() {
 
             <div>
               <p className="text-lg font-bold">Jak Barber</p>
-              <p className="text-xs text-zinc-400">Company</p>
+              <p className="text-xs text-zinc-400">Atendimento com hora marcada</p>
             </div>
           </Link>
 
-          <div className="flex items-center gap-3">
+          <div className="grid gap-3 text-sm text-zinc-400 sm:grid-cols-2">
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
+                Funcionamento
+              </p>
+              <p className="mt-2 text-zinc-200">Terca a domingo, das 09h as 20h</p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
+                Experiencia
+              </p>
+              <p className="mt-2 text-zinc-200">
+                Agenda rapida no celular e acompanhamento em tempo real
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 self-start md:self-auto">
             <a
               href="https://www.instagram.com/jakcompany_/"
               target="_blank"
               rel="noreferrer"
-              className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-sky-400 transition hover:border-sky-400/40 hover:bg-sky-500/10 hover:text-sky-300 hover:shadow-[0_0_12px_rgba(56,189,248,0.5)]"
+              className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-[var(--brand-strong)] transition hover:border-[var(--brand)]/40 hover:bg-[var(--brand-muted)] hover:text-[var(--brand-strong)]"
               aria-label="Instagram"
             >
               <svg
@@ -46,8 +63,8 @@ export default function Footer() {
               href="https://maps.google.com/?q=Osasco+SP"
               target="_blank"
               rel="noreferrer"
-              className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-sky-400 transition hover:border-sky-400/40 hover:bg-sky-500/10 hover:text-sky-300 hover:shadow-[0_0_12px_rgba(56,189,248,0.5)]"
-              aria-label="Localização"
+              className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-[var(--brand-strong)] transition hover:border-[var(--brand)]/40 hover:bg-[var(--brand-muted)] hover:text-[var(--brand-strong)]"
+              aria-label="Localizacao"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -62,8 +79,8 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="mt-6 flex flex-col items-center justify-between gap-4 text-sm text-zinc-400 sm:flex-row">
-          <p>© {new Date().getFullYear()} Jak Barber Company</p>
+        <div className="mt-6 flex flex-col gap-4 text-sm text-zinc-400 sm:flex-row sm:items-center sm:justify-between">
+          <p>&copy; {new Date().getFullYear()} Jak Barber Company</p>
           <p className="text-zinc-500">Cuidado em cada detalhe</p>
         </div>
       </div>

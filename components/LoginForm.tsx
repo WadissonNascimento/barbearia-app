@@ -18,15 +18,15 @@ export default function LoginForm({
   return (
     <form
       action={formAction}
-      className="w-full max-w-md rounded-3xl border border-white/10 bg-white/5 p-8 shadow-2xl backdrop-blur"
+      className="surface-card-strong w-full max-w-md rounded-[32px] p-6 shadow-2xl sm:p-8"
     >
       <div className="mb-8 text-center">
-        <p className="mb-2 text-xs uppercase tracking-[0.35em] text-sky-300">
+        <p className="mb-2 text-xs uppercase tracking-[0.35em] text-[var(--brand-strong)]">
           Login
         </p>
         <h1 className="text-4xl font-bold">Entrar</h1>
         <p className="mt-3 text-sm text-zinc-300">
-          Acesse sua conta para entrar no painel.
+          Entre para abrir seu painel e acompanhar seus horarios.
         </p>
       </div>
 
@@ -48,7 +48,7 @@ export default function LoginForm({
             name="email"
             type="email"
             required
-            className="w-full rounded-2xl border border-white/10 bg-[#243754] px-4 py-4 text-white outline-none placeholder:text-zinc-400"
+            className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-4 text-white outline-none placeholder:text-zinc-400"
             placeholder="seuemail@exemplo.com"
           />
         </div>
@@ -65,7 +65,7 @@ export default function LoginForm({
             name="password"
             type="password"
             required
-            className="w-full rounded-2xl border border-white/10 bg-[#020817] px-4 py-4 text-white outline-none placeholder:text-zinc-400"
+            className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-4 text-white outline-none placeholder:text-zinc-400"
             placeholder="Digite sua senha"
           />
         </div>
@@ -73,7 +73,7 @@ export default function LoginForm({
         <div className="text-right text-sm">
           <Link
             href="/forgot-password"
-            className="font-semibold text-sky-300 hover:underline"
+            className="font-semibold text-[var(--brand-strong)] hover:underline"
           >
             Esqueceu a senha?
           </Link>
@@ -86,7 +86,7 @@ export default function LoginForm({
         Ainda nao tem conta?{" "}
         <Link
           href="/register"
-          className="font-semibold text-sky-300 hover:underline"
+          className="font-semibold text-[var(--brand-strong)] hover:underline"
         >
           Criar conta
         </Link>

@@ -1,6 +1,11 @@
 "use server";
 
 import { auth } from "@/auth";
+import {
+  mutationError,
+  mutationSuccess,
+  type MutationResult,
+} from "@/lib/mutationResult";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
@@ -19,7 +24,9 @@ function revalidateServiceViews() {
   revalidatePath("/barber");
 }
 
-export async function createGlobalServiceAction(formData: FormData) {
+export async function createGlobalServiceAction(
+  formData: FormData
+): Promise<MutationResult> {
   await requireAdmin();
 
   const name = String(formData.get("name") || "").trim();
@@ -29,7 +36,7 @@ export async function createGlobalServiceAction(formData: FormData) {
   const commissionValue = Number(formData.get("commissionValue") || 0);
 
   if (!name || price <= 0 || duration <= 0 || commissionValue < 0 || commissionValue > 100) {
-    throw new Error("Preencha nome, preco, duracao e comissao corretamente.");
+    return mutationError("Preencha nome, preco, duracao e comissao corretamente.");
   }
 
   await prisma.service.create({
@@ -46,9 +53,12 @@ export async function createGlobalServiceAction(formData: FormData) {
   });
 
   revalidateServiceViews();
+  return mutationSuccess("Servico geral criado com sucesso.");
 }
 
-export async function updateGlobalServiceAction(formData: FormData) {
+export async function updateGlobalServiceAction(
+  formData: FormData
+): Promise<MutationResult> {
   await requireAdmin();
 
   const serviceId = String(formData.get("serviceId") || "");
@@ -66,7 +76,7 @@ export async function updateGlobalServiceAction(formData: FormData) {
     commissionValue < 0 ||
     commissionValue > 100
   ) {
-    throw new Error("Preencha nome, preco, duracao e comissao corretamente.");
+    return mutationError("Preencha nome, preco, duracao e comissao corretamente.");
   }
 
   const service = await prisma.service.findUnique({
@@ -74,7 +84,7 @@ export async function updateGlobalServiceAction(formData: FormData) {
   });
 
   if (!service) {
-    throw new Error("Servico nao encontrado.");
+    return mutationError("Servico nao encontrado.");
   }
 
   await prisma.service.update({
@@ -90,9 +100,12 @@ export async function updateGlobalServiceAction(formData: FormData) {
   });
 
   revalidateServiceViews();
+  return mutationSuccess("Servico atualizado com sucesso.");
 }
 
-export async function toggleGlobalServiceAction(formData: FormData) {
+export async function toggleGlobalServiceAction(
+  formData: FormData
+): Promise<MutationResult> {
   await requireAdmin();
 
   const serviceId = String(formData.get("serviceId") || "");
@@ -101,7 +114,7 @@ export async function toggleGlobalServiceAction(formData: FormData) {
   });
 
   if (!service) {
-    throw new Error("Servico nao encontrado.");
+    return mutationError("Servico nao encontrado.");
   }
 
   await prisma.service.update({
@@ -112,9 +125,12 @@ export async function toggleGlobalServiceAction(formData: FormData) {
   });
 
   revalidateServiceViews();
+  return mutationSuccess(service.isActive ? "Servico desativado." : "Servico ativado.");
 }
 
-export async function deleteGlobalServiceAction(formData: FormData) {
+export async function deleteGlobalServiceAction(
+  formData: FormData
+): Promise<MutationResult> {
   await requireAdmin();
 
   const serviceId = String(formData.get("serviceId") || "");
@@ -123,7 +139,7 @@ export async function deleteGlobalServiceAction(formData: FormData) {
   });
 
   if (!service) {
-    throw new Error("Servico nao encontrado.");
+    return mutationError("Servico nao encontrado.");
   }
 
   await prisma.service.delete({
@@ -131,4 +147,5 @@ export async function deleteGlobalServiceAction(formData: FormData) {
   });
 
   revalidateServiceViews();
+  return mutationSuccess("Servico excluido com sucesso.");
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { formatCurrency } from "@/lib/utils";
 import AddToCartButton from "@/components/AddToCartButton";
@@ -46,10 +47,12 @@ export function ProductGrid({ products }: { products: Product[] }) {
           >
             <div className="relative h-64 border-b border-white/10 bg-black/10">
               {normalizeProductImageUrl(product.imageUrl) ? (
-                <img
+                <Image
                   src={normalizeProductImageUrl(product.imageUrl) || ""}
                   alt={product.name}
-                  className="h-full w-full object-contain p-6 transition duration-300 group-hover:scale-105"
+                  fill
+                  sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 33vw"
+                  className="object-contain p-6 transition duration-300 group-hover:scale-105"
                 />
               ) : (
                 <div className="flex h-full items-center justify-center text-zinc-500">
@@ -68,7 +71,7 @@ export function ProductGrid({ products }: { products: Product[] }) {
                     {product.description || "Produto sem descricao."}
                   </p>
                 </div>
-                <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-300">
+                <span className="rounded-full border border-[var(--brand)]/30 bg-[var(--brand-muted)] px-3 py-1 text-xs font-medium text-[var(--brand-strong)]">
                   Estoque {product.stock}
                 </span>
               </div>
