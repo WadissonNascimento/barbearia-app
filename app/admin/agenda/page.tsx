@@ -185,7 +185,7 @@ export default async function AdminAgendaPage({
 
       <SectionCard
         title="Agendamentos"
-        description="Lista consolidada para acompanhamento operacional do dia."
+        description="Lista do dia para acompanhar todos os horarios."
         className="mt-8"
         actions={
           <Link

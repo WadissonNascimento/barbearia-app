@@ -63,7 +63,7 @@ export function AvailabilitySection({
   return (
     <SectionCard
       title="Disponibilidade"
-      description="Defina seus horarios da semana e bloqueie pausas ou ausencias pontuais."
+      description="Abra horarios e bloqueie pausas quando precisar."
       className="rounded-[28px] bg-zinc-900/90"
     >
       <div className="mt-6 space-y-3">

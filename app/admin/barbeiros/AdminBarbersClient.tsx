@@ -82,8 +82,8 @@ export default function AdminBarbersClient({
       </div>
 
       <SectionCard
-        title="Cadastrar novo barbeiro"
-        description="O convite so vira conta ativa depois da confirmacao por e-mail."
+        title="Novo barbeiro"
+        description="Envie o acesso inicial para ele entrar no painel."
         className="mt-6"
       >
         <form
@@ -142,7 +142,7 @@ export default function AdminBarbersClient({
             >
               {isPending && pendingKey === "create-barber"
                 ? "Enviando..."
-                : "Enviar convite do barbeiro"}
+                : "Enviar acesso"}
             </button>
           </div>
         </form>
@@ -150,7 +150,7 @@ export default function AdminBarbersClient({
 
       <SectionCard
         title="Convites pendentes"
-        description="Barbeiros que ainda precisam confirmar o e-mail para concluir a criacao."
+        description="Acessos enviados que ainda nao foram confirmados."
         className="mt-8"
       >
         <div className="space-y-4">
@@ -186,8 +186,8 @@ export default function AdminBarbersClient({
       </SectionCard>
 
       <SectionCard
-        title="Barbeiros cadastrados"
-        description="Gerencie os barbeiros ja confirmados. Ao desligar, o historico financeiro e os atendimentos permanecem salvos."
+        title="Barbeiros da equipe"
+        description="Ative, pause ou desligue barbeiros sem apagar historico."
         className="mt-8"
       >
         <div className="space-y-4">

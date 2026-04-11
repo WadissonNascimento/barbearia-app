@@ -1,7 +1,9 @@
 import {
+  CalendarPlus,
   CalendarDays,
   KeyRound,
   Package,
+  ShoppingBag,
   SearchCheck,
   UserRound,
 } from "lucide-react";
@@ -10,7 +12,6 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import PageHeader from "@/components/ui/PageHeader";
 import DashboardEntryCard from "@/components/ui/DashboardEntryCard";
-import { LogoutButton } from "@/components/LogoutButton";
 
 export default async function CustomerPage() {
   const session = await auth();
@@ -38,36 +39,48 @@ export default async function CustomerPage() {
 
   const entries = [
     {
+      href: "/agendar",
+      icon: CalendarPlus,
+      title: "Agendar horario",
+      description: "Escolha barbeiro, servico e melhor horario.",
+    },
+    {
       href: "/customer/agendamentos",
       icon: CalendarDays,
       title: "Meus agendamentos",
-      description: "Acompanhe seus horarios marcados, veja barbeiro, servicos e status do atendimento.",
+      description: "Horarios marcados, barbeiro e status.",
       badge: appointmentsCount ? `${appointmentsCount}` : undefined,
+    },
+    {
+      href: "/produtos",
+      icon: ShoppingBag,
+      title: "Comprar produtos",
+      description: "Produtos para cuidar do visual em casa.",
     },
     {
       href: "/meu-perfil",
       icon: UserRound,
       title: "Meu cadastro",
-      description: "Edite seus dados, preferencias, barbeiro favorito e historico pessoal.",
+      description: "Dados, preferencias e barbeiro favorito.",
     },
     {
       href: "/forgot-password",
       icon: KeyRound,
       title: "Trocar senha",
-      description: "Use a recuperacao por e-mail para redefinir sua senha com seguranca.",
+      description: "Receba um codigo por e-mail.",
     },
     {
       href: "/meus-pedidos",
       icon: Package,
       title: "Meus pedidos",
-      description: "Veja compras recentes, itens do pedido, status e detalhes da entrega.",
+      description: "Compras, status e detalhes da entrega.",
       badge: ordersCount ? `${ordersCount}` : undefined,
     },
     {
       href: "/rastreio",
       icon: SearchCheck,
       title: "Rastreio",
-      description: "Abra a area de acompanhamento para consultar o andamento da entrega.",
+      description: "Acompanhe a entrega do pedido.",
     },
   ];
 
@@ -77,16 +90,7 @@ export default async function CustomerPage() {
         <PageHeader
           eyebrow="Minha Conta"
           title="Painel do cliente"
-          description="Escolha uma opcao para abrir a pagina completa daquela funcao. No celular, cada card leva direto para o conteudo certo."
-          actions={
-            <div className="flex items-center gap-3">
-              <div className="rounded-2xl border border-zinc-800 bg-zinc-950/65 px-4 py-3 text-right">
-                <p className="text-sm text-zinc-400">Logado como</p>
-                <p className="font-medium text-white">{session.user.name || "Cliente"}</p>
-              </div>
-              <LogoutButton />
-            </div>
-          }
+          description="Tudo que voce precisa antes e depois do atendimento."
         />
 
         <div className="grid gap-4 sm:grid-cols-2">

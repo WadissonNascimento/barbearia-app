@@ -4,9 +4,8 @@ import {
   Scissors,
   Users,
 } from "lucide-react";
-import PageHeader from "@/components/ui/PageHeader";
 import DashboardEntryCard from "@/components/ui/DashboardEntryCard";
-import { LogoutButton } from "@/components/LogoutButton";
+import BarberTodayDashboard from "./_components/BarberTodayDashboard";
 import { getBarberDashboardData } from "./data";
 import { requireActiveBarber } from "./guard";
 
@@ -22,7 +21,7 @@ export default async function BarberPage() {
       href: "/barber/agenda",
       icon: CalendarRange,
       title: "Agenda",
-      description: "Abra sua agenda completa, filtre atendimentos e atualize o andamento do dia.",
+      description: "Filtros, historico e status dos atendimentos.",
       badge: dashboard.summary.appointmentsToday
         ? `${dashboard.summary.appointmentsToday}`
         : undefined,
@@ -31,14 +30,14 @@ export default async function BarberPage() {
       href: "/barber/servicos",
       icon: Scissors,
       title: "Servicos",
-      description: "Cadastre, edite, ative ou desative os servicos exclusivos do seu perfil.",
+      description: "Crie e ajuste seus servicos exclusivos.",
       badge: dashboard.services.length ? `${dashboard.services.length}` : undefined,
     },
     {
       href: "/barber/disponibilidade",
       icon: Clock3,
       title: "Disponibilidade",
-      description: "Gerencie horarios da semana, bloqueios pontuais e bloqueios recorrentes.",
+      description: "Horarios da semana, pausas e bloqueios.",
       badge:
         dashboard.blocks.length || dashboard.recurringBlocks.length
           ? `${dashboard.blocks.length + dashboard.recurringBlocks.length}`
@@ -48,30 +47,42 @@ export default async function BarberPage() {
       href: "/barber/clientes",
       icon: Users,
       title: "Clientes",
-      description: "Pesquise clientes, abra perfis e acompanhe observacoes do atendimento.",
+      description: "Perfis, contato e anotacoes importantes.",
       badge: dashboard.clients.length ? `${dashboard.clients.length}` : undefined,
     },
   ];
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,#1a2236_0%,#090b12_42%,#05060a_100%)]">
-      <div className="mx-auto max-w-6xl px-4 py-10 text-white">
-        <PageHeader
-          eyebrow="Painel Barber"
-          title="Area do barbeiro"
-          description="Toque em uma opcao para abrir a pagina completa daquela funcao, sem modulos internos no celular."
-          actions={
-            <div className="flex items-center gap-3">
-              <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 px-4 py-3 text-right">
-                <p className="text-sm text-zinc-400">Logado como</p>
-                <p className="font-medium text-white">{session.user.name || "Barbeiro"}</p>
-              </div>
-              <LogoutButton />
-            </div>
-          }
+    <div className="min-h-screen">
+      <div className="mx-auto max-w-6xl px-4 py-5 text-white sm:px-6 sm:py-8">
+        <div className="mb-4">
+          <div className="min-w-0">
+            <p className="text-xs uppercase tracking-[0.2em] text-[var(--brand-strong)]">
+              Painel do barbeiro
+            </p>
+            <p className="mt-1 truncate text-sm text-zinc-400">
+              {session.user.name || "Barbeiro"}
+            </p>
+          </div>
+        </div>
+
+        <BarberTodayDashboard
+          barberName={session.user.name || "Barbeiro"}
+          summary={dashboard.summary}
         />
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="mt-6">
+          <div className="mb-3 flex items-end justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-semibold text-white">Atalhos</h2>
+              <p className="mt-1 text-sm text-zinc-400">
+                Rotinas que nao precisam ficar na frente da agenda.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
           {entries.map((entry) => (
             <DashboardEntryCard
               key={entry.href}

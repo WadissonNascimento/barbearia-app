@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import {
   getAppointmentDisplayName,
+  getAppointmentServiceMetaLine,
   getAppointmentTotalPrice,
 } from "@/lib/appointmentServices";
 import { normalizeAppointmentStatus } from "@/lib/appointmentStatus";
@@ -90,7 +91,18 @@ export async function getBarberDashboardData(
     },
   });
 
-  const [appointmentsToday, completedToday, upcomingAppointments, services, availabilities, blocks, recurringBlocks, clientNotes, allBarberAppointments] =
+  const [
+    appointmentsToday,
+    completedToday,
+    todayAppointments,
+    upcomingAppointments,
+    services,
+    availabilities,
+    blocks,
+    recurringBlocks,
+    clientNotes,
+    allBarberAppointments,
+  ] =
     await Promise.all([
       prisma.appointment.count({
         where: {
@@ -111,6 +123,22 @@ export async function getBarberDashboardData(
           status: {
             in: ["COMPLETED", "DONE"],
           },
+        },
+      }),
+      prisma.appointment.findMany({
+        where: {
+          barberId,
+          date: {
+            gte: todayStart,
+            lte: todayEnd,
+          },
+        },
+        include: {
+          customer: true,
+          services: true,
+        },
+        orderBy: {
+          date: "asc",
         },
       }),
       prisma.appointment.findMany({
@@ -219,6 +247,28 @@ export async function getBarberDashboardData(
     existing.totalAppointments += 1;
   }
 
+  const normalizedTodayAppointments = todayAppointments.map((appointment) => ({
+    ...appointment,
+    status: normalizeAppointmentStatus(appointment.status),
+  }));
+  const activeTodayAppointments = normalizedTodayAppointments.filter(
+    (appointment) =>
+      !["CANCELLED", "NO_SHOW"].includes(appointment.status)
+  );
+  const completedTodayAppointments = normalizedTodayAppointments.filter(
+    (appointment) => appointment.status === "COMPLETED"
+  );
+  const todayServiceMap = new Map<string, number>();
+
+  for (const appointment of activeTodayAppointments) {
+    const serviceName = getAppointmentDisplayName(appointment.services);
+    todayServiceMap.set(serviceName, (todayServiceMap.get(serviceName) || 0) + 1);
+  }
+
+  const todayServices = Array.from(todayServiceMap.entries())
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+
   return {
     filters: {
       view,
@@ -228,6 +278,40 @@ export async function getBarberDashboardData(
     summary: {
       appointmentsToday,
       completedToday,
+      clientsToday: new Set(activeTodayAppointments.map((appointment) => appointment.customerId)).size,
+      scheduledRevenueToday: activeTodayAppointments.reduce(
+        (sum, appointment) => sum + getAppointmentTotalPrice(appointment.services),
+        0
+      ),
+      completedRevenueToday: completedTodayAppointments.reduce(
+        (sum, appointment) => sum + getAppointmentTotalPrice(appointment.services),
+        0
+      ),
+      barberPayoutToday: completedTodayAppointments.reduce(
+        (sum, appointment) =>
+          sum +
+          appointment.services.reduce(
+            (serviceSum, service) => serviceSum + service.barberPayoutSnapshot,
+            0
+          ),
+        0
+      ),
+      todayServices,
+      todayAppointments: normalizedTodayAppointments.map((appointment) => ({
+        id: appointment.id,
+        date: appointment.date,
+        status: appointment.status,
+        notes: appointment.notes,
+        customer: {
+          id: appointment.customer.id,
+          name: appointment.customer.name || "Cliente",
+          phone: appointment.customer.phone || null,
+          email: appointment.customer.email || null,
+        },
+        serviceName: getAppointmentDisplayName(appointment.services),
+        serviceMeta: getAppointmentServiceMetaLine(appointment.services),
+        totalPrice: getAppointmentTotalPrice(appointment.services),
+      })),
       nextAppointments: upcomingAppointments,
     },
     appointments: appointments.map((appointment) => ({

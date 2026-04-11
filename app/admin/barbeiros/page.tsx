@@ -48,14 +48,14 @@ export default async function AdminBarbersPage({
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 text-white">
       <PageHeader
-        title="CRUD de Barbeiros"
-        description="Cadastre, acompanhe convites pendentes, desligue ou reative barbeiros sem perder historico."
+        title="Equipe de barbeiros"
+        description="Adicione barbeiros, acompanhe convites e controle quem pode atender."
         actions={
           <Link
             href="/admin"
             className="rounded-xl border border-zinc-700 px-4 py-2 text-sm hover:bg-zinc-800"
           >
-            Voltar ao admin
+            Voltar
           </Link>
         }
       />

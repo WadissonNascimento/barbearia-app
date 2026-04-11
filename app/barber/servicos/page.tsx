@@ -17,14 +17,14 @@ export default async function BarberServicesPage({
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 text-white">
       <PageHeader
-        title="Servicos do barbeiro"
-        description="Cadastre e edite seus servicos exclusivos em uma pagina dedicada."
+        title="Meus servicos"
+        description="Precos, duracao e servicos que so voce atende."
         actions={
           <Link
             href="/barber"
             className="rounded-xl border border-zinc-700 px-4 py-2 text-sm hover:bg-zinc-800"
           >
-            Voltar ao painel
+            Voltar
           </Link>
         }
       />

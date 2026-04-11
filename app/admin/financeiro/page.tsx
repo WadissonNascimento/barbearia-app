@@ -734,7 +734,7 @@ export default async function AdminFinanceiroPage({
 
       <SectionCard
         title="Fechamento por barbeiro"
-        description="Gerencie o fechamento do periodo sem perder a leitura analitica acima."
+        description="Feche os repasses do periodo com os numeros ja conferidos acima."
         className="mt-8"
         actions={
           <GeneratePayoutsButton

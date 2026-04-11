@@ -76,5 +76,6 @@ export function getAppointmentServiceMetaLine(
   );
   const totalPrice = services.reduce((sum, service) => sum + service.priceSnapshot, 0);
 
-  return `${totalDuration} min • ${formatCurrency(totalPrice)}`;
+  return `${totalDuration} min - ${formatCurrency(totalPrice)}`;
 }
+

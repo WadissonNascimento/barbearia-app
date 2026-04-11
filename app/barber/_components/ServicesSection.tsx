@@ -55,7 +55,7 @@ export function ServicesSection({
   return (
     <SectionCard
       title="Servicos"
-      description="Cadastre, edite e exclua apenas os servicos exclusivos do seu perfil."
+      description="Ajuste seus servicos proprios sem mexer nos servicos da barbearia."
       className="rounded-[28px] bg-zinc-900/90"
     >
       <div className="mt-6 space-y-3">

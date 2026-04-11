@@ -30,14 +30,14 @@ export default async function ProdutosPage() {
     <div className="mx-auto max-w-7xl px-4 py-10 text-white">
       <PageHeader
         title="Produtos"
-        description="Gerencie catalogo, estoque e sinais de reposicao da loja."
+        description="Catalogo, estoque e reposicao da loja."
         actions={
           <div className="flex gap-3">
             <Link
               href="/admin"
               className="rounded-xl border border-zinc-700 px-4 py-2 text-sm hover:bg-zinc-800"
             >
-              Voltar ao admin
+              Voltar
             </Link>
             <Link
               href="/admin/produtos/novo"

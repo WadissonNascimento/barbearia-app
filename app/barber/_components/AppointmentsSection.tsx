@@ -67,11 +67,15 @@ export function AppointmentsSection({
     setSelectedDate(filterDefaults.date);
   }, [filterDefaults.date, filterDefaults.status, filterDefaults.view]);
 
-  function applyFilters() {
+  function applyFilters(nextFilters = {
+    view: selectedView,
+    status: selectedStatus,
+    date: selectedDate,
+  }) {
     const params = new URLSearchParams();
-    const view = selectedView || "day";
-    const status = selectedStatus || "ALL";
-    const date = selectedDate || "";
+    const view = nextFilters.view || "day";
+    const status = nextFilters.status || "ALL";
+    const date = nextFilters.date || "";
 
     if (view && view !== "day") {
       params.set("view", view);
@@ -96,20 +100,23 @@ export function AppointmentsSection({
   return (
     <SectionCard
       title="Agenda"
-      description="Veja apenas seus atendimentos e atualize o andamento do dia."
+      description="Seus horarios, clientes e proximas acoes."
       className="rounded-[28px] bg-zinc-900/90"
       actions={
-        <form
-          className="grid gap-3 sm:grid-cols-3"
-          onSubmit={(event) => {
-            event.preventDefault();
-            applyFilters();
-          }}
-        >
+        <div className="grid gap-3 sm:grid-cols-3">
           <select
             name="view"
             value={selectedView}
-            onChange={(event) => setSelectedView(event.target.value as typeof filters.view)}
+            onChange={(event) => {
+              const next = {
+                view: event.target.value as typeof filters.view,
+                status: selectedStatus,
+                date: selectedDate,
+              };
+
+              setSelectedView(next.view);
+              applyFilters(next);
+            }}
             className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm text-white outline-none"
           >
             <option value="day">Dia</option>
@@ -120,7 +127,16 @@ export function AppointmentsSection({
           <select
             name="status"
             value={selectedStatus}
-            onChange={(event) => setSelectedStatus(event.target.value)}
+            onChange={(event) => {
+              const next = {
+                view: selectedView,
+                status: event.target.value,
+                date: selectedDate,
+              };
+
+              setSelectedStatus(next.status);
+              applyFilters(next);
+            }}
             className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm text-white outline-none"
           >
             <option value="ALL">Todos os status</option>
@@ -135,7 +151,16 @@ export function AppointmentsSection({
             type="date"
             name="date"
             value={selectedDate}
-            onChange={(event) => setSelectedDate(event.target.value)}
+            onChange={(event) => {
+              const next = {
+                view: selectedView,
+                status: selectedStatus,
+                date: event.target.value,
+              };
+
+              setSelectedDate(next.date);
+              applyFilters(next);
+            }}
             disabled={selectedView !== "day"}
             className={`rounded-xl border px-4 py-3 text-sm text-white outline-none ${
               selectedView === "day"
@@ -144,20 +169,14 @@ export function AppointmentsSection({
             }`}
           />
 
-          <button
-            type="submit"
-            disabled={isFilterPending}
-            className="rounded-xl bg-[var(--brand)] px-4 py-3 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(37,99,235,0.28)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60 sm:col-span-3"
-          >
-            {isFilterPending ? "Atualizando..." : "Atualizar filtros"}
-          </button>
-
-          {selectedView !== "day" ? (
+          {isFilterPending || selectedView !== "day" ? (
             <p className="text-xs text-zinc-500 sm:col-span-3">
-              A data so vale quando o filtro estiver em Dia.
+              {isFilterPending
+                ? "Atualizando agenda..."
+                : "A data so vale quando o filtro estiver em Dia."}
             </p>
           ) : null}
-        </form>
+        </div>
       }
     >
       <div className="mt-6 space-y-3">
