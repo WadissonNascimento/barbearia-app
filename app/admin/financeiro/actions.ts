@@ -73,7 +73,7 @@ export async function generateBarberPayoutsAction(
 
   revalidatePath("/admin");
   revalidatePath("/admin/financeiro");
-  return mutationSuccess("Fechamento financeiro gerado com sucesso.");
+  return mutationSuccess("Repasses salvos com sucesso.");
 }
 
 export async function markBarberPayoutAsPaidAction(
@@ -84,7 +84,7 @@ export async function markBarberPayoutAsPaidAction(
   const payoutId = String(formData.get("payoutId") || "");
 
   if (!payoutId) {
-    return mutationError("Fechamento invalido.");
+    return mutationError("Repasse invalido.");
   }
 
   await prisma.barberPayout.update({
@@ -97,7 +97,7 @@ export async function markBarberPayoutAsPaidAction(
 
   revalidatePath("/admin");
   revalidatePath("/admin/financeiro");
-  return mutationSuccess("Pagamento marcado com sucesso.");
+  return mutationSuccess("Repasse marcado como pago.");
 }
 
 export async function reopenBarberPayoutAction(
@@ -108,7 +108,7 @@ export async function reopenBarberPayoutAction(
   const payoutId = String(formData.get("payoutId") || "");
 
   if (!payoutId) {
-    return mutationError("Fechamento invalido.");
+    return mutationError("Repasse invalido.");
   }
 
   await prisma.barberPayout.update({
@@ -121,7 +121,7 @@ export async function reopenBarberPayoutAction(
 
   revalidatePath("/admin");
   revalidatePath("/admin/financeiro");
-  return mutationSuccess("Fechamento reaberto para revisao.", undefined, "info");
+  return mutationSuccess("Repasse aberto para revisao.", undefined, "info");
 }
 
 export async function closeBarberPayoutAction(
@@ -132,7 +132,7 @@ export async function closeBarberPayoutAction(
   const payoutId = String(formData.get("payoutId") || "");
 
   if (!payoutId) {
-    return mutationError("Fechamento invalido.");
+    return mutationError("Repasse invalido.");
   }
 
   const payout = await prisma.barberPayout.findUnique({
@@ -140,7 +140,7 @@ export async function closeBarberPayoutAction(
   });
 
   if (!payout) {
-    return mutationError("Fechamento nao encontrado.");
+    return mutationError("Repasse nao encontrado.");
   }
 
   const snapshot = await getBarberPayoutSnapshot({
@@ -162,7 +162,7 @@ export async function closeBarberPayoutAction(
 
   revalidatePath("/admin");
   revalidatePath("/admin/financeiro");
-  return mutationSuccess("Fechamento atualizado e fechado novamente.");
+  return mutationSuccess("Valores conferidos e repasse fechado.");
 }
 
 export async function deleteBarberPayoutAction(
@@ -173,7 +173,7 @@ export async function deleteBarberPayoutAction(
   const payoutId = String(formData.get("payoutId") || "");
 
   if (!payoutId) {
-    return mutationError("Fechamento invalido.");
+    return mutationError("Repasse invalido.");
   }
 
   const payout = await prisma.barberPayout.findUnique({
@@ -182,7 +182,7 @@ export async function deleteBarberPayoutAction(
   });
 
   if (!payout) {
-    return mutationError("Fechamento nao encontrado.");
+    return mutationError("Repasse nao encontrado.");
   }
 
   await prisma.barberPayout.delete({
@@ -191,5 +191,5 @@ export async function deleteBarberPayoutAction(
 
   revalidatePath("/admin");
   revalidatePath("/admin/financeiro");
-  return mutationSuccess("Fechamento excluido com sucesso.");
+  return mutationSuccess("Repasse excluido com sucesso.");
 }

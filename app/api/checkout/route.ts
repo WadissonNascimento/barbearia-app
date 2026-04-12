@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import {
+  buildMercadoPagoPreferenceItems,
   buildCheckoutSummary,
   findCouponByCode,
   getCheckoutProducts,
@@ -141,40 +142,13 @@ export async function POST(request: Request) {
       };
       notification_url?: string;
     } = {
-      items: [
-        ...parsed.items.map((item) => {
-          const product = dbProducts.find((entry) => entry.id === item.productId)!;
-          return {
-            id: product.id,
-            title: product.name,
-            quantity: item.quantity,
-            unit_price: Number(product.price),
-            currency_id: "BRL",
-          };
-        }),
-        ...(summary.shipping.cost > 0
-          ? [
-              {
-                id: "shipping",
-                title: summary.shipping.method,
-                quantity: 1,
-                unit_price: Number(summary.shipping.cost),
-                currency_id: "BRL",
-              },
-            ]
-          : []),
-        ...(summary.discountTotal > 0
-          ? [
-              {
-                id: "discount",
-                title: `Desconto ${coupon?.code || ""}`.trim(),
-                quantity: 1,
-                unit_price: Number(-summary.discountTotal),
-                currency_id: "BRL",
-              },
-            ]
-          : []),
-      ],
+      items: buildMercadoPagoPreferenceItems({
+        items: parsed.items,
+        products: dbProducts,
+        shippingCost: summary.shipping.cost,
+        shippingMethod: summary.shipping.method,
+        discountTotal: summary.discountTotal,
+      }),
       payer: {
         name: parsed.customerName,
         email: parsed.customerEmail,

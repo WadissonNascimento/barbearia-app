@@ -87,8 +87,8 @@ export default async function AdminFinanceiroPage({
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 text-white">
       <PageHeader
-        title="Financeiro"
-        description="Feche repasses, acompanhe faturamento e registre pagamentos por barbeiro."
+        title="Financeiro da barbearia"
+        description="Veja quanto entrou, quanto deve ser pago aos barbeiros e o que fica para a barbearia."
         actions={
           <Link
             href="/admin"
@@ -100,8 +100,8 @@ export default async function AdminFinanceiroPage({
       />
 
       <SectionCard
-        title="Periodo do fechamento"
-        description="Escolha a janela de apuracao antes de gerar ou pagar os repasses."
+        title="Escolha o periodo"
+        description="Selecione os dias que quer analisar antes de gerar ou pagar os repasses."
         className="mt-6"
       >
         <FinancePeriodFilters
@@ -112,25 +112,25 @@ export default async function AdminFinanceiroPage({
       </SectionCard>
 
       <div className="mt-6 grid gap-4 md:grid-cols-4">
-        <SectionCard title="Faturamento" description="Receita bruta de servicos no periodo.">
+        <SectionCard title="Entrou no caixa" description="Total vendido em servicos no periodo.">
           <p className="text-3xl font-semibold text-white">
             {formatCurrency(data.summary.grossRevenue)}
           </p>
         </SectionCard>
 
-        <SectionCard title="Repasse" description="Total a pagar para os barbeiros.">
+        <SectionCard title="A pagar aos barbeiros" description="Soma dos repasses do periodo.">
           <p className="text-3xl font-semibold text-amber-300">
             {formatCurrency(data.summary.commissionTotal)}
           </p>
         </SectionCard>
 
-        <SectionCard title="Liquido" description="Valor que fica para a barbearia.">
+        <SectionCard title="Fica para a barbearia" description="Valor da casa depois dos repasses.">
           <p className="text-3xl font-semibold text-emerald-300">
             {formatCurrency(data.summary.shopNetRevenue)}
           </p>
         </SectionCard>
 
-        <SectionCard title="Atendimentos" description="Concluidos considerados no fechamento.">
+        <SectionCard title="Atendimentos feitos" description="Servicos concluidos no periodo.">
           <p className="text-3xl font-semibold text-white">
             {data.summary.appointmentsCount}
           </p>
@@ -139,26 +139,20 @@ export default async function AdminFinanceiroPage({
 
       <div className="mt-8 grid gap-8">
         <SectionCard
-          title="Top 3 barbeiros"
-          description="Ranking visual de quem mais puxou receita no filtro atual."
+          title="Barbeiros que mais faturaram"
+          description="Os 3 profissionais com maior venda de servicos no periodo."
         >
           {topThreeBarbers.length === 0 ? (
             <EmptyState
               title="Sem ranking ainda"
-              description="O top 3 aparece quando houver atendimentos concluidos no periodo."
+              description="A lista aparece quando houver atendimentos concluidos no periodo."
             />
           ) : (
             <div className="grid gap-4 md:grid-cols-3">
               {topThreeBarbers.map((barber, index) => (
                 <div
                   key={barber.barberId}
-                  className={`rounded-3xl border p-5 ${
-                    index === 0
-                      ? "border-amber-400/40 bg-amber-400/10"
-                      : index === 1
-                      ? "border-slate-400/30 bg-slate-400/10"
-                      : "border-orange-500/30 bg-orange-500/10"
-                  }`}
+                  className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-5"
                 >
                   <p className="text-xs uppercase tracking-[0.22em] text-zinc-400">
                     #{index + 1} colocado
@@ -168,7 +162,7 @@ export default async function AdminFinanceiroPage({
                     {formatCurrency(barber.grossRevenue)}
                   </p>
                   <p className="mt-2 text-sm text-zinc-400">
-                    {barber.appointmentsCount} atendimento(s) • {barber.revenueShare}% do bruto
+                    {barber.appointmentsCount} atendimento(s) - {barber.revenueShare}% do total vendido
                   </p>
                 </div>
               ))}
@@ -179,8 +173,8 @@ export default async function AdminFinanceiroPage({
 
       <div className="mt-8 grid gap-8 xl:grid-cols-[0.95fr_1.05fr]">
         <SectionCard
-          title="Comparativo com periodo anterior"
-          description={`Comparacao direta com ${new Date(
+          title="Comparar periodos"
+          description={`Comparando com ${new Date(
             `${data.comparison.previousRange.start}T00:00:00`
           ).toLocaleDateString("pt-BR")} ate ${new Date(
             `${data.comparison.previousRange.end}T00:00:00`
@@ -199,18 +193,18 @@ export default async function AdminFinanceiroPage({
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-4">
-              <p className="text-sm text-zinc-400">Faturamento bruto</p>
+              <p className="text-sm text-zinc-400">Entrou no caixa</p>
               <p className="mt-2 text-2xl font-semibold text-white">
                 {formatCurrency(data.comparison.current.grossRevenue)}
               </p>
               <p className="mt-2 text-sm text-zinc-500">
-                Antes: {formatCurrency(data.comparison.previous.grossRevenue)}
+                Periodo comparado: {formatCurrency(data.comparison.previous.grossRevenue)}
               </p>
               <p className={`mt-1 text-sm ${getDeltaTone(
                 data.comparison.current.grossRevenue,
                 data.comparison.previous.grossRevenue
               )}`}>
-                Delta: {formatDelta(
+                Mudanca: {formatDelta(
                   data.comparison.current.grossRevenue,
                   data.comparison.previous.grossRevenue
                 )}
@@ -218,18 +212,18 @@ export default async function AdminFinanceiroPage({
             </div>
 
             <div className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-4">
-              <p className="text-sm text-zinc-400">Liquido da casa</p>
+              <p className="text-sm text-zinc-400">Fica para a barbearia</p>
               <p className="mt-2 text-2xl font-semibold text-emerald-300">
                 {formatCurrency(data.comparison.current.shopNetRevenue)}
               </p>
               <p className="mt-2 text-sm text-zinc-500">
-                Antes: {formatCurrency(data.comparison.previous.shopNetRevenue)}
+                Periodo comparado: {formatCurrency(data.comparison.previous.shopNetRevenue)}
               </p>
               <p className={`mt-1 text-sm ${getDeltaTone(
                 data.comparison.current.shopNetRevenue,
                 data.comparison.previous.shopNetRevenue
               )}`}>
-                Delta: {formatDelta(
+                Mudanca: {formatDelta(
                   data.comparison.current.shopNetRevenue,
                   data.comparison.previous.shopNetRevenue
                 )}
@@ -237,18 +231,18 @@ export default async function AdminFinanceiroPage({
             </div>
 
             <div className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-4">
-              <p className="text-sm text-zinc-400">Repasse</p>
+              <p className="text-sm text-zinc-400">A pagar aos barbeiros</p>
               <p className="mt-2 text-2xl font-semibold text-amber-300">
                 {formatCurrency(data.comparison.current.commissionTotal)}
               </p>
               <p className="mt-2 text-sm text-zinc-500">
-                Antes: {formatCurrency(data.comparison.previous.commissionTotal)}
+                Periodo comparado: {formatCurrency(data.comparison.previous.commissionTotal)}
               </p>
               <p className={`mt-1 text-sm ${getDeltaTone(
                 data.comparison.current.commissionTotal,
                 data.comparison.previous.commissionTotal
               )}`}>
-                Delta: {formatDelta(
+                Mudanca: {formatDelta(
                   data.comparison.current.commissionTotal,
                   data.comparison.previous.commissionTotal
                 )}
@@ -256,18 +250,18 @@ export default async function AdminFinanceiroPage({
             </div>
 
             <div className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-4">
-              <p className="text-sm text-zinc-400">Atendimentos</p>
+              <p className="text-sm text-zinc-400">Atendimentos feitos</p>
               <p className="mt-2 text-2xl font-semibold text-white">
                 {data.comparison.current.appointmentsCount}
               </p>
               <p className="mt-2 text-sm text-zinc-500">
-                Antes: {data.comparison.previous.appointmentsCount}
+                Periodo comparado: {data.comparison.previous.appointmentsCount}
               </p>
               <p className={`mt-1 text-sm ${getDeltaTone(
                 data.comparison.current.appointmentsCount,
                 data.comparison.previous.appointmentsCount
               )}`}>
-                Delta: {formatDelta(
+                Mudanca: {formatDelta(
                   data.comparison.current.appointmentsCount,
                   data.comparison.previous.appointmentsCount,
                   "number"
@@ -278,8 +272,8 @@ export default async function AdminFinanceiroPage({
         </SectionCard>
 
         <SectionCard
-          title="Composicao do caixa"
-          description="Separacao visual entre bruto, repasse e liquido dentro do periodo selecionado."
+          title="Para onde foi o dinheiro"
+          description="Separacao simples entre total vendido, repasse dos barbeiros e valor da barbearia."
         >
           <div className="rounded-3xl border border-zinc-800 bg-zinc-950/70 p-5">
             <div className="h-5 overflow-hidden rounded-full bg-zinc-800">
@@ -297,25 +291,25 @@ export default async function AdminFinanceiroPage({
 
             <div className="mt-5 grid gap-3 sm:grid-cols-3">
               <div className="rounded-2xl border border-zinc-800 bg-black/20 p-4">
-                <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Bruto</p>
+                <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Total vendido</p>
                 <p className="mt-2 text-lg font-semibold text-white">
                   {formatCurrency(data.summary.grossRevenue)}
                 </p>
-                <p className="mt-1 text-sm text-zinc-500">100% da receita de servicos</p>
+                <p className="mt-1 text-sm text-zinc-500">100% dos servicos pagos</p>
               </div>
               <div className="rounded-2xl border border-zinc-800 bg-black/20 p-4">
-                <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Repasse</p>
+                <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Barbeiros</p>
                 <p className="mt-2 text-lg font-semibold text-amber-300">
                   {formatCurrency(data.summary.commissionTotal)}
                 </p>
-                <p className="mt-1 text-sm text-zinc-500">{data.summary.payoutRate}% do bruto</p>
+                <p className="mt-1 text-sm text-zinc-500">{data.summary.payoutRate}% do total vendido</p>
               </div>
               <div className="rounded-2xl border border-zinc-800 bg-black/20 p-4">
-                <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Liquido</p>
+                <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Barbearia</p>
                 <p className="mt-2 text-lg font-semibold text-emerald-300">
                   {formatCurrency(data.summary.shopNetRevenue)}
                 </p>
-                <p className="mt-1 text-sm text-zinc-500">{data.summary.netRate}% do bruto</p>
+                <p className="mt-1 text-sm text-zinc-500">{data.summary.netRate}% do total vendido</p>
               </div>
             </div>
           </div>
@@ -324,19 +318,19 @@ export default async function AdminFinanceiroPage({
 
       <div className="mt-8 grid gap-8 xl:grid-cols-[1.25fr_0.75fr]">
         <SectionCard
-          title="Leitura executiva"
-          description="Resumo rapido do periodo selecionado, com foco em pico, ticket e produtividade."
+          title="Resumo rapido"
+          description="Principais pontos do periodo: ticket medio, melhor dia e movimento."
         >
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <div className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-4">
               <p className="text-xs uppercase tracking-[0.22em] text-zinc-500">
-                Ticket medio
+                Valor medio por atendimento
               </p>
               <p className="mt-3 text-2xl font-semibold text-white">
                 {formatCurrency(data.summary.averageTicket)}
               </p>
               <p className="mt-2 text-sm text-zinc-400">
-                Media por atendimento concluido.
+                Media de quanto cada atendimento gerou.
               </p>
             </div>
 
@@ -385,12 +379,12 @@ export default async function AdminFinanceiroPage({
         </SectionCard>
 
         <SectionCard
-          title="Radar do periodo"
-          description="Leitura de quem puxou a receita e qual servico mais pesou no caixa."
+          title="Destaques do periodo"
+          description="Quem mais vendeu, qual servico mais saiu e quantos barbeiros trabalharam."
         >
           <div className="space-y-4">
             <div className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-4">
-              <p className="text-sm text-zinc-400">Barbeiro com maior faturamento</p>
+              <p className="text-sm text-zinc-400">Barbeiro que mais vendeu</p>
               <p className="mt-2 text-xl font-semibold text-white">
                 {data.analytics.barberInsights[0]?.barberName || "Sem dados"}
               </p>
@@ -402,13 +396,13 @@ export default async function AdminFinanceiroPage({
             </div>
 
             <div className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-4">
-              <p className="text-sm text-zinc-400">Servico mais forte</p>
+              <p className="text-sm text-zinc-400">Servico mais vendido</p>
               <p className="mt-2 text-xl font-semibold text-white">
                 {data.analytics.topServices[0]?.label || "Sem dados"}
               </p>
               <p className="mt-1 text-sm text-zinc-500">
                 {data.analytics.topServices[0]
-                  ? `${data.analytics.topServices[0].count} execucoes • ${formatCurrency(
+                  ? `${data.analytics.topServices[0].count} vezes - ${formatCurrency(
                       data.analytics.topServices[0].grossRevenue
                     )}`
                   : "Aguardando servicos concluidos"}
@@ -430,8 +424,8 @@ export default async function AdminFinanceiroPage({
 
       <div className="mt-8 grid gap-8 xl:grid-cols-[1.15fr_0.85fr]">
         <SectionCard
-          title="Faturamento por dia"
-          description="Curva do periodo para identificar concentracao de receita e volume."
+          title="Movimento por dia"
+          description="Veja em quais dias entrou mais dinheiro e quantos atendimentos foram feitos."
         >
           {data.analytics.dailySeries.length === 0 ? (
             <EmptyState
@@ -469,8 +463,8 @@ export default async function AdminFinanceiroPage({
         </SectionCard>
 
         <SectionCard
-          title="Melhores dias da semana"
-          description="Acumulo por dia da semana para detectar padrao de pico."
+          title="Dias da semana"
+          description="Mostra quais dias costumam vender mais dentro do periodo escolhido."
         >
           {data.analytics.weekdayPerformance.length === 0 ? (
             <EmptyState
@@ -510,13 +504,13 @@ export default async function AdminFinanceiroPage({
 
       <div className="mt-8 grid gap-8 xl:grid-cols-[0.82fr_1.18fr]">
         <SectionCard
-          title="Heatmap semanal"
-          description="Mapa de calor simples para visualizar os dias mais fortes da semana."
+          title="Dias mais fortes"
+          description="Quanto mais destacada a cor, maior foi o faturamento daquele dia."
         >
           {data.analytics.weekdayPerformance.length === 0 ? (
             <EmptyState
-              title="Sem calor semanal"
-              description="Quando houver faturamento no periodo, o heatmap aparecera aqui."
+              title="Sem movimento semanal"
+              description="Quando houver faturamento no periodo, os dias mais fortes aparecerao aqui."
             />
           ) : (
             <div className="grid gap-3 sm:grid-cols-2">
@@ -549,8 +543,8 @@ export default async function AdminFinanceiroPage({
         </SectionCard>
 
         <SectionCard
-          title="Bruto x repasse x liquido por barbeiro"
-          description="Comparativo visual para entender margem e custo de repasse por profissional."
+          title="Valores por barbeiro"
+          description="Compare quanto cada profissional vendeu, quanto recebe e quanto fica para a barbearia."
         >
           {data.analytics.barberInsights.length === 0 ? (
             <EmptyState
@@ -570,7 +564,7 @@ export default async function AdminFinanceiroPage({
 
                   <div className="space-y-3">
                     <MetricBar
-                      label="Bruto"
+                      label="Total vendido"
                       value={barber.grossRevenue}
                       color="bg-sky-400"
                       maxValue={maxBarberRevenue}
@@ -582,7 +576,7 @@ export default async function AdminFinanceiroPage({
                       maxValue={maxBarberRevenue}
                     />
                     <MetricBar
-                      label="Liquido"
+                      label="Barbearia"
                       value={barber.shopNetRevenue}
                       color="bg-emerald-400"
                       maxValue={maxBarberRevenue}
@@ -597,13 +591,13 @@ export default async function AdminFinanceiroPage({
 
       <div className="mt-8 grid gap-8 xl:grid-cols-[0.9fr_1.1fr]">
         <SectionCard
-          title="Servicos mais fortes"
-          description="Ranking de servicos por receita dentro do filtro atual."
+          title="Servicos que mais venderam"
+          description="Lista dos servicos que mais geraram dinheiro no periodo."
         >
           {data.analytics.topServices.length === 0 ? (
             <EmptyState
               title="Sem servicos no periodo"
-              description="Os servicos mais rentaveis aparecerao aqui quando houver faturamento."
+              description="Os servicos mais vendidos aparecerao aqui quando houver faturamento."
             />
           ) : (
             <div className="space-y-3">
@@ -611,7 +605,7 @@ export default async function AdminFinanceiroPage({
                 <div key={service.label} className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-4">
                   <div className="mb-3 flex items-center justify-between gap-3">
                     <p className="text-sm font-semibold text-white">{service.label}</p>
-                    <p className="text-sm text-zinc-400">{service.count} execucoes</p>
+                    <p className="text-sm text-zinc-400">{service.count} vezes</p>
                   </div>
                   <div className="h-2 overflow-hidden rounded-full bg-zinc-800">
                     <div
@@ -634,8 +628,8 @@ export default async function AdminFinanceiroPage({
         </SectionCard>
 
         <SectionCard
-          title="Desempenho por barbeiro"
-          description="Faturamento, melhor dia do periodo e repasse de cada barbeiro."
+          title="Detalhe por barbeiro"
+          description="Faturamento, melhor dia e repasse de cada profissional."
         >
           {data.analytics.barberInsights.length === 0 ? (
             <EmptyState
@@ -681,7 +675,7 @@ export default async function AdminFinanceiroPage({
                       <div className="grid gap-3 sm:grid-cols-3">
                         <div className="rounded-xl border border-zinc-800 bg-black/20 p-3">
                           <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">
-                            Bruto
+                            Total vendido
                           </p>
                           <p className="mt-2 text-sm font-semibold text-white">
                             {formatCurrency(barber.grossRevenue)}
@@ -697,7 +691,7 @@ export default async function AdminFinanceiroPage({
                         </div>
                         <div className="rounded-xl border border-zinc-800 bg-black/20 p-3">
                           <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">
-                            Liquido da casa
+                            Fica para a barbearia
                           </p>
                           <p className="mt-2 text-sm font-semibold text-emerald-300">
                             {formatCurrency(barber.shopNetRevenue)}
@@ -708,7 +702,7 @@ export default async function AdminFinanceiroPage({
                       <div className="grid gap-3 sm:grid-cols-2">
                         <div className="rounded-xl border border-zinc-800 bg-black/20 p-3">
                           <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">
-                            Participacao no bruto
+                            Parte do faturamento
                           </p>
                           <p className="mt-2 text-sm font-semibold text-sky-300">
                             {barber.revenueShare}%
@@ -716,7 +710,7 @@ export default async function AdminFinanceiroPage({
                         </div>
                         <div className="rounded-xl border border-zinc-800 bg-black/20 p-3">
                           <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">
-                            Participacao no repasse
+                            Parte dos repasses
                           </p>
                           <p className="mt-2 text-sm font-semibold text-amber-300">
                             {barber.payoutShare}%
@@ -733,8 +727,8 @@ export default async function AdminFinanceiroPage({
       </div>
 
       <SectionCard
-        title="Fechamento por barbeiro"
-        description="Feche os repasses do periodo com os numeros ja conferidos acima."
+        title="Gerar repasse dos barbeiros"
+        description="Confira os valores do periodo e salve o fechamento para cada barbeiro."
         className="mt-8"
         actions={
           <GeneratePayoutsButton
@@ -789,12 +783,12 @@ export default async function AdminFinanceiroPage({
                   </div>
 
                   <div className="grid gap-1 text-right text-sm">
-                    <p className="text-zinc-400">Bruto: {formatCurrency(item.grossRevenue)}</p>
+                    <p className="text-zinc-400">Total vendido: {formatCurrency(item.grossRevenue)}</p>
                     <p className="text-amber-300">
                       A pagar: {formatCurrency(item.commissionTotal)}
                     </p>
                     <p className="text-emerald-300">
-                      Liquido da casa: {formatCurrency(item.shopNetRevenue)}
+                      Fica para a barbearia: {formatCurrency(item.shopNetRevenue)}
                     </p>
                     {item.savedPaidAt && (
                       <p className="text-xs text-zinc-500">
@@ -819,8 +813,8 @@ export default async function AdminFinanceiroPage({
       </SectionCard>
 
       <SectionCard
-        title="Historico recente"
-        description="Ultimos fechamentos criados e pagos para consulta rapida."
+        title="Fechamentos salvos"
+        description="Ultimos repasses gerados e pagos para consulta rapida."
         className="mt-8"
         actions={
           <FinanceHistoryFilters
@@ -841,9 +835,9 @@ export default async function AdminFinanceiroPage({
                 <tr className="border-b border-zinc-800 text-left text-sm text-zinc-400">
                   <th className="px-4 py-3">Barbeiro</th>
                   <th className="px-4 py-3">Periodo</th>
-                  <th className="px-4 py-3">Bruto</th>
+                  <th className="px-4 py-3">Total vendido</th>
                   <th className="px-4 py-3">Repasse</th>
-                  <th className="px-4 py-3">Liquido</th>
+                  <th className="px-4 py-3">Barbearia</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3">Pago em</th>
                   <th className="px-4 py-3">Acoes</th>
@@ -857,9 +851,9 @@ export default async function AdminFinanceiroPage({
                       {new Date(item.periodStart).toLocaleDateString("pt-BR")} ate{" "}
                       {new Date(item.periodEnd).toLocaleDateString("pt-BR")}
                     </td>
-                    <td className="px-4 py-3">R$ {item.grossRevenue.toFixed(2)}</td>
-                    <td className="px-4 py-3">R$ {item.commissionTotal.toFixed(2)}</td>
-                    <td className="px-4 py-3">R$ {item.shopNetRevenue.toFixed(2)}</td>
+                    <td className="px-4 py-3">{formatCurrency(item.grossRevenue)}</td>
+                    <td className="px-4 py-3">{formatCurrency(item.commissionTotal)}</td>
+                    <td className="px-4 py-3">{formatCurrency(item.shopNetRevenue)}</td>
                     <td className="px-4 py-3">
                       <StatusBadge
                         variant={

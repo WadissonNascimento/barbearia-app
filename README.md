@@ -7,7 +7,7 @@ Aplicacao Next.js para barbearia com cadastro de clientes, login por perfil, age
 - Next.js 14
 - TypeScript
 - Prisma 5
-- SQLite em desenvolvimento
+- PostgreSQL/Supabase
 - NextAuth
 - Tailwind CSS
 - Mercado Pago
@@ -38,10 +38,10 @@ Copy-Item .env.example .env
 npx prisma generate
 ```
 
-4. Crie o banco local com as migrations:
+4. Aplique as migrations no banco:
 
 ```bash
-npx prisma migrate dev
+npx prisma migrate deploy
 ```
 
 5. Popule o banco com dados de desenvolvimento:
@@ -58,15 +58,15 @@ npm run dev
 
 Abra `http://localhost:3000`.
 
-## Reset completo do banco local
+## Reset completo do banco de desenvolvimento
 
-Quando o banco local estiver inconsistente ou voce quiser recriar tudo do zero:
+Quando o banco de desenvolvimento estiver inconsistente ou voce quiser recriar tudo do zero:
 
 ```bash
 npx prisma migrate reset
 ```
 
-O comando apaga o SQLite local, recria o schema a partir das migrations e executa o seed automaticamente.
+O comando apaga os dados do banco configurado em `DATABASE_URL`, recria o schema a partir das migrations e executa o seed automaticamente. Use somente em banco de desenvolvimento.
 
 ## Credenciais do seed
 
@@ -99,7 +99,8 @@ O seed tambem cria clientes adicionais, servicos, disponibilidade dos barbeiros,
 Variaveis minimas para desenvolvimento:
 
 ```env
-DATABASE_URL="file:./dev.db"
+DATABASE_URL="postgresql://postgres.PROJECT_REF:SUA_SENHA@aws-1-us-east-2.pooler.supabase.com:6543/postgres?pgbouncer=true"
+DIRECT_URL="postgresql://postgres.PROJECT_REF:SUA_SENHA@aws-1-us-east-2.pooler.supabase.com:5432/postgres"
 NEXTAUTH_SECRET="troque-essa-chave-por-uma-bem-grande"
 AUTH_SECRET="troque-essa-chave-por-uma-bem-grande"
 NEXTAUTH_URL="http://localhost:3000"
@@ -118,9 +119,9 @@ EMAIL_FROM=""
 
 Em desenvolvimento local, se as variaveis de SMTP ficarem vazias, o cadastro e a recuperacao de senha usam fallback local e exibem/logam o codigo de verificacao. Em producao, configure SMTP real.
 
-## Prisma e SQLite
+## Prisma e PostgreSQL
 
-O schema usa `String` para campos de dominio como `role`, `status`, `commissionType`, `discountType` e `type`, em vez de enums Prisma, para manter compatibilidade com SQLite.
+O schema usa PostgreSQL via Supabase. Campos de dominio como `role`, `status`, `commissionType`, `discountType` e `type` seguem como `String`, com validacao no codigo por constantes TypeScript.
 
 Valores esperados principais:
 
@@ -139,7 +140,7 @@ npm run lint
 npm run test
 npm run seed
 npx prisma generate
-npx prisma migrate dev
+npx prisma migrate deploy
 npx prisma migrate reset
 npx prisma db seed
 ```

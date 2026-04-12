@@ -860,8 +860,8 @@ async function createAppointments(
     const isHistorical = cursor <= today;
     const isWeekend = weekDay === 0 || weekDay === 6;
     const targetAppointments = isHistorical
-      ? randomInt(isWeekend ? 6 : 4, isWeekend ? 14 : 10)
-      : randomInt(2, 5);
+      ? randomInt(1, isWeekend ? 3 : 2)
+      : randomInt(1, 2);
 
     const occupiedByBarber = new Map<string, Array<{ start: number; end: number }>>(
       barbers.map((barber) => [barber.id, []])

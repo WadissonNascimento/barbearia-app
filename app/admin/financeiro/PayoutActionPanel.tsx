@@ -81,7 +81,7 @@ export default function PayoutActionPanel({
               ? "Salvando..."
               : size === "sm"
               ? "Fechar"
-              : "Fechar novamente"}
+              : "Conferir e fechar"}
           </button>
         )}
 
@@ -96,7 +96,7 @@ export default function PayoutActionPanel({
               ? "Salvando..."
               : size === "sm"
               ? "Pagar"
-              : "Marcar como pago"}
+              : "Marcar pago"}
           </button>
         )}
 
@@ -107,7 +107,7 @@ export default function PayoutActionPanel({
             onClick={() => runAction("reopen", reopenBarberPayoutAction)}
             className={`${buttonBase} border border-zinc-700 text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60`}
           >
-            {isPending && pendingKey === "reopen" ? "Salvando..." : "Reabrir"}
+            {isPending && pendingKey === "reopen" ? "Salvando..." : "Revisar de novo"}
           </button>
         )}
 

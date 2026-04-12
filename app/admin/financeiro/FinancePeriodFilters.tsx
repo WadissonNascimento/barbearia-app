@@ -63,7 +63,7 @@ export default function FinancePeriodFilters({
   return (
     <form className="grid gap-4 md:grid-cols-3">
       <div>
-        <label className="mb-2 block text-sm text-zinc-300">Periodo</label>
+        <label className="mb-2 block text-sm text-zinc-300">Periodo do painel</label>
         <select
           name="period"
           value={filters.period}
@@ -78,14 +78,14 @@ export default function FinancePeriodFilters({
           }}
           className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 outline-none"
         >
-          <option value="week">Semana atual</option>
-          <option value="month">Mes atual</option>
-          <option value="custom">Personalizado</option>
+          <option value="week">Esta semana</option>
+          <option value="month">Este mes</option>
+          <option value="custom">Escolher datas</option>
         </select>
       </div>
 
       <div>
-        <label className="mb-2 block text-sm text-zinc-300">Inicio</label>
+        <label className="mb-2 block text-sm text-zinc-300">Data inicial</label>
         <input
           type="date"
           name="start"
@@ -112,7 +112,7 @@ export default function FinancePeriodFilters({
       </div>
 
       <div>
-        <label className="mb-2 block text-sm text-zinc-300">Fim</label>
+        <label className="mb-2 block text-sm text-zinc-300">Data final</label>
         <input
           type="date"
           name="end"
@@ -140,10 +140,10 @@ export default function FinancePeriodFilters({
 
       <p className="text-xs text-zinc-500 md:col-span-3">
         {isPending
-          ? "Atualizando periodo..."
+          ? "Atualizando os numeros..."
           : filters.period === "custom"
-          ? "As datas atualizam automaticamente."
-          : "Troque o periodo para atualizar sem recarregar a pagina inteira."}
+          ? "As datas escolhidas atualizam o painel automaticamente."
+          : "Troque o periodo para atualizar o painel sem recarregar a pagina inteira."}
       </p>
     </form>
   );

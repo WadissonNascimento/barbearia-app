@@ -90,3 +90,41 @@ export function buildCheckoutSummary(input: {
     coupon: input.coupon,
   };
 }
+
+export function buildMercadoPagoPreferenceItems(input: {
+  items: CheckoutItemInput[];
+  products: Product[];
+  shippingCost: number;
+  shippingMethod: string;
+  discountTotal: number;
+}) {
+  const subtotal = calculateOrderSubtotal(input.items, input.products);
+
+  const preferenceItems = input.items.map((item) => {
+    const product = input.products.find((entry) => entry.id === item.productId)!;
+    const lineSubtotal = product.price * item.quantity;
+    const lineDiscount =
+      subtotal > 0 ? input.discountTotal * (lineSubtotal / subtotal) : 0;
+    const discountedLineTotal = Math.max(0.01, lineSubtotal - lineDiscount);
+
+    return {
+      id: product.id,
+      title: product.name,
+      quantity: item.quantity,
+      unit_price: Number((discountedLineTotal / item.quantity).toFixed(2)),
+      currency_id: "BRL",
+    };
+  });
+
+  if (input.shippingCost > 0) {
+    preferenceItems.push({
+      id: "shipping",
+      title: input.shippingMethod,
+      quantity: 1,
+      unit_price: Number(input.shippingCost.toFixed(2)),
+      currency_id: "BRL",
+    });
+  }
+
+  return preferenceItems;
+}

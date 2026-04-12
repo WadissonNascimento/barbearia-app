@@ -84,7 +84,7 @@ export default function FinanceHistoryFilters({
       </div>
 
       <p className="pb-1 text-xs text-zinc-500">
-        {isPending ? "Atualizando historico..." : "Filtro aplicado automaticamente."}
+        {isPending ? "Atualizando lista..." : "A lista muda automaticamente ao trocar as datas."}
       </p>
     </form>
   );

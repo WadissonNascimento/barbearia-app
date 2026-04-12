@@ -73,13 +73,13 @@ export default function ComparisonControls({
             onChange={(event) => setMode(event.target.value as "auto" | "custom")}
             className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 outline-none"
           >
-            <option value="auto">Periodo anterior</option>
-            <option value="custom">Periodo personalizado</option>
+            <option value="auto">Periodo anterior automatico</option>
+            <option value="custom">Datas escolhidas por mim</option>
           </select>
         </div>
 
         <div>
-          <label className="mb-2 block text-sm text-zinc-300">Inicio comparativo</label>
+          <label className="mb-2 block text-sm text-zinc-300">Data inicial da comparacao</label>
           <input
             type="date"
             name="compareStart"
@@ -101,7 +101,7 @@ export default function ComparisonControls({
         </div>
 
         <div>
-          <label className="mb-2 block text-sm text-zinc-300">Fim comparativo</label>
+          <label className="mb-2 block text-sm text-zinc-300">Data final da comparacao</label>
           <input
             type="date"
             name="compareEnd"
@@ -126,9 +126,9 @@ export default function ComparisonControls({
       <p className="mt-3 text-xs text-zinc-500">
         {mode === "custom"
           ? isPending
-            ? "Atualizando comparativo..."
-            : "O comparativo atualiza automaticamente ao trocar as datas."
-          : "Para editar as datas, mude para periodo personalizado."}
+            ? "Atualizando comparacao..."
+            : "A comparacao atualiza automaticamente ao trocar as datas."
+          : "Para escolher as datas, mude para datas escolhidas por mim."}
       </p>
     </form>
   );
