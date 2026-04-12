@@ -2,6 +2,25 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import {
+  BadgePercent,
+  Boxes,
+  CalendarDays,
+  ClipboardList,
+  Clock,
+  CreditCard,
+  Home,
+  LogIn,
+  PackageSearch,
+  Scissors,
+  ShoppingBag,
+  ShoppingCart,
+  UserPlus,
+  Users,
+  UserRound,
+  WalletCards,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useCart } from "@/context/CartContext";
@@ -79,6 +98,7 @@ function getHeaderLinks(role: HeaderRole): {
     eyebrow: "JakCompany",
     primary: [
       { href: "/agendar", label: "Agendar" },
+      { href: "/servicos", label: "Servicos" },
       { href: "/produtos", label: "Produtos" },
       { href: "/login", label: "Entrar" },
     ],
@@ -96,6 +116,38 @@ function isActivePath(pathname: string, href: string) {
   }
 
   return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+const navIcons: Record<string, LucideIcon> = {
+  "/": Home,
+  "/admin": Home,
+  "/admin/agenda": CalendarDays,
+  "/admin/barbeiros": Users,
+  "/admin/cupons": BadgePercent,
+  "/admin/financeiro": WalletCards,
+  "/admin/pedidos": ClipboardList,
+  "/admin/produtos": Boxes,
+  "/admin/servicos": Scissors,
+  "/agendar": CalendarDays,
+  "/barber": Clock,
+  "/barber/agenda": CalendarDays,
+  "/barber/clientes": Users,
+  "/barber/disponibilidade": Clock,
+  "/barber/servicos": Scissors,
+  "/customer/agendamentos": CalendarDays,
+  "/login": LogIn,
+  "/meu-perfil": UserRound,
+  "/meus-pedidos": ClipboardList,
+  "/produtos": ShoppingBag,
+  "/rastreio": PackageSearch,
+  "/register": UserPlus,
+  "/servicos": Scissors,
+};
+
+function NavItemIcon({ href, className }: { href: string; className?: string }) {
+  const Icon = navIcons[href] || CreditCard;
+
+  return <Icon aria-hidden="true" className={className} strokeWidth={2.1} />;
 }
 
 export default function Header({
@@ -127,7 +179,7 @@ export default function Header({
 
   return (
     <>
-      <header className="sticky top-0 z-[100] w-full border-b border-white/10 bg-[#030712]/90 backdrop-blur-2xl">
+      <header className="sticky top-0 z-[100] w-full max-w-full overflow-hidden border-b border-white/10 bg-[#030712]/90 backdrop-blur-2xl">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <Link href={nav.homeHref} className="flex min-w-0 items-center gap-3">
             <Image
@@ -151,13 +203,14 @@ export default function Header({
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`rounded-full px-4 py-2 text-sm transition ${
+                  className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm transition ${
                     isActivePath(pathname, link.href)
                       ? "bg-[var(--brand-muted)] text-white"
                       : "text-zinc-300 hover:bg-white/5 hover:text-white"
                   }`}
                 >
-                  {link.label}
+                  <NavItemIcon href={link.href} className="h-4 w-4 shrink-0" />
+                  <span>{link.label}</span>
                 </Link>
               ))}
             </nav>
@@ -165,11 +218,13 @@ export default function Header({
             {nav.showCart ? (
               <Link
                 href="/carrinho"
-                className="relative rounded-2xl border border-white/15 bg-white/[0.04] px-4 py-3 text-sm text-white transition hover:border-[var(--brand)]/50 hover:bg-[var(--brand-muted)]"
+                aria-label={`Abrir carrinho${cartCount > 0 ? ` com ${cartCount} item${cartCount === 1 ? "" : "s"}` : ""}`}
+                title="Carrinho"
+                className="relative flex h-12 w-12 items-center justify-center rounded-2xl border border-white/15 bg-white/[0.04] text-white transition hover:border-[var(--brand)]/50 hover:bg-[var(--brand-muted)] active:scale-95"
               >
-                Carrinho
+                <ShoppingCart aria-hidden="true" className="h-5 w-5" strokeWidth={2.2} />
                 {cartCount > 0 && (
-                  <span className="ml-2 rounded-full bg-[var(--brand)] px-2 py-0.5 text-xs font-semibold text-white shadow-[0_8px_18px_rgba(37,99,235,0.32)]">
+                  <span className="absolute -right-2 -top-2 flex h-6 min-w-6 items-center justify-center rounded-full bg-[var(--brand)] px-1.5 text-[11px] font-semibold leading-none text-white shadow-[0_8px_18px_rgba(37,99,235,0.32)]">
                     {cartCount}
                   </span>
                 )}
@@ -212,7 +267,7 @@ export default function Header({
       />
 
       <div
-        className={`fixed inset-x-4 top-[76px] z-[150] rounded-3xl border border-white/10 bg-[#030712]/95 p-3 shadow-[0_20px_60px_rgba(0,0,0,0.45)] backdrop-blur-2xl transition-all duration-300 sm:left-auto sm:right-4 sm:top-[84px] sm:w-[320px] ${
+        className={`fixed left-3 right-3 top-[76px] z-[150] max-w-[calc(100vw-1.5rem)] rounded-3xl border border-white/10 bg-[#030712]/95 p-3 shadow-[0_20px_60px_rgba(0,0,0,0.45)] backdrop-blur-2xl transition-all duration-300 sm:left-auto sm:right-4 sm:top-[84px] sm:w-[320px] ${
           isOpen
             ? "translate-y-0 scale-100 opacity-100"
             : "pointer-events-none -translate-y-3 scale-95 opacity-0"
@@ -232,13 +287,14 @@ export default function Header({
                 key={link.href}
                 href={link.href}
                 onClick={() => setIsOpen(false)}
-                className={`w-full rounded-2xl px-5 py-3 text-sm font-semibold transition active:scale-[0.98] ${
+                className={`flex w-full items-center gap-3 rounded-2xl px-5 py-3 text-sm font-semibold transition active:scale-[0.98] ${
                   isActivePath(pathname, link.href)
                   ? "bg-[var(--brand)] text-white shadow-[0_12px_24px_rgba(37,99,235,0.35)]"
                     : "border border-white/10 bg-white/[0.04] text-white hover:border-[var(--brand)]/40 hover:bg-[var(--brand-muted)]"
                 }`}
               >
-                {link.label}
+                <NavItemIcon href={link.href} className="h-5 w-5 shrink-0" />
+                <span>{link.label}</span>
               </Link>
             ))}
           </div>
@@ -249,9 +305,10 @@ export default function Header({
                 key={link.href}
                 href={link.href}
                 onClick={() => setIsOpen(false)}
-                className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-3 text-sm text-white transition hover:border-[var(--brand)]/40 hover:bg-[var(--brand-muted)] active:scale-[0.98]"
+                className="flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-3 text-sm text-white transition hover:border-[var(--brand)]/40 hover:bg-[var(--brand-muted)] active:scale-[0.98]"
               >
-                {link.label}
+                <NavItemIcon href={link.href} className="h-5 w-5 shrink-0" />
+                <span>{link.label}</span>
               </Link>
             ))}
             {role ? (

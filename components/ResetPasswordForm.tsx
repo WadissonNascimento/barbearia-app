@@ -19,9 +19,11 @@ const passwordInputClassName =
 export default function ResetPasswordForm({
   email,
   sent,
+  devCode,
 }: {
   email: string;
   sent: boolean;
+  devCode?: string;
 }) {
   const [resetState, resetAction] = useFormState(
     resetPasswordWithCodeAction,
@@ -45,7 +47,13 @@ export default function ResetPasswordForm({
       </div>
 
       <FormFeedback
-        success={sent ? "Enviamos um codigo de recuperacao para o seu e-mail." : resetState.success}
+        success={
+          devCode
+            ? `Codigo de recuperacao local: ${devCode}`
+            : sent
+            ? "Enviamos um codigo de recuperacao para o seu e-mail."
+            : resetState.success
+        }
         error={resetState.error}
       />
 

@@ -1,4 +1,4 @@
-import { PrismaClient, type Service, type User } from "@prisma/client";
+import { PrismaClient, type Coupon, type Product, type Service } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { calculateServiceFinancials } from "@/lib/financials";
 
@@ -27,6 +27,7 @@ type SeedBarber = {
   id: string;
   name: string;
   email: string;
+  image: string | null;
 };
 
 type ServiceCombo = {
@@ -171,21 +172,57 @@ async function upsertAdmin() {
   return { adminEmail, adminPassword };
 }
 
-async function resetSeedUsers(seedEmails: string[]) {
-  await prisma.user.deleteMany({
-    where: {
-      email: {
-        in: seedEmails,
-      },
-    },
-  });
+async function clearDevelopmentData() {
+  await prisma.$transaction([
+    prisma.stockMovement.deleteMany(),
+    prisma.orderItem.deleteMany(),
+    prisma.order.deleteMany(),
+    prisma.coupon.deleteMany(),
+    prisma.product.deleteMany(),
+    prisma.barberPayout.deleteMany(),
+    prisma.appointmentService.deleteMany(),
+    prisma.appointment.deleteMany(),
+    prisma.service.deleteMany(),
+    prisma.recurringBarberBlock.deleteMany(),
+    prisma.barberBlock.deleteMany(),
+    prisma.barberAvailability.deleteMany(),
+    prisma.clientNote.deleteMany(),
+    prisma.customerProfile.deleteMany(),
+    prisma.passwordResetRequest.deleteMany(),
+    prisma.pendingRegistration.deleteMany(),
+    prisma.session.deleteMany(),
+    prisma.account.deleteMany(),
+    prisma.verificationToken.deleteMany(),
+    prisma.user.deleteMany(),
+  ]);
 }
 
 async function createBarbers(passwordHash: string): Promise<SeedBarber[]> {
   const barbers = [
-    { name: "Lucas Almeida", email: "lucas@seed.jakbarber.local", phone: "11950000001" },
-    { name: "Bruno Costa", email: "bruno@seed.jakbarber.local", phone: "11950000002" },
-    { name: "Caio Martins", email: "caio@seed.jakbarber.local", phone: "11950000003" },
+    {
+      name: "Jak Barber",
+      email: "jak@seed.jakbarber.local",
+      phone: "11950000001",
+      image: "/uploads/barbers/jak.jpg",
+    },
+    {
+      name: "Lipe Barber",
+      email: "lipe@seed.jakbarber.local",
+      phone: "11950000002",
+      image: "/uploads/barbers/lipe.jpg",
+    },
+    {
+      name: "Vitao Barber",
+      email: "vitao@seed.jakbarber.local",
+      phone: "11950000003",
+      image: "/uploads/barbers/vitao.jpg",
+    },
+    {
+      name: "Vini Barber",
+      email: "vini@seed.jakbarber.local",
+      phone: "11950000004",
+      image: "/uploads/barbers/vini.jpg",
+    },
   ];
 
   const created: SeedBarber[] = [];
@@ -204,6 +241,7 @@ async function createBarbers(passwordHash: string): Promise<SeedBarber[]> {
       id: user.id,
       name: user.name || "Barbeiro",
       email: user.email || barber.email,
+      image: user.image,
     });
 
     for (const weekDay of [0, 2, 3, 4, 5, 6]) {
@@ -486,7 +524,7 @@ async function createServices(barbers: SeedBarber[]) {
 
   const exclusiveByBarber = [
     {
-      barberEmail: "lucas@seed.jakbarber.local",
+      barberEmail: "jak@seed.jakbarber.local",
       name: "Freestyle premium",
       description: "Degrade com desenho e acabamento detalhado.",
       price: 60,
@@ -495,7 +533,7 @@ async function createServices(barbers: SeedBarber[]) {
       commissionValue: 45,
     },
     {
-      barberEmail: "bruno@seed.jakbarber.local",
+      barberEmail: "lipe@seed.jakbarber.local",
       name: "Navalhado premium",
       description: "Acabamento completo na navalha.",
       price: 58,
@@ -504,7 +542,7 @@ async function createServices(barbers: SeedBarber[]) {
       commissionValue: 45,
     },
     {
-      barberEmail: "caio@seed.jakbarber.local",
+      barberEmail: "vitao@seed.jakbarber.local",
       name: "Corte infantil",
       description: "Atendimento rapido e confortavel para criancas.",
       price: 38,
@@ -586,43 +624,18 @@ async function createProductsAndCoupons() {
     },
   ];
 
-  for (const product of products) {
-    const existingProduct = await prisma.product.findFirst({
-      where: {
-        name: product.name,
-      },
-      select: {
-        id: true,
-      },
-    });
+  const createdProducts: Product[] = [];
 
-    if (existingProduct) {
-      await prisma.product.update({
-        where: {
-          id: existingProduct.id,
-        },
-        data: product,
-      });
-    } else {
+  for (const product of products) {
+    createdProducts.push(
       await prisma.product.create({
         data: product,
-      });
-    }
+      })
+    );
   }
 
-  await prisma.coupon.upsert({
-    where: {
-      code: "BEMVINDO10",
-    },
-    update: {
-      description: "Desconto inicial para primeira compra.",
-      discountType: "PERCENT",
-      discountValue: 10,
-      minOrderTotal: 80,
-      usageLimit: 200,
-      isActive: true,
-    },
-    create: {
+  const coupon = await prisma.coupon.create({
+    data: {
       code: "BEMVINDO10",
       description: "Desconto inicial para primeira compra.",
       discountType: "PERCENT",
@@ -632,6 +645,103 @@ async function createProductsAndCoupons() {
       isActive: true,
     },
   });
+
+  return {
+    products: createdProducts,
+    coupon,
+  };
+}
+
+async function createOrders(customers: SeedCustomer[], products: Product[], coupon: Coupon) {
+  const statuses = [
+    "PENDING",
+    "CONFIRMED",
+    "PREPARING",
+    "SHIPPED",
+    "DELIVERED",
+    "CANCELLED",
+  ];
+  const shippingMethods = ["PAC", "SEDEX", "RETIRADA"];
+  let ordersCreated = 0;
+
+  for (let index = 0; index < 24; index += 1) {
+    const customer = customers[index % customers.length];
+    const firstProduct = products[index % products.length];
+    const secondProduct = products[(index + 1) % products.length];
+    const quantity = (index % 3) + 1;
+    const includeSecondProduct = index % 2 === 0;
+    const items = [
+      {
+        product: firstProduct,
+        quantity,
+      },
+      ...(includeSecondProduct
+        ? [
+            {
+              product: secondProduct,
+              quantity: 1,
+            },
+          ]
+        : []),
+    ];
+    const subtotal = Number(
+      items
+        .reduce((sum, item) => sum + item.product.price * item.quantity, 0)
+        .toFixed(2)
+    );
+    const usesCoupon = index % 4 === 0 && subtotal >= coupon.minOrderTotal;
+    const discountTotal = usesCoupon ? Number((subtotal * 0.1).toFixed(2)) : 0;
+    const shippingMethod = shippingMethods[index % shippingMethods.length];
+    const shippingCost = shippingMethod === "RETIRADA" ? 0 : index % 3 === 0 ? 18.9 : 12.9;
+    const total = Number((subtotal + shippingCost - discountTotal).toFixed(2));
+    const status = statuses[index % statuses.length];
+
+    await prisma.order.create({
+      data: {
+        customerId: customer.id,
+        couponId: usesCoupon ? coupon.id : null,
+        status,
+        trackingCode:
+          status === "SHIPPED" || status === "DELIVERED"
+            ? `JB${String(100000 + index)}BR`
+            : null,
+        adminApproved: status !== "PENDING" && status !== "CANCELLED",
+        total,
+        subtotal,
+        shippingCost,
+        discountTotal,
+        shippingZipCode: "01001000",
+        shippingMethod,
+        shippingAddress:
+          shippingMethod === "RETIRADA"
+            ? "Retirada na barbearia"
+            : `Rua Demo, ${100 + index} - Sao Paulo/SP`,
+        notes: index % 5 === 0 ? "Pedido criado pelo seed para teste." : null,
+        createdAt: addDays(new Date(), -index * 3),
+        items: {
+          create: items.map((item) => ({
+            productId: item.product.id,
+            productNameSnapshot: item.product.name,
+            quantity: item.quantity,
+            unitPrice: item.product.price,
+          })),
+        },
+      },
+    });
+
+    ordersCreated += 1;
+  }
+
+  await prisma.coupon.update({
+    where: {
+      id: coupon.id,
+    },
+    data: {
+      timesUsed: Math.ceil(ordersCreated / 4),
+    },
+  });
+
+  return ordersCreated;
 }
 
 function buildServiceCombos(
@@ -864,27 +974,22 @@ async function createAppointments(
 }
 
 async function main() {
+  await clearDevelopmentData();
+
   const { adminEmail, adminPassword } = await upsertAdmin();
   const defaultPasswordHash = await bcrypt.hash(DEFAULT_PASSWORD, 10);
-  const seedEmails = [
-    "lucas@seed.jakbarber.local",
-    "bruno@seed.jakbarber.local",
-    "caio@seed.jakbarber.local",
-    ...Array.from({ length: 48 }, (_, index) => `cliente${String(index + 1).padStart(2, "0")}@seed.jakbarber.local`),
-  ];
-
-  await resetSeedUsers(seedEmails);
 
   const barbers = await createBarbers(defaultPasswordHash);
   const customers = await createCustomers(defaultPasswordHash, barbers);
   const { globalServices, exclusiveServices } = await createServices(barbers);
-  await createProductsAndCoupons();
+  const { products, coupon } = await createProductsAndCoupons();
   const appointmentsCreated = await createAppointments(
     customers,
     barbers,
     globalServices,
     exclusiveServices
   );
+  const ordersCreated = await createOrders(customers, products, coupon);
 
   const stats = await prisma.$transaction([
     prisma.user.count({
@@ -923,15 +1028,18 @@ async function main() {
         ],
       },
     }),
+    prisma.order.count(),
   ]);
 
   console.log("Seed executado com sucesso.");
   console.log(`Admin: ${adminEmail} / senha: ${adminPassword}`);
-  console.log(`Barbeiros seed: 3 / senha padrao: ${DEFAULT_PASSWORD}`);
+  console.log(`Barbeiros seed: 4 / senha padrao: ${DEFAULT_PASSWORD}`);
   console.log(`Clientes seed: ${stats[0]}`);
   console.log(`Barbeiros ativos seed: ${stats[1]}`);
   console.log(`Agendamentos seed: ${stats[2]}`);
   console.log(`Agendamentos gerados nesta execucao: ${appointmentsCreated}`);
+  console.log(`Pedidos seed: ${stats[3]}`);
+  console.log(`Pedidos gerados nesta execucao: ${ordersCreated}`);
   console.log("Conta demo cliente: cliente01@seed.jakbarber.local / senha: 123456");
 }
 

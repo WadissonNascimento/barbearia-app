@@ -37,6 +37,14 @@ function splitSlotsByPeriod(slots: string[]): BookingPeriodSlots {
   };
 }
 
+function getLocalDateString(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
 export async function getBookingAvailability(
   {
     barberId,
@@ -147,7 +155,7 @@ export async function getBookingAvailability(
 
   const generatedSlots = generateSlots(availability.startTime, availability.endTime);
   const dayEndMinutes = toMinutes(availability.endTime);
-  const todayString = now.toISOString().slice(0, 10);
+  const todayString = getLocalDateString(now);
   const isToday = date === todayString;
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
 

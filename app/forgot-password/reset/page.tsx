@@ -7,6 +7,7 @@ export default function ResetPasswordPage({
   searchParams?: {
     email?: string;
     sent?: string;
+    devCode?: string;
   };
 }) {
   const email = String(searchParams?.email || "").trim().toLowerCase();
@@ -17,7 +18,11 @@ export default function ResetPasswordPage({
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#020b1a] px-4 text-white">
-      <ResetPasswordForm email={email} sent={searchParams?.sent === "1"} />
+      <ResetPasswordForm
+        email={email}
+        sent={searchParams?.sent === "1"}
+        devCode={searchParams?.devCode}
+      />
     </main>
   );
 }

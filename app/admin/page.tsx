@@ -12,6 +12,7 @@ import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import DashboardEntryCard from "@/components/ui/DashboardEntryCard";
+import { appointmentStatusLabel } from "@/lib/appointmentStatus";
 import { formatCurrency } from "@/lib/utils";
 
 function getDayRange(baseDate = new Date()) {
@@ -258,7 +259,7 @@ export default async function AdminPage() {
                         </p>
                       </div>
                       <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-zinc-300">
-                        {appointment.status}
+                        {appointmentStatusLabel(appointment.status)}
                       </span>
                     </div>
                   </div>
@@ -278,14 +279,14 @@ export default async function AdminPage() {
           </section>
         </div>
 
-        <div className="mt-6">
+        <div className="mt-5">
           <h2 className="text-xl font-semibold text-white">Rotinas do admin</h2>
           <p className="mt-1 text-sm text-zinc-400">
             Acesse quando precisar ajustar alguma parte da barbearia.
           </p>
         </div>
 
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
           {entries.map((entry) => (
             <DashboardEntryCard
               key={entry.href}

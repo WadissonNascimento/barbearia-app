@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { ShoppingCart, Sparkles } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import AddToCartButton from "@/components/AddToCartButton";
 import { useCart } from "@/context/CartContext";
@@ -33,19 +34,33 @@ export function ProductGrid({ products }: { products: Product[] }) {
 
         <Link
           href="/carrinho"
-          className="rounded-2xl border border-white/10 bg-sky-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-sky-400"
+          className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-sky-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-sky-400"
         >
-          Ver carrinho ({cartCount})
+          <ShoppingCart aria-hidden="true" className="h-4 w-4" />
+          <span>Ver carrinho ({cartCount})</span>
         </Link>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-        {products.map((product) => (
+        {products.map((product, index) => (
           <div
             key={product.id}
             className="group overflow-hidden rounded-[1.8rem] border border-white/10 bg-white/[0.04] shadow-[0_20px_60px_rgba(0,0,0,0.28)] transition hover:border-sky-400/30 hover:bg-white/[0.06]"
           >
             <div className="relative h-64 border-b border-white/10 bg-black/10">
+              <div className="absolute left-4 top-4 z-10 flex flex-wrap gap-2">
+                {index === 0 ? (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-sky-300/30 bg-sky-500/15 px-3 py-1 text-xs font-semibold text-sky-200">
+                    <Sparkles aria-hidden="true" className="h-3.5 w-3.5" />
+                    Mais vendido
+                  </span>
+                ) : null}
+                {product.stock <= 3 ? (
+                  <span className="rounded-full border border-amber-300/30 bg-amber-500/15 px-3 py-1 text-xs font-semibold text-amber-100">
+                    Ultimas unidades
+                  </span>
+                ) : null}
+              </div>
               {normalizeProductImageUrl(product.imageUrl) ? (
                 <Image
                   src={normalizeProductImageUrl(product.imageUrl) || ""}
@@ -72,7 +87,7 @@ export function ProductGrid({ products }: { products: Product[] }) {
                   </p>
                 </div>
                 <span className="rounded-full border border-[var(--brand)]/30 bg-[var(--brand-muted)] px-3 py-1 text-xs font-medium text-[var(--brand-strong)]">
-                  Estoque {product.stock}
+                  {product.stock} em estoque
                 </span>
               </div>
 

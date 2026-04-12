@@ -1,44 +1,26 @@
-# BarberPro - Projeto completo de barbearia
+# Barbearia App
 
-Este projeto entrega:
+Aplicacao Next.js para barbearia com cadastro de clientes, login por perfil, agenda, painel de barbeiro, painel administrativo, loja, pedidos, cupons e relatorios financeiros.
 
-- agendamento online de corte, barba, sobrancelha e outros procedimentos
-- geração de mensagem para o WhatsApp do barbeiro
-- painel do barbeiro para ver horários e pedidos
-- loja de produtos
-- checkout com Mercado Pago
-- webhook para atualizar pedido pago
-
-## 1) Tecnologias usadas
+## Stack
 
 - Next.js 14
 - TypeScript
-- Prisma
-- SQLite no desenvolvimento
-- Mercado Pago Checkout Pro
+- Prisma 5
+- SQLite em desenvolvimento
+- NextAuth
 - Tailwind CSS
+- Mercado Pago
 
-## 2) Estrutura principal
+## Setup local do zero
 
-- `app/agendar` -> página de agendamento
-- `app/produtos` -> loja
-- `app/admin` -> painel do barbeiro
-- `app/api/appointments` -> cria agendamento
-- `app/api/checkout` -> cria preferência do Mercado Pago
-- `app/api/mercadopago/webhook` -> recebe retorno do pagamento
-- `prisma/schema.prisma` -> banco de dados
-
-## 3) Como rodar localmente
-
-### Instalar dependências
+1. Instale as dependencias:
 
 ```bash
 npm install
 ```
 
-### Criar o arquivo de ambiente
-
-Copie o `.env.example` para `.env`:
+2. Crie o arquivo de ambiente:
 
 ```bash
 cp .env.example .env
@@ -50,195 +32,114 @@ No Windows PowerShell:
 Copy-Item .env.example .env
 ```
 
-### Rodar o banco e gerar o Prisma Client
+3. Gere o Prisma Client:
 
 ```bash
-npx prisma migrate dev --name init
 npx prisma generate
-npm run seed
 ```
 
-### Subir o projeto
+4. Crie o banco local com as migrations:
+
+```bash
+npx prisma migrate dev
+```
+
+5. Popule o banco com dados de desenvolvimento:
+
+```bash
+npx prisma db seed
+```
+
+6. Rode o projeto:
 
 ```bash
 npm run dev
 ```
 
-Abra:
+Abra `http://localhost:3000`.
 
-```text
-http://localhost:3000
+## Reset completo do banco local
+
+Quando o banco local estiver inconsistente ou voce quiser recriar tudo do zero:
+
+```bash
+npx prisma migrate reset
 ```
 
-## 4) Credenciais iniciais do painel
+O comando apaga o SQLite local, recria o schema a partir das migrations e executa o seed automaticamente.
 
-As credenciais ficam no `.env`:
+## Credenciais do seed
+
+Todos os usuarios abaixo usam a senha `123456`.
+
+Admin:
+
+```text
+admin@barbearia.com
+```
+
+Barbeiros:
+
+```text
+lucas@seed.jakbarber.local
+bruno@seed.jakbarber.local
+caio@seed.jakbarber.local
+```
+
+Cliente demo:
+
+```text
+cliente01@seed.jakbarber.local
+```
+
+O seed tambem cria clientes adicionais, servicos, disponibilidade dos barbeiros, agendamentos dos ultimos 3 meses, produtos, cupom e pedidos simulados.
+
+## Variaveis de ambiente
+
+Variaveis minimas para desenvolvimento:
 
 ```env
+DATABASE_URL="file:./dev.db"
+NEXTAUTH_SECRET="troque-essa-chave-por-uma-bem-grande"
+AUTH_SECRET="troque-essa-chave-por-uma-bem-grande"
+NEXTAUTH_URL="http://localhost:3000"
+NEXT_PUBLIC_APP_URL="http://localhost:3000"
 ADMIN_EMAIL="admin@barbearia.com"
 ADMIN_PASSWORD="123456"
-```
-
-Acesse:
-
-```text
-http://localhost:3000/admin/login
-```
-
-## 5) Configurar o WhatsApp do barbeiro
-
-No `.env`, preencha:
-
-```env
 BARBER_WHATSAPP_NUMBER="5511999999999"
+MERCADO_PAGO_ACCESS_TOKEN="TEST-xxxxxxxxxxxxxxxx"
+MERCADO_PAGO_WEBHOOK_SECRET="troque-se-quiser-validar-webhook"
+EMAIL_SERVER_HOST=""
+EMAIL_SERVER_PORT="587"
+EMAIL_SERVER_USER=""
+EMAIL_SERVER_PASS=""
+EMAIL_FROM=""
 ```
 
-Quando um cliente agenda, o sistema cria um link `wa.me` com a mensagem pronta para o barbeiro.
+Em desenvolvimento local, se as variaveis de SMTP ficarem vazias, o cadastro e a recuperacao de senha usam fallback local e exibem/logam o codigo de verificacao. Em producao, configure SMTP real.
 
-### Observação importante
+## Prisma e SQLite
 
-Essa versão usa **link para WhatsApp com mensagem pronta**, que é o jeito mais simples de colocar no ar rápido.
+O schema usa `String` para campos de dominio como `role`, `status`, `commissionType`, `discountType` e `type`, em vez de enums Prisma, para manter compatibilidade com SQLite.
 
-Se quiser envio automático sem abrir o WhatsApp, depois você pode trocar para:
+Valores esperados principais:
 
-- WhatsApp Cloud API
-- Twilio WhatsApp
-- Z-API / UltraMsg / outro gateway
+- `User.role`: `ADMIN`, `BARBER`, `CUSTOMER`
+- `Appointment.status`: `PENDING`, `CONFIRMED`, `COMPLETED`, `CANCELLED`, `NO_SHOW`
+- `Order.status`: `PENDING`, `CONFIRMED`, `PREPARING`, `SHIPPED`, `DELIVERED`, `CANCELLED`
+- `Coupon.discountType`: `PERCENT`, `FIXED`
+- `StockMovement.type`: `IN`, `OUT`
 
-## 6) Configurar o Mercado Pago
-
-No `.env`, preencha:
-
-```env
-MERCADO_PAGO_ACCESS_TOKEN="SEU_TOKEN"
-NEXT_PUBLIC_APP_URL="https://seu-dominio.com"
-```
-
-No painel do Mercado Pago, configure a URL de webhook para:
-
-```text
-https://seu-dominio.com/api/mercadopago/webhook
-```
-
-## 7) Como colocar no ar
-
-## Opção recomendada para começo
-
-- Front-end + back-end: Vercel
-- Banco em produção: Neon PostgreSQL ou Supabase PostgreSQL
-
-### Passo a passo
-
-#### 1. Suba o projeto para o GitHub
+## Scripts uteis
 
 ```bash
-git init
-git add .
-git commit -m "Projeto inicial barbearia"
-```
-
-Crie um repositório no GitHub e rode:
-
-```bash
-git remote add origin https://github.com/SEU-USUARIO/barbearia-app.git
-git branch -M main
-git push -u origin main
-```
-
-#### 2. Criar conta na Vercel
-
-Entre na Vercel e importe o repositório.
-
-#### 3. Configurar variáveis de ambiente
-
-Na Vercel, adicione:
-
-- `DATABASE_URL`
-- `ADMIN_EMAIL`
-- `ADMIN_PASSWORD`
-- `AUTH_SECRET`
-- `NEXT_PUBLIC_APP_URL`
-- `BARBER_WHATSAPP_NUMBER`
-- `MERCADO_PAGO_ACCESS_TOKEN`
-- `MERCADO_PAGO_WEBHOOK_SECRET` (opcional nessa versão)
-
-#### 4. Banco em produção
-
-### Se usar Neon/Postgres
-
-Troque o provider do Prisma para PostgreSQL:
-
-No arquivo `prisma/schema.prisma`, altere:
-
-```prisma
-datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
-}
-```
-
-para:
-
-```prisma
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-}
-```
-
-Depois rode localmente:
-
-```bash
-npx prisma migrate dev --name postgres
-```
-
-Depois faça commit dessa mudança e envie para o GitHub.
-
-#### 5. Deploy
-
-A própria Vercel vai buildar o projeto.
-
-Configure o comando de build como padrão:
-
-```text
+npm run dev
 npm run build
+npm run lint
+npm run test
+npm run seed
+npx prisma generate
+npx prisma migrate dev
+npx prisma migrate reset
+npx prisma db seed
 ```
-
-#### 6. Rodar migrations em produção
-
-Você pode usar:
-
-```bash
-npx prisma migrate deploy
-```
-
-ou configurar no pipeline da hospedagem.
-
-## 8) Melhorias que você pode fazer depois
-
-- selecionar barbeiros dinâmicos pelo banco
-- agenda com bloqueio de horários
-- envio automático por WhatsApp API
-- cadastro de múltiplos administradores
-- imagens de produtos por upload
-- cupom de desconto
-- cálculo de frete
-- Pix e cartão com checkout transparente
-- painel de relatórios
-
-## 9) Limitações desse MVP
-
-- login do painel é simples, com usuário e senha no `.env`
-- WhatsApp é via link com mensagem pronta
-- sem frete e sem cálculo de entrega
-- sem upload de imagens no painel
-
-## 10) Próximo passo ideal
-
-Primeiro coloque essa versão no ar.
-Depois evolua para:
-
-- PostgreSQL
-- autenticação robusta
-- WhatsApp API real
-- painel CRUD completo de serviços e produtos

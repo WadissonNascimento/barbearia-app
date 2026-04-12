@@ -16,9 +16,11 @@ const inputClassName =
 export default function RegisterVerifyForm({
   email,
   sent,
+  devCode,
 }: {
   email: string;
   sent: boolean;
+  devCode?: string;
 }) {
   const [verifyState, verifyAction] = useFormState(
     verifyRegistrationCodeAction,
@@ -42,7 +44,13 @@ export default function RegisterVerifyForm({
       </div>
 
       <FormFeedback
-        success={sent ? "Enviamos um codigo de verificacao para o seu e-mail." : verifyState.success}
+        success={
+          devCode
+            ? `Codigo de verificacao local: ${devCode}`
+            : sent
+            ? "Enviamos um codigo de verificacao para o seu e-mail."
+            : verifyState.success
+        }
         error={verifyState.error}
       />
 

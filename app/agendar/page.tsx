@@ -3,6 +3,11 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import BookingClient from "./BookingClient";
 
+export const metadata = {
+  title: "Agendar horario",
+  description: "Escolha barbeiro, servico, data e horario para agendar na Jak Barber.",
+};
+
 function getTodayString() {
   const now = new Date();
   const year = now.getFullYear();
@@ -53,6 +58,7 @@ export default async function AgendarPage() {
       select: {
         id: true,
         name: true,
+        image: true,
       },
     }),
     prisma.service.findMany({
@@ -79,6 +85,7 @@ export default async function AgendarPage() {
       services={services}
       initialDate={getTodayString()}
       nextDays={getNextDays(12)}
+      whatsappNumber={process.env.BARBER_WHATSAPP_NUMBER || ""}
     />
   );
 }

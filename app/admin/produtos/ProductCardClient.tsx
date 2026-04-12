@@ -30,6 +30,17 @@ type ProductCardClientProps = {
   };
 };
 
+function stockMovementTypeLabel(type: string) {
+  switch (type) {
+    case "IN":
+      return "Entrada";
+    case "OUT":
+      return "Saida";
+    default:
+      return type;
+  }
+}
+
 export default function ProductCardClient({
   product,
 }: ProductCardClientProps) {
@@ -160,7 +171,7 @@ export default function ProductCardClient({
                 product.stockMovements.map((movement) => (
                   <p key={movement.id}>
                     {new Date(movement.createdAt).toLocaleDateString("pt-BR")} -{" "}
-                    {movement.type} {movement.quantity}
+                    {stockMovementTypeLabel(movement.type)} {movement.quantity}
                     {movement.reason ? ` - ${movement.reason}` : ""}
                   </p>
                 ))

@@ -1,6 +1,11 @@
 import { prisma } from "@/lib/prisma";
 import { ProductGrid } from "@/components/ProductGrid";
 
+export const metadata = {
+  title: "Produtos",
+  description: "Produtos selecionados da Jak Barber para cabelo e barba.",
+};
+
 export default async function ProdutosPage() {
   const products = await prisma.product.findMany({
     where: {

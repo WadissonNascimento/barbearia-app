@@ -10,6 +10,21 @@ const corteImages = [
   "/cortes/corte3.png",
 ];
 
+const testimonials = [
+  {
+    name: "Andre N.",
+    text: "Agendei em poucos cliques e o corte saiu exatamente como eu queria.",
+  },
+  {
+    name: "Carlos E.",
+    text: "Atendimento pontual, ambiente limpo e acabamento muito caprichado.",
+  },
+  {
+    name: "Rafael M.",
+    text: "A loja tambem facilita bastante para manter os produtos em casa.",
+  },
+];
+
 export default function HomePage() {
   const [current, setCurrent] = useState(0);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
@@ -201,6 +216,42 @@ export default function HomePage() {
               </p>
             </div>
           </div>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-6xl px-4 pb-14 sm:px-6">
+        <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-[0.24em] text-[var(--brand-strong)]">
+              Experiencia
+            </p>
+            <h2 className="mt-2 text-2xl font-bold text-white sm:text-3xl">
+              Quem vem, volta.
+            </h2>
+          </div>
+          <p className="max-w-xl text-sm leading-6 text-zinc-400">
+            Atendimento com horario marcado, servico bem feito e tudo organizado
+            para voce nao perder tempo.
+          </p>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-3">
+          {testimonials.map((testimonial) => (
+            <article
+              key={testimonial.name}
+              className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5"
+            >
+              <div className="text-sm tracking-[0.18em] text-[var(--brand-strong)]">
+                5/5
+              </div>
+              <p className="mt-4 text-sm leading-6 text-zinc-300">
+                {testimonial.text}
+              </p>
+              <p className="mt-5 text-sm font-semibold text-white">
+                {testimonial.name}
+              </p>
+            </article>
+          ))}
         </div>
       </section>
     </main>

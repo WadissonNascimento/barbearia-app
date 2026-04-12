@@ -4,7 +4,10 @@ import bcrypt from "bcryptjs";
 import { randomInt } from "crypto";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { sendVerificationCodeEmail } from "@/lib/mail";
+import {
+  isUsingDevelopmentMailFallback,
+  sendVerificationCodeEmail,
+} from "@/lib/mail";
 import type { FormFeedbackState } from "@/lib/formFeedbackState";
 
 function generateVerificationCode() {
@@ -16,6 +19,15 @@ function getExpirationDate() {
 }
 
 const MAX_CODE_ATTEMPTS = 5;
+
+function buildPendingRegistrationRedirect(email: string, code?: string) {
+  const devCodeQuery =
+    code && isUsingDevelopmentMailFallback()
+      ? `&devCode=${encodeURIComponent(code)}`
+      : "";
+
+  return `/register/verify?email=${encodeURIComponent(email)}&sent=1${devCodeQuery}`;
+}
 
 function buildVerificationUrl(email: string) {
   const baseUrl =
@@ -67,11 +79,15 @@ export async function registerCustomerAction(
   });
 
   if (existingPendingRegistration) {
-    return {
-      error:
-        "Ja existe um cadastro pendente com esse e-mail. Use o codigo enviado ou solicite o reenvio na tela de verificacao.",
-      success: null,
-    };
+    if (existingPendingRegistration.expiresAt.getTime() < Date.now()) {
+      await prisma.pendingRegistration.delete({
+        where: { email },
+      });
+    } else {
+      redirect(
+        buildPendingRegistrationRedirect(email, existingPendingRegistration.code)
+      );
+    }
   }
 
   const code = generateVerificationCode();
@@ -116,7 +132,7 @@ export async function registerCustomerAction(
     };
   }
 
-  redirect(`/register/verify?email=${encodeURIComponent(email)}&sent=1`);
+  redirect(buildPendingRegistrationRedirect(email, code));
 }
 
 export async function verifyRegistrationCodeAction(
@@ -287,6 +303,8 @@ export async function resendRegistrationCodeAction(
 
   return {
     error: null,
-    success: "Enviamos um novo codigo para o seu e-mail.",
+    success: isUsingDevelopmentMailFallback()
+      ? `Codigo de verificacao local: ${code}`
+      : "Enviamos um novo codigo para o seu e-mail.",
   };
 }

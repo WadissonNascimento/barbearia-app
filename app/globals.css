@@ -24,6 +24,8 @@
 html {
   scroll-behavior: smooth;
   background: var(--app-bg);
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 body {
@@ -35,6 +37,8 @@ body {
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   isolation: isolate;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 body::before {
@@ -98,6 +102,8 @@ h6 {
 .page-shell {
   margin-inline: auto;
   width: min(100%, 72rem);
+  max-width: 100%;
+  overflow-x: hidden;
   padding-inline: 1rem;
   padding-top: 1.25rem;
   padding-bottom: 2rem;

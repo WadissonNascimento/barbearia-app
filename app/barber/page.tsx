@@ -8,9 +8,11 @@ import DashboardEntryCard from "@/components/ui/DashboardEntryCard";
 import BarberTodayDashboard from "./_components/BarberTodayDashboard";
 import { getBarberDashboardData } from "./data";
 import { requireActiveBarber } from "./guard";
+import BarberPhotoUploader from "@/components/BarberPhotoUploader";
+import { updateOwnBarberPhotoAction } from "./actions";
 
 export default async function BarberPage() {
-  const { session } = await requireActiveBarber();
+  const { session, barber } = await requireActiveBarber();
   const dashboard = await getBarberDashboardData(session.user.id, {
     view: "day",
     status: "ALL",
@@ -64,6 +66,14 @@ export default async function BarberPage() {
               {session.user.name || "Barbeiro"}
             </p>
           </div>
+        </div>
+
+        <div className="mb-4 max-w-xl">
+          <BarberPhotoUploader
+            action={updateOwnBarberPhotoAction}
+            currentImage={barber.image}
+            name={barber.name || "Barbeiro"}
+          />
         </div>
 
         <BarberTodayDashboard

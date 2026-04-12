@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import FeedbackMessage from "@/components/FeedbackMessage";
+import BarberPhotoUploader from "@/components/BarberPhotoUploader";
 import EmptyState from "@/components/ui/EmptyState";
 import SectionCard from "@/components/ui/SectionCard";
 import StatusBadge from "@/components/ui/StatusBadge";
@@ -10,6 +11,7 @@ import {
   createBarberAction,
   deleteBarberAction,
   toggleBarberStatusAction,
+  updateBarberPhotoAction,
 } from "./actions";
 
 type BarberItem = {
@@ -17,6 +19,7 @@ type BarberItem = {
   name: string | null;
   email: string | null;
   phone: string | null;
+  image: string | null;
   isActive: boolean;
   barberAppointments: Array<{ id: string }>;
 };
@@ -203,21 +206,31 @@ export default function AdminBarbersClient({
                 className="rounded-2xl border border-zinc-800 bg-zinc-950 p-5"
               >
                 <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                  <div>
-                    <h3 className="text-lg font-semibold">{barber.name}</h3>
-                    <p className="text-sm text-zinc-400">{barber.email}</p>
-                    <p className="text-sm text-zinc-400">
-                      Telefone: {barber.phone || "Nao informado"}
-                    </p>
-                    <p className="mt-2 text-sm">
-                      Status:{" "}
-                      <span className={barber.isActive ? "text-green-400" : "text-red-400"}>
-                        {barber.isActive ? "Ativo" : "Desligado"}
-                      </span>
-                    </p>
-                    <p className="text-sm text-zinc-400">
-                      Agendamentos vinculados: {barber.barberAppointments.length}
-                    </p>
+                  <div className="min-w-0 space-y-4">
+                    <div>
+                      <h3 className="text-lg font-semibold">{barber.name}</h3>
+                      <p className="text-sm text-zinc-400">{barber.email}</p>
+                      <p className="text-sm text-zinc-400">
+                        Telefone: {barber.phone || "Nao informado"}
+                      </p>
+                      <p className="mt-2 text-sm">
+                        Status:{" "}
+                        <span className={barber.isActive ? "text-green-400" : "text-red-400"}>
+                          {barber.isActive ? "Ativo" : "Desligado"}
+                        </span>
+                      </p>
+                      <p className="text-sm text-zinc-400">
+                        Agendamentos vinculados: {barber.barberAppointments.length}
+                      </p>
+                    </div>
+
+                    <BarberPhotoUploader
+                      action={updateBarberPhotoAction}
+                      barberId={barber.id}
+                      currentImage={barber.image}
+                      name={barber.name || "Barbeiro"}
+                      compact
+                    />
                   </div>
 
                   <div className="flex flex-wrap gap-3">

@@ -4,7 +4,10 @@ import bcrypt from "bcryptjs";
 import { randomInt } from "crypto";
 import { redirect } from "next/navigation";
 import type { FormFeedbackState } from "@/lib/formFeedbackState";
-import { sendPasswordResetCodeEmail } from "@/lib/mail";
+import {
+  isUsingDevelopmentMailFallback,
+  sendPasswordResetCodeEmail,
+} from "@/lib/mail";
 import { prisma } from "@/lib/prisma";
 
 function generateCode() {
@@ -37,6 +40,18 @@ export async function requestPasswordResetAction(
   });
 
   if (!user || !user.passwordHash) {
+    const pendingRegistration = await prisma.pendingRegistration.findUnique({
+      where: { email },
+    });
+
+    if (pendingRegistration) {
+      return {
+        error:
+          "Esse e-mail ainda esta com cadastro pendente. Volte para a tela de cadastro e finalize a verificacao do codigo.",
+        success: null,
+      };
+    }
+
     return {
       error: "Nao encontramos uma conta com esse e-mail.",
       success: null,
@@ -75,7 +90,11 @@ export async function requestPasswordResetAction(
     };
   }
 
-  redirect(`/forgot-password/reset?email=${encodeURIComponent(email)}&sent=1`);
+  const devCode = isUsingDevelopmentMailFallback()
+    ? `&devCode=${encodeURIComponent(code)}`
+    : "";
+
+  redirect(`/forgot-password/reset?email=${encodeURIComponent(email)}&sent=1${devCode}`);
 }
 
 export async function resendPasswordResetCodeAction(
@@ -138,7 +157,9 @@ export async function resendPasswordResetCodeAction(
 
   return {
     error: null,
-    success: "Enviamos um novo codigo de recuperacao para o seu e-mail.",
+    success: isUsingDevelopmentMailFallback()
+      ? `Codigo de recuperacao local: ${code}`
+      : "Enviamos um novo codigo de recuperacao para o seu e-mail.",
   };
 }
 

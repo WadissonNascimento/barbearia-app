@@ -10,6 +10,7 @@ import {
   mutationSuccess,
   type MutationResult,
 } from "@/lib/mutationResult";
+import { deleteLocalBarberPhoto, saveBarberPhoto } from "@/lib/barberPhoto";
 import { prisma } from "@/lib/prisma";
 
 async function requireAdmin() {
@@ -164,6 +165,63 @@ export async function toggleBarberStatusAction(
   return mutationSuccess(
     currentActive ? "Barbeiro inativado." : "Barbeiro reativado."
   );
+}
+
+export async function updateBarberPhotoAction(
+  formData: FormData
+): Promise<MutationResult | MutationResult<{ image: string }>> {
+  await requireAdmin();
+
+  const barberId = String(formData.get("barberId") || "");
+  const file = formData.get("photo");
+
+  if (!barberId) {
+    return mutationError("Barbeiro invalido.");
+  }
+
+  if (!(file instanceof File)) {
+    return mutationError("Escolha uma foto para enviar.");
+  }
+
+  const barber = await prisma.user.findFirst({
+    where: {
+      id: barberId,
+      role: "BARBER",
+    },
+    select: {
+      id: true,
+      image: true,
+    },
+  });
+
+  if (!barber) {
+    return mutationError("Barbeiro nao encontrado.");
+  }
+
+  try {
+    const image = await saveBarberPhoto(file);
+
+    await prisma.user.update({
+      where: {
+        id: barber.id,
+      },
+      data: {
+        image,
+      },
+    });
+
+    await deleteLocalBarberPhoto(barber.image);
+
+    revalidatePath("/admin/barbeiros");
+    revalidatePath("/admin");
+    revalidatePath("/agendar");
+
+    return mutationSuccess("Foto do barbeiro atualizada.", { image });
+  } catch (error) {
+    return mutationError(
+      error instanceof Error ? error.message : "Nao foi possivel atualizar a foto."
+    );
+  }
 }
 
 export async function deleteBarberAction(

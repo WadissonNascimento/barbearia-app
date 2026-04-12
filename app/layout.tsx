@@ -4,6 +4,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Manrope, Space_Grotesk } from "next/font/google";
 import { auth } from "@/auth";
+import type { Metadata } from "next";
 
 const bodyFont = Manrope({
   subsets: ["latin"],
@@ -14,6 +15,36 @@ const headingFont = Space_Grotesk({
   subsets: ["latin"],
   variable: "--font-heading",
 });
+
+export const metadata: Metadata = {
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_APP_URL ||
+      process.env.NEXTAUTH_URL ||
+      "http://localhost:3000"
+  ),
+  title: {
+    default: "Jak Barber | Barbearia com hora marcada",
+    template: "%s | Jak Barber",
+  },
+  description:
+    "Agende seu horario na Jak Barber, acompanhe seus atendimentos e encontre produtos para manter o cuidado em dia.",
+  openGraph: {
+    title: "Jak Barber",
+    description: "Barbearia com agendamento online e atendimento com hora marcada.",
+    url: "/",
+    siteName: "Jak Barber",
+    images: [
+      {
+        url: "/cortes/corte1.png",
+        width: 1200,
+        height: 630,
+        alt: "Jak Barber",
+      },
+    ],
+    locale: "pt_BR",
+    type: "website",
+  },
+};
 
 export default async function RootLayout({
   children,

@@ -17,29 +17,24 @@ export default function DashboardEntryCard({
   return (
     <Link
       href={href}
-      className="group hairline-top surface-card relative overflow-hidden rounded-[28px] p-5 transition duration-200 hover:-translate-y-0.5 hover:border-[var(--brand)]/20 hover:bg-[linear-gradient(160deg,rgba(27,31,43,0.96),rgba(10,12,19,0.98))]"
+      className="group surface-card relative flex items-center gap-3 overflow-hidden rounded-2xl px-4 py-3 transition duration-200 hover:border-[var(--brand)]/25 hover:bg-white/[0.06]"
     >
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex h-14 w-14 items-center justify-center rounded-3xl border border-white/10 bg-white/5 text-[var(--brand)] sm:h-16 sm:w-16">
-          <Icon className="h-8 w-8" strokeWidth={1.8} />
-        </div>
+      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-[var(--brand)]">
+        <Icon className="h-5 w-5" strokeWidth={1.9} />
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <h2 className="truncate text-sm font-semibold text-white sm:text-base">{title}</h2>
+        <p className="mt-1 truncate text-xs text-zinc-400 sm:text-sm">{description}</p>
+      </div>
+
+      <div className="flex shrink-0 items-center gap-2">
         {badge ? (
-          <span className="rounded-full border border-[var(--brand)]/30 bg-[var(--brand-muted)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--brand-strong)]">
+          <span className="rounded-full border border-[var(--brand)]/30 bg-[var(--brand-muted)] px-2.5 py-1 text-xs font-semibold text-[var(--brand-strong)]">
             {badge}
           </span>
-        ) : (
-          <ChevronRight className="h-5 w-5 text-zinc-600 transition group-hover:text-zinc-300" />
-        )}
-      </div>
-
-      <div className="mt-5">
-        <h2 className="text-lg font-semibold text-white sm:text-xl">{title}</h2>
-        <p className="mt-2 text-sm leading-6 text-zinc-400">{description}</p>
-      </div>
-
-      <div className="mt-5 flex items-center text-sm font-semibold text-[var(--brand)]">
-        Abrir
-        <ChevronRight className="ml-1 h-4 w-4 transition group-hover:translate-x-0.5" />
+        ) : null}
+        <ChevronRight className="h-4 w-4 text-zinc-600 transition group-hover:translate-x-0.5 group-hover:text-zinc-300" />
       </div>
     </Link>
   );

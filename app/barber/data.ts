@@ -312,7 +312,21 @@ export async function getBarberDashboardData(
         serviceMeta: getAppointmentServiceMetaLine(appointment.services),
         totalPrice: getAppointmentTotalPrice(appointment.services),
       })),
-      nextAppointments: upcomingAppointments,
+      nextAppointments: upcomingAppointments.map((appointment) => ({
+        id: appointment.id,
+        date: appointment.date,
+        status: normalizeAppointmentStatus(appointment.status),
+        notes: appointment.notes,
+        customer: {
+          id: appointment.customer.id,
+          name: appointment.customer.name || "Cliente",
+          phone: appointment.customer.phone || null,
+          email: appointment.customer.email || null,
+        },
+        serviceName: getAppointmentDisplayName(appointment.services),
+        serviceMeta: getAppointmentServiceMetaLine(appointment.services),
+        totalPrice: getAppointmentTotalPrice(appointment.services),
+      })),
     },
     appointments: appointments.map((appointment) => ({
       ...appointment,

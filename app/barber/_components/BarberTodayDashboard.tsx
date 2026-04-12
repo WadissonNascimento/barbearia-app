@@ -22,12 +22,20 @@ import { updateAppointmentStatusAction } from "../actions";
 import type { getBarberDashboardData } from "../data";
 
 type BarberDashboardData = Awaited<ReturnType<typeof getBarberDashboardData>>;
-type TodayAppointment = BarberDashboardData["summary"]["todayAppointments"][number];
+type DashboardAppointment = BarberDashboardData["summary"]["todayAppointments"][number];
 
 function formatTime(date: Date) {
   return new Date(date).toLocaleTimeString("pt-BR", {
     hour: "2-digit",
     minute: "2-digit",
+  });
+}
+
+function formatDateLabel(date: Date) {
+  return new Date(date).toLocaleDateString("pt-BR", {
+    weekday: "short",
+    day: "2-digit",
+    month: "2-digit",
   });
 }
 
@@ -48,6 +56,9 @@ export default function BarberTodayDashboard({
 }) {
   const router = useRouter();
   const [appointments, setAppointments] = useState(summary.todayAppointments);
+  const [upcomingAppointments, setUpcomingAppointments] = useState(
+    summary.nextAppointments
+  );
   const [feedback, setFeedback] = useState<{
     message: string | null;
     tone: "success" | "error" | "info";
@@ -69,7 +80,7 @@ export default function BarberTodayDashboard({
         !["COMPLETED"].includes(appointment.status)
     ) || visibleAppointments[0] || null;
 
-  function updateStatus(appointment: TodayAppointment, status: string) {
+  function updateStatus(appointment: DashboardAppointment, status: string) {
     setPendingKey(`${appointment.id}-${status}`);
 
     startTransition(async () => {
@@ -82,6 +93,11 @@ export default function BarberTodayDashboard({
 
       if (result.ok) {
         setAppointments((current) =>
+          current.map((item) =>
+            item.id === appointment.id ? { ...item, status } : item
+          )
+        );
+        setUpcomingAppointments((current) =>
           current.map((item) =>
             item.id === appointment.id ? { ...item, status } : item
           )
@@ -211,9 +227,14 @@ export default function BarberTodayDashboard({
                   </div>
 
                   {appointment.notes ? (
-                    <p className="mt-3 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs text-zinc-300">
-                      {appointment.notes}
-                    </p>
+                    <div className="mt-3 rounded-2xl border border-[var(--brand)]/20 bg-[var(--brand-muted)]/25 px-4 py-3">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[var(--brand-strong)]">
+                        Observacao
+                      </p>
+                      <p className="mt-2 text-sm leading-5 text-zinc-200">
+                        {appointment.notes}
+                      </p>
+                    </div>
                   ) : null}
 
                   <div className="mt-4 grid gap-2 sm:grid-cols-3">
@@ -259,6 +280,73 @@ export default function BarberTodayDashboard({
         </div>
 
         <aside className="space-y-5">
+          <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-4 backdrop-blur sm:p-5">
+            <h2 className="text-xl font-semibold text-white">Proximos agendamentos</h2>
+            <p className="mt-1 text-sm text-zinc-400">
+              Pendentes e confirmados que ainda vao acontecer.
+            </p>
+
+            <div className="mt-4 space-y-3">
+              {upcomingAppointments.length === 0 ? (
+                <p className="rounded-2xl border border-dashed border-white/10 p-4 text-sm text-zinc-400">
+                  Nenhum agendamento futuro.
+                </p>
+              ) : (
+                upcomingAppointments.map((appointment) => (
+                  <article
+                    key={appointment.id}
+                    className="rounded-2xl border border-white/10 bg-black/20 p-4"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-xs uppercase tracking-[0.18em] text-[var(--brand-strong)]">
+                          {formatDateLabel(appointment.date)}
+                        </p>
+                        <p className="mt-1 text-2xl font-bold text-white">
+                          {formatTime(appointment.date)}
+                        </p>
+                        <Link
+                          href={`/barber/clientes/${appointment.customer.id}`}
+                          className="mt-2 block truncate font-semibold text-white hover:text-[var(--brand-strong)]"
+                        >
+                          {appointment.customer.name}
+                        </Link>
+                        <p className="mt-1 text-sm text-zinc-400">
+                          {appointment.serviceName}
+                        </p>
+                      </div>
+                      <StatusBadge variant={appointmentStatusVariant(appointment.status)}>
+                        {appointmentStatusLabel(appointment.status)}
+                      </StatusBadge>
+                    </div>
+
+                    {appointment.notes ? (
+                      <div className="mt-3 rounded-2xl border border-[var(--brand)]/20 bg-[var(--brand-muted)]/25 px-4 py-3">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[var(--brand-strong)]">
+                          Observacao
+                        </p>
+                        <p className="mt-2 text-sm leading-5 text-zinc-200">
+                          {appointment.notes}
+                        </p>
+                      </div>
+                    ) : null}
+
+                    {appointment.status === "PENDING" ? (
+                      <div className="mt-4">
+                        <ActionButton
+                          pending={isPending && pendingKey === `${appointment.id}-CONFIRMED`}
+                          onClick={() => updateStatus(appointment, "CONFIRMED")}
+                        >
+                          Confirmar
+                        </ActionButton>
+                      </div>
+                    ) : null}
+                  </article>
+                ))
+              )}
+            </div>
+          </div>
+
           <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-4 backdrop-blur sm:p-5">
             <h2 className="text-xl font-semibold text-white">Proximo horario</h2>
             {nextAppointment ? (
