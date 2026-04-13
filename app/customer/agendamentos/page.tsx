@@ -12,6 +12,7 @@ import {
   appointmentStatusVariant,
 } from "@/lib/appointmentStatus";
 import CancelAppointmentButton from "./CancelAppointmentButton";
+import ReviewForm from "./ReviewForm";
 
 export default async function CustomerAppointmentsPage() {
   const session = await auth();
@@ -31,6 +32,7 @@ export default async function CustomerAppointmentsPage() {
     include: {
       barber: true,
       services: true,
+      review: true,
     },
     orderBy: {
       date: "asc",
@@ -92,18 +94,19 @@ export default async function CustomerAppointmentsPage() {
                 !["CANCELLED", "COMPLETED", "DONE", "NO_SHOW"].includes(
                   appointment.status
                 ) && date.getTime() > Date.now();
+              const canReview = ["COMPLETED", "DONE"].includes(appointment.status);
 
               return (
                 <div
                   key={appointment.id}
                   className="rounded-3xl border border-zinc-800 bg-zinc-950/70 p-5"
                 >
-                  <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div>
+                  <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4">
+                    <div className="min-w-0">
                       <p className="text-xs uppercase tracking-[0.22em] text-zinc-500">
                         Servicos
                       </p>
-                      <p className="mt-2 text-lg font-semibold text-white">
+                      <p className="mt-2 break-words text-lg font-semibold text-white">
                         {serviceLabel}
                       </p>
                       <p className="mt-2 text-sm text-zinc-400">
@@ -111,7 +114,10 @@ export default async function CustomerAppointmentsPage() {
                       </p>
                     </div>
 
-                    <StatusBadge variant={appointmentStatusVariant(appointment.status)}>
+                    <StatusBadge
+                      variant={appointmentStatusVariant(appointment.status)}
+                      className="justify-self-end"
+                    >
                       {appointmentStatusLabel(appointment.status)}
                     </StatusBadge>
                   </div>
@@ -158,6 +164,21 @@ export default async function CustomerAppointmentsPage() {
                       Chegue 5 minutos antes do horario marcado.
                     </p>
                   </div>
+
+                  {canReview ? (
+                    appointment.review ? (
+                      <div className="mt-4 rounded-lg border border-white/10 bg-black/20 p-4">
+                        <p className="text-sm font-semibold text-white">
+                          Avaliacao enviada
+                        </p>
+                        <p className="mt-2 text-sm leading-6 text-zinc-300">
+                          Obrigado pelo feedback. Sua avaliacao foi registrada.
+                        </p>
+                      </div>
+                    ) : (
+                      <ReviewForm appointmentId={appointment.id} />
+                    )
+                  ) : null}
                 </div>
               );
             })}

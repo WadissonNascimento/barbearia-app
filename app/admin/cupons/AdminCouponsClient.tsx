@@ -221,6 +221,10 @@ export default function AdminCouponsClient({
                       type="button"
                       disabled={isPending && pendingKey === `delete-${coupon.id}`}
                       onClick={() => {
+                        if (!window.confirm("Excluir este cupom?")) {
+                          return;
+                        }
+
                         const formData = new FormData();
                         formData.set("couponId", coupon.id);
                         runAction(`delete-${coupon.id}`, deleteCouponAction, formData);

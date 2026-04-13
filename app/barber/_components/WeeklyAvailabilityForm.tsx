@@ -8,7 +8,7 @@ type WeeklyAvailabilityFormProps = {
     weekDay: number;
     startTime: string;
     endTime: string;
-      isActive: boolean;
+    isActive: boolean;
   }>;
   onSave: (formData: FormData) => void;
   isPending?: boolean;

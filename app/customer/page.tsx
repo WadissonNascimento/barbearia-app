@@ -2,9 +2,7 @@ import {
   CalendarPlus,
   CalendarDays,
   KeyRound,
-  Package,
   ShoppingBag,
-  SearchCheck,
   UserRound,
 } from "lucide-react";
 import { auth } from "@/auth";
@@ -24,18 +22,11 @@ export default async function CustomerPage() {
     redirect("/painel");
   }
 
-  const [appointmentsCount, ordersCount] = await Promise.all([
-    prisma.appointment.count({
-      where: {
-        customerId: session.user.id,
-      },
-    }),
-    prisma.order.count({
-      where: {
-        customerId: session.user.id,
-      },
-    }),
-  ]);
+  const appointmentsCount = await prisma.appointment.count({
+    where: {
+      customerId: session.user.id,
+    },
+  });
 
   const entries = [
     {
@@ -54,8 +45,8 @@ export default async function CustomerPage() {
     {
       href: "/produtos",
       icon: ShoppingBag,
-      title: "Comprar produtos",
-      description: "Produtos para cuidar do visual em casa.",
+      title: "Arsenal do barbeiro",
+      description: "Produtos para rotina, bancada e revenda.",
     },
     {
       href: "/meu-perfil",
@@ -68,19 +59,6 @@ export default async function CustomerPage() {
       icon: KeyRound,
       title: "Trocar senha",
       description: "Receba um codigo por e-mail.",
-    },
-    {
-      href: "/meus-pedidos",
-      icon: Package,
-      title: "Meus pedidos",
-      description: "Compras, status e detalhes da entrega.",
-      badge: ordersCount ? `${ordersCount}` : undefined,
-    },
-    {
-      href: "/rastreio",
-      icon: SearchCheck,
-      title: "Rastreio",
-      description: "Acompanhe a entrega do pedido.",
     },
   ];
 

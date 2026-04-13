@@ -30,7 +30,7 @@ export default async function ProdutosPage() {
     <div className="mx-auto max-w-7xl px-4 py-10 text-white">
       <PageHeader
         title="Produtos"
-        description="Catalogo, estoque e reposicao da loja."
+        description="Catalogo, estoque e reposicao do Arsenal."
         actions={
           <div className="flex gap-3">
             <Link
@@ -50,7 +50,7 @@ export default async function ProdutosPage() {
       />
 
       <div className="mb-6 grid gap-4 md:grid-cols-3">
-        <SectionCard title="Produtos ativos" description="Itens disponiveis para venda.">
+        <SectionCard title="Produtos ativos" description="Itens visiveis no catalogo.">
           <p className="text-3xl font-semibold text-white">
             {products.filter((product) => product.isActive).length}
           </p>
@@ -72,7 +72,7 @@ export default async function ProdutosPage() {
       {products.length === 0 ? (
         <EmptyState
           title="Nenhum produto cadastrado"
-          description="Adicione o primeiro produto para iniciar a loja."
+          description="Adicione o primeiro produto para iniciar o Arsenal."
           actionLabel="Novo produto"
           actionHref="/admin/produtos/novo"
         />

@@ -264,6 +264,26 @@ export async function deleteBarberServiceAction(
     return mutationError("Servico nao encontrado para este barbeiro.");
   }
 
+  const appointmentUses = await prisma.appointmentService.count({
+    where: { serviceId },
+  });
+
+  if (appointmentUses > 0) {
+    await prisma.service.update({
+      where: { id: serviceId },
+      data: {
+        isActive: false,
+      },
+    });
+
+    revalidateBarberViews();
+    return mutationSuccess(
+      "Servico desativado para preservar o historico de agendamentos.",
+      undefined,
+      "info"
+    );
+  }
+
   await prisma.service.delete({
     where: { id: serviceId },
   });

@@ -2,10 +2,9 @@ import {
   CalendarRange,
   Coins,
   DollarSign,
+  MessageSquareText,
   PackageSearch,
-  PercentCircle,
   Scissors,
-  ShoppingBag,
   UsersRound,
 } from "lucide-react";
 import { auth } from "@/auth";
@@ -39,10 +38,10 @@ export default async function AdminPage() {
   const { start: todayStart, end: todayEnd } = getDayRange();
   const [
     activeBarbers,
-    pendingOrders,
     activeProducts,
     openPayouts,
     pendingInvites,
+    visibleReviews,
     todayAppointments,
     completedTodayAppointments,
   ] = await Promise.all([
@@ -50,13 +49,6 @@ export default async function AdminPage() {
       where: {
         role: "BARBER",
         isActive: true,
-      },
-    }),
-    prisma.order.count({
-      where: {
-        status: {
-          in: ["PENDING", "CONFIRMED", "PREPARING", "SHIPPED", "READY_FOR_PICKUP"],
-        },
       },
     }),
     prisma.product.count({
@@ -74,6 +66,11 @@ export default async function AdminPage() {
     prisma.pendingRegistration.count({
       where: {
         role: "BARBER",
+      },
+    }),
+    prisma.review.count({
+      where: {
+        isVisible: true,
       },
     }),
     prisma.appointment.findMany({
@@ -148,21 +145,15 @@ export default async function AdminPage() {
       href: "/admin/produtos",
       icon: PackageSearch,
       title: "Produtos",
-      description: "Catalogo, estoque e itens ativos da loja.",
+      description: "Catalogo, estoque e itens ativos do Arsenal.",
       badge: activeProducts ? `${activeProducts}` : undefined,
     },
     {
-      href: "/admin/pedidos",
-      icon: ShoppingBag,
-      title: "Pedidos",
-      description: "Status, separacao e rastreio das compras.",
-      badge: pendingOrders ? `${pendingOrders}` : undefined,
-    },
-    {
-      href: "/admin/cupons",
-      icon: PercentCircle,
-      title: "Cupons",
-      description: "Descontos e promocoes da loja.",
+      href: "/admin/avaliacoes",
+      icon: MessageSquareText,
+      title: "Avaliacoes",
+      description: "Moderacao dos comentarios do site.",
+      badge: visibleReviews ? `${visibleReviews}` : undefined,
     },
     {
       href: "/admin/financeiro",
@@ -271,7 +262,6 @@ export default async function AdminPage() {
           <section className="rounded-[28px] border border-white/10 bg-white/[0.04] p-4 backdrop-blur sm:p-5">
             <h2 className="text-xl font-semibold text-white">Pendencias</h2>
             <div className="mt-4 space-y-3">
-              <AdminAction href="/admin/pedidos" label="Pedidos em aberto" value={pendingOrders} />
               <AdminAction href="/admin/financeiro" label="Repasses para conferir" value={openPayouts} />
               <AdminAction href="/admin/barbeiros" label="Convites de barbeiro" value={pendingInvites} />
               <AdminAction href="/admin/produtos" label="Produtos ativos" value={activeProducts} />

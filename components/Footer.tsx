@@ -113,6 +113,13 @@ export default function Footer() {
               Servicos
             </Link>
             <span className="hidden h-1 w-1 rounded-full bg-zinc-700 sm:block" />
+            <Link
+              href="/produtos"
+              className="text-zinc-400 transition hover:text-[var(--brand-strong)]"
+            >
+              Arsenal
+            </Link>
+            <span className="hidden h-1 w-1 rounded-full bg-zinc-700 sm:block" />
             <p className="text-zinc-500">Cuidado em cada detalhe</p>
           </div>
         </div>

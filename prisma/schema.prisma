@@ -26,6 +26,8 @@ model User {
 
   customerAppointments  Appointment[]          @relation("CustomerAppointments")
   barberAppointments    Appointment[]          @relation("BarberAppointments")
+  customerReviews        Review[]              @relation("CustomerReviews")
+  barberReviews          Review[]              @relation("BarberReviews")
   barberServices        Service[]              @relation("BarberServices")
   barberAvailabilities  BarberAvailability[]
   barberBlocks          BarberBlock[]
@@ -137,6 +139,7 @@ model Appointment {
   customer User                 @relation("CustomerAppointments", fields: [customerId], references: [id], onDelete: Cascade)
   barber   User                 @relation("BarberAppointments", fields: [barberId], references: [id], onDelete: Cascade)
   services AppointmentService[]
+  review   Review?
 
   @@index([customerId])
   @@index([barberId])
@@ -164,6 +167,26 @@ model AppointmentService {
 
   @@index([appointmentId, orderIndex])
   @@index([serviceId])
+}
+
+model Review {
+  id            String   @id @default(cuid())
+  appointmentId String   @unique
+  customerId    String
+  barberId      String
+  rating        Int
+  comment       String
+  isVisible     Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  customer    User        @relation("CustomerReviews", fields: [customerId], references: [id], onDelete: Cascade)
+  barber      User        @relation("BarberReviews", fields: [barberId], references: [id], onDelete: Cascade)
+
+  @@index([customerId])
+  @@index([barberId])
+  @@index([isVisible, createdAt])
 }
 
 model BarberAvailability {

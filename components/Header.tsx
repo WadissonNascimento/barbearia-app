@@ -6,15 +6,13 @@ import {
   BadgePercent,
   Boxes,
   CalendarDays,
-  ClipboardList,
   Clock,
   CreditCard,
   Home,
   LogIn,
-  PackageSearch,
+  MessageSquareText,
   Scissors,
   ShoppingBag,
-  ShoppingCart,
   UserPlus,
   Users,
   UserRound,
@@ -23,7 +21,6 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useCart } from "@/context/CartContext";
 import { LogoutButton } from "@/components/LogoutButton";
 
 type HeaderRole = "ADMIN" | "BARBER" | "CUSTOMER" | null;
@@ -38,7 +35,6 @@ function getHeaderLinks(role: HeaderRole): {
   eyebrow: string;
   primary: NavLink[];
   secondary: NavLink[];
-  showCart: boolean;
 } {
   if (role === "ADMIN") {
     return {
@@ -53,10 +49,8 @@ function getHeaderLinks(role: HeaderRole): {
       secondary: [
         { href: "/admin/servicos", label: "Servicos" },
         { href: "/admin/produtos", label: "Produtos" },
-        { href: "/admin/pedidos", label: "Pedidos" },
-        { href: "/admin/cupons", label: "Cupons" },
+        { href: "/admin/avaliacoes", label: "Avaliacoes" },
       ],
-      showCart: false,
     };
   }
 
@@ -71,25 +65,19 @@ function getHeaderLinks(role: HeaderRole): {
         { href: "/barber/disponibilidade", label: "Pausas" },
       ],
       secondary: [{ href: "/barber/servicos", label: "Meus servicos" }],
-      showCart: false,
     };
   }
 
   if (role === "CUSTOMER") {
     return {
-      homeHref: "/customer",
+      homeHref: "/",
       eyebrow: "Cliente",
       primary: [
         { href: "/agendar", label: "Agendar" },
         { href: "/customer/agendamentos", label: "Meus horarios" },
-        { href: "/meus-pedidos", label: "Pedidos" },
+        { href: "/produtos", label: "Arsenal" },
       ],
-      secondary: [
-        { href: "/produtos", label: "Produtos" },
-        { href: "/meu-perfil", label: "Meu cadastro" },
-        { href: "/rastreio", label: "Rastreio" },
-      ],
-      showCart: true,
+      secondary: [{ href: "/meu-perfil", label: "Meu cadastro" }],
     };
   }
 
@@ -99,14 +87,10 @@ function getHeaderLinks(role: HeaderRole): {
     primary: [
       { href: "/agendar", label: "Agendar" },
       { href: "/servicos", label: "Servicos" },
-      { href: "/produtos", label: "Produtos" },
+      { href: "/produtos", label: "Arsenal" },
       { href: "/login", label: "Entrar" },
     ],
-    secondary: [
-      { href: "/register", label: "Criar conta" },
-      { href: "/rastreio", label: "Rastreio" },
-    ],
-    showCart: true,
+    secondary: [{ href: "/register", label: "Criar conta" }],
   };
 }
 
@@ -122,10 +106,10 @@ const navIcons: Record<string, LucideIcon> = {
   "/": Home,
   "/admin": Home,
   "/admin/agenda": CalendarDays,
+  "/admin/avaliacoes": MessageSquareText,
   "/admin/barbeiros": Users,
   "/admin/cupons": BadgePercent,
   "/admin/financeiro": WalletCards,
-  "/admin/pedidos": ClipboardList,
   "/admin/produtos": Boxes,
   "/admin/servicos": Scissors,
   "/agendar": CalendarDays,
@@ -137,9 +121,7 @@ const navIcons: Record<string, LucideIcon> = {
   "/customer/agendamentos": CalendarDays,
   "/login": LogIn,
   "/meu-perfil": UserRound,
-  "/meus-pedidos": ClipboardList,
   "/produtos": ShoppingBag,
-  "/rastreio": PackageSearch,
   "/register": UserPlus,
   "/servicos": Scissors,
 };
@@ -158,7 +140,6 @@ export default function Header({
   userName?: string | null;
 }) {
   const [isOpen, setIsOpen] = useState(false);
-  const { cartCount } = useCart();
   const pathname = usePathname();
   const nav = getHeaderLinks(role);
 
@@ -214,22 +195,6 @@ export default function Header({
                 </Link>
               ))}
             </nav>
-
-            {nav.showCart ? (
-              <Link
-                href="/carrinho"
-                aria-label={`Abrir carrinho${cartCount > 0 ? ` com ${cartCount} item${cartCount === 1 ? "" : "s"}` : ""}`}
-                title="Carrinho"
-                className="relative flex h-12 w-12 items-center justify-center rounded-2xl border border-white/15 bg-white/[0.04] text-white transition hover:border-[var(--brand)]/50 hover:bg-[var(--brand-muted)] active:scale-95"
-              >
-                <ShoppingCart aria-hidden="true" className="h-5 w-5" strokeWidth={2.2} />
-                {cartCount > 0 && (
-                  <span className="absolute -right-2 -top-2 flex h-6 min-w-6 items-center justify-center rounded-full bg-[var(--brand)] px-1.5 text-[11px] font-semibold leading-none text-white shadow-[0_8px_18px_rgba(37,99,235,0.32)]">
-                    {cartCount}
-                  </span>
-                )}
-              </Link>
-            ) : null}
 
             <button
               type="button"

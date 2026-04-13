@@ -68,3 +68,79 @@ export async function cancelCustomerAppointmentAction(
 
   return mutationSuccess("Agendamento cancelado com sucesso.");
 }
+
+export async function submitAppointmentReviewAction(
+  formData: FormData
+): Promise<MutationResult> {
+  const session = await auth();
+
+  if (!session?.user?.id || session.user.role !== "CUSTOMER") {
+    return mutationError("Entre como cliente para avaliar o atendimento.");
+  }
+
+  const appointmentId = String(formData.get("appointmentId") || "").trim();
+  const rating = Number(formData.get("rating") || 0);
+  const comment = String(formData.get("comment") || "").trim();
+
+  if (!appointmentId) {
+    return mutationError("Agendamento invalido.");
+  }
+
+  if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+    return mutationError("Escolha uma nota de 1 a 5.");
+  }
+
+  if (comment.length > 400) {
+    return mutationError("Escreva uma avaliacao com ate 400 caracteres.");
+  }
+
+  const appointment = await prisma.appointment.findUnique({
+    where: {
+      id: appointmentId,
+    },
+    select: {
+      id: true,
+      customerId: true,
+      barberId: true,
+      status: true,
+    },
+  });
+
+  if (!appointment || appointment.customerId !== session.user.id) {
+    return mutationError("Agendamento nao encontrado para sua conta.");
+  }
+
+  if (!["COMPLETED", "DONE"].includes(appointment.status)) {
+    return mutationError("A avaliacao fica disponivel depois que o atendimento e concluido.");
+  }
+
+  const existingReview = await prisma.review.findUnique({
+    where: {
+      appointmentId,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (existingReview) {
+    return mutationError("Esse atendimento ja foi avaliado.");
+  }
+
+  await prisma.review.create({
+    data: {
+      appointmentId,
+      customerId: session.user.id,
+      barberId: appointment.barberId,
+      rating,
+      comment,
+    },
+  });
+
+  revalidatePath("/");
+  revalidatePath("/avaliacoes");
+  revalidatePath("/customer/agendamentos");
+  revalidatePath("/admin/avaliacoes");
+
+  return mutationSuccess("Obrigado pela avaliacao. Ela ja entrou para revisao do admin.");
+}

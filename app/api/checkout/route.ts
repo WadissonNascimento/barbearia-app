@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
+import { z, ZodError } from "zod";
 import { prisma } from "@/lib/prisma";
 import {
   buildMercadoPagoPreferenceItems,
@@ -191,6 +191,13 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
+    if (error instanceof ZodError) {
+      return NextResponse.json(
+        { message: "Confira os dados de entrega e tente novamente." },
+        { status: 400 }
+      );
+    }
+
     console.error("Erro ao criar checkout Mercado Pago:", error);
     return NextResponse.json(
       {

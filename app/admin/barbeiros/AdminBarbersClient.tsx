@@ -261,6 +261,14 @@ export default function AdminBarbersClient({
                       type="button"
                       disabled={isPending && pendingKey === `delete-${barber.id}`}
                       onClick={() => {
+                        if (
+                          !window.confirm(
+                            "Desligar barbeiro? A conta perde acesso, mas historico e agendamentos serao preservados."
+                          )
+                        ) {
+                          return;
+                        }
+
                         const formData = new FormData();
                         formData.set("barberId", barber.id);
 

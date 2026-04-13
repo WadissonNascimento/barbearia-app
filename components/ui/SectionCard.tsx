@@ -16,7 +16,7 @@ export default function SectionCard({
   return (
     <section
       id={id}
-      className={`surface-card rounded-[28px] p-4 sm:p-6 ${className}`.trim()}
+      className={`surface-card rounded-lg p-4 sm:p-6 ${className}`.trim()}
     >
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="max-w-2xl">

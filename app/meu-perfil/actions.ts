@@ -20,19 +20,12 @@ export async function updateCustomerProfileAction(
 
   const name = String(formData.get("name") || "").trim();
   const phone = String(formData.get("phone") || "").trim();
-  const birthDateValue = String(formData.get("birthDate") || "").trim();
   const preferredBarberId = String(formData.get("preferredBarberId") || "").trim();
   const allergies = String(formData.get("allergies") || "").trim();
   const preferences = String(formData.get("preferences") || "").trim();
 
   if (!name) {
     return mutationError("Informe seu nome.");
-  }
-
-  const birthDate = birthDateValue ? new Date(`${birthDateValue}T00:00:00`) : null;
-
-  if (birthDate && Number.isNaN(birthDate.getTime())) {
-    return mutationError("Data de nascimento invalida.");
   }
 
   if (preferredBarberId) {
@@ -67,14 +60,12 @@ export async function updateCustomerProfileAction(
         customerId: session.user.id,
       },
       update: {
-        birthDate,
         preferredBarberId: preferredBarberId || null,
         allergies: allergies || null,
         preferences: preferences || null,
       },
       create: {
         customerId: session.user.id,
-        birthDate,
         preferredBarberId: preferredBarberId || null,
         allergies: allergies || null,
         preferences: preferences || null,

@@ -1,11 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
-import { ShoppingCart, Sparkles } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
-import AddToCartButton from "@/components/AddToCartButton";
-import { useCart } from "@/context/CartContext";
 import { normalizeProductImageUrl } from "@/lib/productImageUrl";
 
 type Product = {
@@ -17,47 +13,40 @@ type Product = {
   stock: number;
 };
 
-export function ProductGrid({ products }: { products: Product[] }) {
-  const { cartCount } = useCart();
-
+export function ProductGrid({
+  products,
+  whatsappNumber,
+}: {
+  products: Product[];
+  whatsappNumber: string;
+}) {
   return (
     <div className="space-y-8">
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-[2rem] border border-white/10 bg-white/[0.04] px-5 py-4">
+      <div className="rounded-lg border border-white/10 bg-white/[0.04] px-5 py-4">
         <div>
           <p className="text-xs uppercase tracking-[0.22em] text-sky-300">
-            Loja
+            Arsenal
           </p>
           <h2 className="mt-1 text-2xl font-semibold text-white">
-            Produtos disponiveis
+            Catalogo disponivel
           </h2>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-400">
+            Escolha um item e chame no WhatsApp para combinar compra, retirada ou disponibilidade.
+          </p>
         </div>
-
-        <Link
-          href="/carrinho"
-          className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-sky-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-sky-400"
-        >
-          <ShoppingCart aria-hidden="true" className="h-4 w-4" />
-          <span>Ver carrinho ({cartCount})</span>
-        </Link>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-        {products.map((product, index) => (
+        {products.map((product) => (
           <div
             key={product.id}
-            className="group overflow-hidden rounded-[1.8rem] border border-white/10 bg-white/[0.04] shadow-[0_20px_60px_rgba(0,0,0,0.28)] transition hover:border-sky-400/30 hover:bg-white/[0.06]"
+            className="group overflow-hidden rounded-lg border border-white/10 bg-white/[0.04] shadow-[0_20px_60px_rgba(0,0,0,0.28)] transition hover:border-sky-400/30 hover:bg-white/[0.06]"
           >
             <div className="relative h-64 border-b border-white/10 bg-black/10">
               <div className="absolute left-4 top-4 z-10 flex flex-wrap gap-2">
-                {index === 0 ? (
-                  <span className="inline-flex items-center gap-1 rounded-full border border-sky-300/30 bg-sky-500/15 px-3 py-1 text-xs font-semibold text-sky-200">
-                    <Sparkles aria-hidden="true" className="h-3.5 w-3.5" />
-                    Mais vendido
-                  </span>
-                ) : null}
                 {product.stock <= 3 ? (
                   <span className="rounded-full border border-amber-300/30 bg-amber-500/15 px-3 py-1 text-xs font-semibold text-amber-100">
-                    Ultimas unidades
+                    Consultar estoque
                   </span>
                 ) : null}
               </div>
@@ -87,7 +76,7 @@ export function ProductGrid({ products }: { products: Product[] }) {
                   </p>
                 </div>
                 <span className="rounded-full border border-[var(--brand)]/30 bg-[var(--brand-muted)] px-3 py-1 text-xs font-medium text-[var(--brand-strong)]">
-                  {product.stock} em estoque
+                  {product.stock > 0 ? "Disponivel" : "Sob consulta"}
                 </span>
               </div>
 
@@ -101,7 +90,22 @@ export function ProductGrid({ products }: { products: Product[] }) {
               </div>
 
               <div className="mt-5">
-                <AddToCartButton product={product} />
+                {whatsappNumber ? (
+                  <a
+                    href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(
+                      `Ola! Tenho interesse no produto ${product.name} do Arsenal do barbeiro.`
+                    )}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-[var(--brand)] px-4 py-3 text-sm font-semibold text-white transition hover:brightness-110"
+                  >
+                    Entrar em contato com o vendedor
+                  </a>
+                ) : (
+                  <span className="block rounded-lg border border-white/10 px-4 py-3 text-center text-sm text-zinc-400">
+                    Consulte disponibilidade na barbearia
+                  </span>
+                )}
               </div>
             </div>
           </div>

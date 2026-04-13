@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
+import { z, ZodError } from "zod";
 import {
   buildCheckoutSummary,
   findCouponByCode,
@@ -45,7 +45,12 @@ export async function POST(request: Request) {
   } catch (error) {
     return NextResponse.json(
       {
-        message: error instanceof Error ? error.message : "Nao foi possivel calcular.",
+        message:
+          error instanceof ZodError
+            ? "Informe CEP e itens validos para calcular."
+            : error instanceof Error
+            ? error.message
+            : "Nao foi possivel calcular.",
       },
       { status: 400 }
     );

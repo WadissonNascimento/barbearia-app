@@ -165,6 +165,10 @@ export function AvailabilitySection({
                       type="button"
                       disabled={isPending && pendingKey === `block-${block.id}`}
                       onClick={() => {
+                        if (!window.confirm("Remover este bloqueio de horario?")) {
+                          return;
+                        }
+
                         const formData = new FormData();
                         formData.set("blockId", block.id);
                         runAction(`block-${block.id}`, deleteBarberBlockAction, formData);
@@ -290,6 +294,10 @@ export function AvailabilitySection({
                       type="button"
                       disabled={isPending && pendingKey === `recurring-${block.id}`}
                       onClick={() => {
+                        if (!window.confirm("Remover este bloqueio recorrente?")) {
+                          return;
+                        }
+
                         const formData = new FormData();
                         formData.set("recurringBlockId", block.id);
                         runAction(

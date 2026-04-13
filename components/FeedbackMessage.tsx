@@ -21,7 +21,7 @@ export default function FeedbackMessage({
 
   return (
     <div
-      className={`rounded-2xl border px-4 py-3 text-sm shadow-[0_8px_24px_rgba(0,0,0,0.18)] ${toneClasses[tone]}`}
+      className={`rounded-lg border px-4 py-3 text-sm shadow-[0_8px_24px_rgba(0,0,0,0.18)] ${toneClasses[tone]}`}
       role={tone === "error" ? "alert" : "status"}
     >
       {message}

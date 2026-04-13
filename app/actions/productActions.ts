@@ -184,11 +184,48 @@ export async function updateProductImage(formData: FormData) {
 export async function deleteProduct(id: string) {
   await ensureProductAccess();
 
+  const product = await prisma.product.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      isActive: true,
+      _count: {
+        select: {
+          orderItems: true,
+          stockMovements: true,
+        },
+      },
+    },
+  });
+
+  if (!product) {
+    throw new Error("Produto nao encontrado.");
+  }
+
+  if (product._count.orderItems > 0 || product._count.stockMovements > 0) {
+    await prisma.product.update({
+      where: { id },
+      data: { isActive: false },
+    });
+
+    revalidateProductViews();
+    return {
+      deleted: false,
+      message: product.isActive
+        ? "Produto ocultado para preservar historico de pedidos e estoque."
+        : "Produto ja estava oculto. Historico preservado.",
+    };
+  }
+
   await prisma.product.delete({
     where: { id },
   });
 
   revalidateProductViews();
+  return {
+    deleted: true,
+    message: "Produto excluido com sucesso.",
+  };
 }
 
 export async function toggleProduct(id: string) {

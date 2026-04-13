@@ -192,13 +192,21 @@ export function ServicesSection({
                   <button
                     type="button"
                     disabled={isPending && pendingKey === `delete-${service.id}`}
-                    onClick={() =>
+                    onClick={() => {
+                      if (
+                        !window.confirm(
+                          "Excluir servico? Se houver agendamentos no historico, ele sera apenas desativado."
+                        )
+                      ) {
+                        return;
+                      }
+
                       runAction(`delete-${service.id}`, deleteBarberServiceAction, () => {
                         const formData = new FormData();
                         formData.set("serviceId", service.id);
                         return formData;
-                      })
-                    }
+                      });
+                    }}
                     className="rounded-xl border border-red-500/40 px-4 py-2 text-sm font-semibold text-red-300 transition hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {isPending && pendingKey === `delete-${service.id}`

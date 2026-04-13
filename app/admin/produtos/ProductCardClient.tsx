@@ -55,19 +55,24 @@ export default function ProductCardClient({
 
   function runAction(
     key: string,
-    action: () => Promise<void>,
+    action: () => Promise<void | { message?: string; deleted?: boolean }>,
     successMessage: string | (() => string)
   ) {
     setPendingKey(key);
 
     startTransition(async () => {
       try {
-        await action();
+        const actionResult = await action();
+        if (actionResult?.deleted === false) {
+          setIsActive(false);
+        }
+
         setFeedback({
           message:
-            typeof successMessage === "function"
+            actionResult?.message ||
+            (typeof successMessage === "function"
               ? successMessage()
-              : successMessage,
+              : successMessage),
           tone: "success",
         });
         router.refresh();
@@ -206,13 +211,21 @@ export default function ProductCardClient({
           <button
             type="button"
             disabled={isPending && pendingKey === "delete"}
-            onClick={() =>
+            onClick={() => {
+              if (
+                !window.confirm(
+                  "Excluir produto? Se houver historico, ele sera apenas ocultado para preservar pedidos."
+                )
+              ) {
+                return;
+              }
+
               runAction(
                 "delete",
                 () => deleteProduct(product.id),
                 "Produto excluido com sucesso."
-              )
-            }
+              );
+            }}
             className="rounded bg-red-600 px-3 py-2 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isPending && pendingKey === "delete" ? "Excluindo..." : "Excluir"}

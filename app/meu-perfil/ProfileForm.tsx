@@ -3,18 +3,13 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import FeedbackMessage from "@/components/FeedbackMessage";
-import { PremiumDatePicker, PremiumSelect } from "@/components/ui/PremiumFilters";
+import { PremiumSelect } from "@/components/ui/PremiumFilters";
 import { updateCustomerProfileAction } from "./actions";
 
 type BarberOption = {
   id: string;
   name: string | null;
 };
-
-function toDateInput(value?: Date | null) {
-  if (!value) return "";
-  return new Date(value).toISOString().slice(0, 10);
-}
 
 export default function ProfileForm({
   customer,
@@ -27,7 +22,6 @@ export default function ProfileForm({
     phone: string | null;
   };
   profile: {
-    birthDate: Date | null;
     preferredBarberId: string | null;
     allergies: string | null;
     preferences: string | null;
@@ -87,14 +81,6 @@ export default function ProfileForm({
           name="phone"
           defaultValue={customer.phone || ""}
           className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm outline-none"
-        />
-      </label>
-
-      <label className="block">
-        <PremiumDatePicker
-          name="birthDate"
-          label="Data de nascimento"
-          defaultValue={toDateInput(profile?.birthDate)}
         />
       </label>
 

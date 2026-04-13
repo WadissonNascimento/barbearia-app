@@ -11,6 +11,7 @@ export default auth((req) => {
 
   const isAuthPage =
     pathname === "/login" ||
+    pathname === "/admin/login" ||
     pathname === "/cadastro" ||
     pathname === "/register" ||
     pathname.startsWith("/register/") ||
@@ -26,7 +27,7 @@ export default auth((req) => {
   if (
     !isLoggedIn &&
     (pathname.startsWith("/painel") ||
-      pathname.startsWith("/admin") ||
+      (pathname.startsWith("/admin") && !isAuthPage) ||
       pathname.startsWith("/barber") ||
       isCustomerProtectedPage)
   ) {
@@ -57,7 +58,7 @@ export default auth((req) => {
     return NextResponse.redirect(new URL("/customer", req.url));
   }
 
-  if (pathname.startsWith("/admin") && role !== "ADMIN") {
+  if (pathname.startsWith("/admin") && !isAuthPage && role !== "ADMIN") {
     return NextResponse.redirect(new URL("/painel", req.url));
   }
 

@@ -278,6 +278,14 @@ function ServiceCard({
             type="button"
             disabled={isPending && pendingKey === `delete-${service.id}`}
             onClick={() => {
+              if (
+                !window.confirm(
+                  "Excluir servico? Se houver agendamentos no historico, ele sera apenas desativado."
+                )
+              ) {
+                return;
+              }
+
               const formData = new FormData();
               formData.set("serviceId", service.id);
               onRunAction(`delete-${service.id}`, deleteGlobalServiceAction, formData);

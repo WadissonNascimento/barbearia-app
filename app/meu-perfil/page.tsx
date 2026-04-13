@@ -7,10 +7,7 @@ import EmptyState from "@/components/ui/EmptyState";
 import PageHeader from "@/components/ui/PageHeader";
 import SectionCard from "@/components/ui/SectionCard";
 import StatusBadge from "@/components/ui/StatusBadge";
-import {
-  getAppointmentDisplayName,
-  getAppointmentTotalPrice,
-} from "@/lib/appointmentServices";
+import { getAppointmentDisplayName } from "@/lib/appointmentServices";
 import {
   appointmentStatusLabel,
   appointmentStatusVariant,
@@ -31,7 +28,7 @@ export default async function MeuPerfilPage({
     redirect("/painel");
   }
 
-  const [customer, appointments, orders, barbers] = await Promise.all([
+  const [customer, appointments, barbers] = await Promise.all([
     prisma.user.findUnique({
       where: { id: session.user.id },
       include: {
@@ -54,22 +51,6 @@ export default async function MeuPerfilPage({
         date: "desc",
       },
     }),
-    prisma.order.findMany({
-      where: {
-        customerId: session.user.id,
-      },
-      include: {
-        items: {
-          include: {
-            product: true,
-          },
-        },
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-      take: 5,
-    }),
     prisma.user.findMany({
       where: {
         role: "BARBER",
@@ -81,10 +62,6 @@ export default async function MeuPerfilPage({
     }),
   ]);
 
-  const totalSpentOnServices = appointments.reduce(
-    (sum, appointment) => sum + getAppointmentTotalPrice(appointment.services),
-    0
-  );
   const favoriteServiceMap = new Map<string, number>();
 
   for (const appointment of appointments) {
@@ -103,7 +80,7 @@ export default async function MeuPerfilPage({
     <div className="mx-auto max-w-6xl px-4 py-10 text-white">
       <PageHeader
         title="Meu perfil"
-        description="Veja seus dados, preferencias, historico de servicos e pedidos recentes."
+        description="Veja seus dados, preferencias e historico de servicos."
         actions={
           <div className="flex items-center gap-3">
             <Link
@@ -130,7 +107,6 @@ export default async function MeuPerfilPage({
             profile={
               profile
                 ? {
-                    birthDate: profile.birthDate,
                     preferredBarberId: profile.preferredBarberId,
                     allergies: profile.allergies,
                     preferences: profile.preferences,
@@ -144,13 +120,6 @@ export default async function MeuPerfilPage({
             <div className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-4">
               <p className="text-sm text-zinc-400">Total de atendimentos</p>
               <p className="mt-1 text-2xl font-semibold">{appointments.length}</p>
-            </div>
-
-            <div className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-4">
-              <p className="text-sm text-zinc-400">Valor total em servicos</p>
-              <p className="mt-1 text-2xl font-semibold">
-                R$ {totalSpentOnServices.toFixed(2)}
-              </p>
             </div>
 
             <div className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-4">
@@ -174,17 +143,7 @@ export default async function MeuPerfilPage({
             title="Resumo do perfil"
             description="Informacoes que ajudam a personalizar melhor seus proximos atendimentos."
           >
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-4">
-                <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">
-                  Data de nascimento
-                </p>
-                <p className="mt-2 text-sm text-white">
-                  {profile?.birthDate
-                    ? new Date(profile.birthDate).toLocaleDateString("pt-BR")
-                    : "Nao informada"}
-                </p>
-              </div>
+            <div className="grid gap-4 md:grid-cols-2">
               <div className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-4">
                 <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">
                   Alergias ou cuidados
@@ -220,7 +179,7 @@ export default async function MeuPerfilPage({
               {appointments.length === 0 ? (
                 <EmptyState
                   title="Sem historico de servicos"
-                  description="Seus atendimentos vao aparecer aqui com status, barbeiro e valor."
+                  description="Seus atendimentos vao aparecer aqui com status e barbeiro."
                   actionLabel="Agendar atendimento"
                   actionHref="/agendar"
                 />
@@ -234,21 +193,24 @@ export default async function MeuPerfilPage({
                         : "border-zinc-800 bg-zinc-950/70"
                     }`}
                   >
-                    <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-                      <div>
+                    <div className="mb-3 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
+                      <div className="min-w-0">
                         <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
                           {index === 0 ? "Ultimo atendimento" : "Atendimento"}
                         </p>
-                        <p className="mt-1 text-lg font-semibold text-white">
+                        <p className="mt-1 break-words text-lg font-semibold text-white">
                           {getAppointmentDisplayName(appointment.services)}
                         </p>
                       </div>
-                      <StatusBadge variant={appointmentStatusVariant(appointment.status)}>
+                      <StatusBadge
+                        variant={appointmentStatusVariant(appointment.status)}
+                        className="justify-self-end"
+                      >
                         {appointmentStatusLabel(appointment.status)}
                       </StatusBadge>
                     </div>
 
-                    <div className="grid gap-3 md:grid-cols-4">
+                    <div className="grid gap-3 md:grid-cols-3">
                       <div>
                         <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
                           Data
@@ -276,14 +238,6 @@ export default async function MeuPerfilPage({
                           {appointment.barber.name || "Barbeiro"}
                         </p>
                       </div>
-                      <div>
-                        <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
-                          Valor
-                        </p>
-                        <p className="mt-2 text-sm text-white">
-                          R$ {getAppointmentTotalPrice(appointment.services).toFixed(2)}
-                        </p>
-                      </div>
                     </div>
 
                     {appointment.notes && (
@@ -291,47 +245,6 @@ export default async function MeuPerfilPage({
                         Observacoes: {appointment.notes}
                       </p>
                     )}
-                  </div>
-                ))
-              )}
-            </div>
-          </SectionCard>
-
-          <SectionCard
-            title="Pedidos recentes"
-            description="Seus ultimos pedidos da loja em um resumo rapido."
-            actions={
-              <Link
-                href="/meus-pedidos"
-                className="rounded-xl border border-zinc-700 px-4 py-2 text-sm hover:bg-zinc-800"
-              >
-                Ver todos
-              </Link>
-            }
-          >
-            <div className="space-y-4">
-              {orders.length === 0 ? (
-                <EmptyState
-                  title="Nenhum pedido encontrado"
-                  description="Seus pedidos da loja aparecerao aqui assim que voce concluir uma compra."
-                  actionLabel="Ver produtos"
-                  actionHref="/produtos"
-                />
-              ) : (
-                orders.map((order) => (
-                  <div
-                    key={order.id}
-                    className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-4"
-                  >
-                    <p className="text-sm text-zinc-400">
-                      Pedido em {new Date(order.createdAt).toLocaleDateString("pt-BR")}
-                    </p>
-                    <p className="mt-1 text-sm text-white">
-                      Total: R$ {order.total.toFixed(2)}
-                    </p>
-                    <p className="mt-1 text-sm text-zinc-400">
-                      {order.items.map((item) => `${item.product.name} x${item.quantity}`).join(", ")}
-                    </p>
                   </div>
                 ))
               )}
