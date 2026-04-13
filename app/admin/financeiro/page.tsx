@@ -312,7 +312,7 @@ export default async function AdminFinanceiroPage({
         </SectionCard>
       </div>
 
-      <div className="mt-8 grid gap-8 xl:grid-cols-[1.15fr_0.85fr]">
+      <div className="mt-8 grid gap-8">
         <SectionCard
           title="Movimento por dia"
           description="Veja em quais dias entrou mais dinheiro e quantos atendimentos foram feitos."
@@ -345,45 +345,6 @@ export default async function AdminFinanceiroPage({
                   </div>
                   <p className="text-sm font-semibold text-white">
                     {formatCurrency(day.grossRevenue)}
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
-        </SectionCard>
-
-        <SectionCard
-          title="Dias da semana"
-          description="Mostra quais dias costumam vender mais dentro do periodo escolhido."
-        >
-          {data.analytics.weekdayPerformance.length === 0 ? (
-            <EmptyState
-              title="Sem padrao semanal ainda"
-              description="Os melhores dias da semana aparecerao quando o periodo tiver movimentacao."
-            />
-          ) : (
-            <div className="space-y-3">
-              {data.analytics.weekdayPerformance.map((item) => (
-                <div key={item.label} className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-4">
-                  <div className="mb-3 flex items-center justify-between gap-3">
-                    <p className="text-sm font-semibold capitalize text-white">{item.label}</p>
-                    <p className="text-sm text-zinc-400">
-                      {item.appointmentsCount} atendimento(s)
-                    </p>
-                  </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-zinc-800">
-                    <div
-                      className="h-full rounded-full bg-amber-400"
-                      style={{
-                        width: `${Math.max(
-                          12,
-                          (item.grossRevenue / maxWeekdayRevenue) * 100
-                        )}%`,
-                      }}
-                    />
-                  </div>
-                  <p className="mt-3 text-sm font-semibold text-amber-300">
-                    {formatCurrency(item.grossRevenue)}
                   </p>
                 </div>
               ))}
