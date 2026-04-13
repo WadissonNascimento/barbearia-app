@@ -316,7 +316,7 @@ export default async function AdminFinanceiroPage({
         </SectionCard>
       </div>
 
-      <div className="mt-8 grid gap-8 xl:grid-cols-[1.25fr_0.75fr]">
+      <div className="mt-8 grid gap-8">
         <SectionCard
           title="Resumo rapido"
           description="Principais pontos do periodo: ticket medio, melhor dia e movimento."
@@ -373,49 +373,6 @@ export default async function AdminFinanceiroPage({
                 {data.analytics.weekdayPerformance[0]
                   ? `${formatCurrency(data.analytics.weekdayPerformance[0].grossRevenue)} acumulados`
                   : "Sem historico no filtro"}
-              </p>
-            </div>
-          </div>
-        </SectionCard>
-
-        <SectionCard
-          title="Destaques do periodo"
-          description="Quem mais vendeu, qual servico mais saiu e quantos barbeiros trabalharam."
-        >
-          <div className="space-y-4">
-            <div className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-4">
-              <p className="text-sm text-zinc-400">Barbeiro que mais vendeu</p>
-              <p className="mt-2 text-xl font-semibold text-white">
-                {data.analytics.barberInsights[0]?.barberName || "Sem dados"}
-              </p>
-              <p className="mt-1 text-sm text-zinc-500">
-                {data.analytics.barberInsights[0]
-                  ? `${formatCurrency(data.analytics.barberInsights[0].grossRevenue)} no periodo`
-                  : "Aguardando atendimentos concluidos"}
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-4">
-              <p className="text-sm text-zinc-400">Servico mais vendido</p>
-              <p className="mt-2 text-xl font-semibold text-white">
-                {data.analytics.topServices[0]?.label || "Sem dados"}
-              </p>
-              <p className="mt-1 text-sm text-zinc-500">
-                {data.analytics.topServices[0]
-                  ? `${data.analytics.topServices[0].count} vezes - ${formatCurrency(
-                      data.analytics.topServices[0].grossRevenue
-                    )}`
-                  : "Aguardando servicos concluidos"}
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-4">
-              <p className="text-sm text-zinc-400">Barbeiros ativos no periodo</p>
-              <p className="mt-2 text-2xl font-semibold text-white">
-                {data.summary.barbersCount}
-              </p>
-              <p className="mt-1 text-sm text-zinc-500">
-                Profissionais com atendimento concluido dentro do filtro atual.
               </p>
             </div>
           </div>
