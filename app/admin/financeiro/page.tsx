@@ -136,7 +136,7 @@ export default async function AdminFinanceiroPage({
         </SectionCard>
       </div>
 
-      <div className="mt-8 grid gap-8 xl:grid-cols-[0.95fr_1.05fr]">
+      <div className="mt-8 grid gap-8">
         <SectionCard
           title="Comparar periodos"
           description={`Comparando com ${new Date(
@@ -244,50 +244,6 @@ export default async function AdminFinanceiroPage({
                   "number"
                 )}
               </p>
-            </div>
-          </div>
-        </SectionCard>
-
-        <SectionCard
-          title="Para onde foi o dinheiro"
-          description="Separacao simples entre total vendido, repasse dos barbeiros e valor da barbearia."
-        >
-          <div className="rounded-3xl border border-zinc-800 bg-zinc-950/70 p-5">
-            <div className="h-5 overflow-hidden rounded-full bg-zinc-800">
-              <div className="flex h-full">
-                <div
-                  className="bg-amber-400"
-                  style={{ width: `${data.summary.payoutRate}%` }}
-                />
-                <div
-                  className="bg-emerald-400"
-                  style={{ width: `${data.summary.netRate}%` }}
-                />
-              </div>
-            </div>
-
-            <div className="mt-5 grid gap-3 sm:grid-cols-3">
-              <div className="rounded-2xl border border-zinc-800 bg-black/20 p-4">
-                <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Total vendido</p>
-                <p className="mt-2 text-lg font-semibold text-white">
-                  {formatCurrency(data.summary.grossRevenue)}
-                </p>
-                <p className="mt-1 text-sm text-zinc-500">100% dos servicos pagos</p>
-              </div>
-              <div className="rounded-2xl border border-zinc-800 bg-black/20 p-4">
-                <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Barbeiros</p>
-                <p className="mt-2 text-lg font-semibold text-amber-300">
-                  {formatCurrency(data.summary.commissionTotal)}
-                </p>
-                <p className="mt-1 text-sm text-zinc-500">{data.summary.payoutRate}% do total vendido</p>
-              </div>
-              <div className="rounded-2xl border border-zinc-800 bg-black/20 p-4">
-                <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Barbearia</p>
-                <p className="mt-2 text-lg font-semibold text-emerald-300">
-                  {formatCurrency(data.summary.shopNetRevenue)}
-                </p>
-                <p className="mt-1 text-sm text-zinc-500">{data.summary.netRate}% do total vendido</p>
-              </div>
             </div>
           </div>
         </SectionCard>
