@@ -82,7 +82,6 @@ export default async function AdminFinanceiroPage({
     ...data.analytics.barberInsights.map((item) => item.grossRevenue),
     1
   );
-  const topThreeBarbers = data.analytics.barberInsights.slice(0, 3);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 text-white">
@@ -134,40 +133,6 @@ export default async function AdminFinanceiroPage({
           <p className="text-3xl font-semibold text-white">
             {data.summary.appointmentsCount}
           </p>
-        </SectionCard>
-      </div>
-
-      <div className="mt-8 grid gap-8">
-        <SectionCard
-          title="Barbeiros que mais faturaram"
-          description="Os 3 profissionais com maior venda de servicos no periodo."
-        >
-          {topThreeBarbers.length === 0 ? (
-            <EmptyState
-              title="Sem ranking ainda"
-              description="A lista aparece quando houver atendimentos concluidos no periodo."
-            />
-          ) : (
-            <div className="grid gap-4 md:grid-cols-3">
-              {topThreeBarbers.map((barber, index) => (
-                <div
-                  key={barber.barberId}
-                  className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-5"
-                >
-                  <p className="text-xs uppercase tracking-[0.22em] text-zinc-400">
-                    #{index + 1} colocado
-                  </p>
-                  <p className="mt-3 text-lg font-semibold text-white">{barber.barberName}</p>
-                  <p className="mt-4 text-2xl font-semibold text-white">
-                    {formatCurrency(barber.grossRevenue)}
-                  </p>
-                  <p className="mt-2 text-sm text-zinc-400">
-                    {barber.appointmentsCount} atendimento(s) - {barber.revenueShare}% do total vendido
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
         </SectionCard>
       </div>
 
