@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import FeedbackMessage from "@/components/FeedbackMessage";
 import EmptyState from "@/components/ui/EmptyState";
+import { PremiumDateTimePicker } from "@/components/ui/PremiumFilters";
 import SectionCard from "@/components/ui/SectionCard";
 import { weekDays } from "@/lib/barberSchedule";
 import { WeeklyAvailabilityForm } from "./WeeklyAvailabilityForm";
@@ -101,22 +102,18 @@ export function AvailabilitySection({
 
             <div className="mt-4 space-y-4">
               <label className="block">
-                <span className="mb-2 block text-sm text-zinc-300">Inicio</span>
-                <input
-                  type="datetime-local"
+                <PremiumDateTimePicker
                   name="startDateTime"
+                  label="Inicio"
                   required
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-3 text-sm text-white outline-none"
                 />
               </label>
 
               <label className="block">
-                <span className="mb-2 block text-sm text-zinc-300">Fim</span>
-                <input
-                  type="datetime-local"
+                <PremiumDateTimePicker
                   name="endDateTime"
+                  label="Fim"
                   required
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-3 text-sm text-white outline-none"
                 />
               </label>
 

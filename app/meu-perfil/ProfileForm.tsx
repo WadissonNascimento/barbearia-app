@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import FeedbackMessage from "@/components/FeedbackMessage";
+import { PremiumDatePicker, PremiumSelect } from "@/components/ui/PremiumFilters";
 import { updateCustomerProfileAction } from "./actions";
 
 type BarberOption = {
@@ -90,29 +91,26 @@ export default function ProfileForm({
       </label>
 
       <label className="block">
-        <span className="mb-2 block text-sm text-zinc-300">Data de nascimento</span>
-        <input
-          type="date"
+        <PremiumDatePicker
           name="birthDate"
+          label="Data de nascimento"
           defaultValue={toDateInput(profile?.birthDate)}
-          className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm outline-none"
         />
       </label>
 
       <label className="block">
-        <span className="mb-2 block text-sm text-zinc-300">Barbeiro preferido</span>
-        <select
+        <PremiumSelect
           name="preferredBarberId"
+          label="Barbeiro preferido"
           defaultValue={profile?.preferredBarberId || ""}
-          className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm outline-none"
-        >
-          <option value="">Sem preferencia</option>
-          {barbers.map((barber) => (
-            <option key={barber.id} value={barber.id}>
-              {barber.name}
-            </option>
-          ))}
-        </select>
+          options={[
+            { value: "", label: "Sem preferencia" },
+            ...barbers.map((barber) => ({
+              value: barber.id,
+              label: barber.name || "Barbeiro",
+            })),
+          ]}
+        />
       </label>
 
       <label className="block">

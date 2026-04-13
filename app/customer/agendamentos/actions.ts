@@ -44,7 +44,9 @@ export async function cancelCustomerAppointmentAction(
   }
 
   if (appointment.date.getTime() <= Date.now()) {
-    return mutationError("Nao e possivel cancelar um horario que ja passou.");
+    return mutationError(
+      "Esse horario ja passou. Fale com o barbeiro para ajustar o status."
+    );
   }
 
   await prisma.appointment.update({
@@ -62,6 +64,7 @@ export async function cancelCustomerAppointmentAction(
   revalidatePath("/agendar");
   revalidatePath("/admin/agenda");
   revalidatePath("/barber");
+  revalidatePath("/barber/agenda");
 
   return mutationSuccess("Agendamento cancelado com sucesso.");
 }

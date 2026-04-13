@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import EmptyState from "@/components/ui/EmptyState";
 import PageHeader from "@/components/ui/PageHeader";
+import { PremiumDatePicker, PremiumSelect } from "@/components/ui/PremiumFilters";
 import SectionCard from "@/components/ui/SectionCard";
 import StatusBadge from "@/components/ui/StatusBadge";
 import {
@@ -87,55 +88,49 @@ export default async function AdminAgendaPage({
       >
         <form className="grid gap-4 md:grid-cols-5">
           <div>
-            <label className="mb-2 block text-sm text-zinc-300">Barbeiro</label>
-            <select
+            <PremiumSelect
               name="barberId"
+              label="Barbeiro"
               defaultValue={barberId}
-              className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 outline-none"
-            >
-              <option value="">Todos</option>
-              {barbers.map((barber) => (
-                <option key={barber.id} value={barber.id}>
-                  {barber.name}
-                </option>
-              ))}
-            </select>
+              options={[
+                { value: "", label: "Todos" },
+                ...barbers.map((barber) => ({
+                  value: barber.id,
+                  label: barber.name || "Barbeiro",
+                })),
+              ]}
+            />
           </div>
 
           <div>
-            <label className="mb-2 block text-sm text-zinc-300">De</label>
-            <input
-              type="date"
+            <PremiumDatePicker
               name="dateFrom"
+              label="De"
               defaultValue={dateFrom}
-              className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 outline-none"
             />
           </div>
 
           <div>
-            <label className="mb-2 block text-sm text-zinc-300">Ate</label>
-            <input
-              type="date"
+            <PremiumDatePicker
               name="dateTo"
+              label="Ate"
               defaultValue={dateTo}
-              className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 outline-none"
             />
           </div>
 
           <div>
-            <label className="mb-2 block text-sm text-zinc-300">Status</label>
-            <select
+            <PremiumSelect
               name="status"
+              label="Status"
               defaultValue={status}
-              className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 outline-none"
-            >
-              <option value="">Todos</option>
-              {ADMIN_APPOINTMENT_STATUSES.map((appointmentStatus) => (
-                <option key={appointmentStatus} value={appointmentStatus}>
-                  {appointmentStatusLabel(appointmentStatus)}
-                </option>
-              ))}
-            </select>
+              options={[
+                { value: "", label: "Todos" },
+                ...ADMIN_APPOINTMENT_STATUSES.map((appointmentStatus) => ({
+                  value: appointmentStatus,
+                  label: appointmentStatusLabel(appointmentStatus),
+                })),
+              ]}
+            />
           </div>
 
           <div className="flex items-end">

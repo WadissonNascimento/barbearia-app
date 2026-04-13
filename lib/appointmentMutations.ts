@@ -1,4 +1,4 @@
-import type { PrismaClient } from "@prisma/client";
+import { Prisma, type PrismaClient } from "@prisma/client";
 import {
   APPOINTMENT_STATUSES,
   normalizeAppointmentStatus,
@@ -17,6 +17,7 @@ import { prisma } from "@/lib/prisma";
 type AppointmentPrismaClient = Pick<
   PrismaClient,
   | "$transaction"
+  | "$executeRaw"
   | "appointment"
   | "appointmentService"
   | "barberAvailability"
@@ -25,6 +26,7 @@ type AppointmentPrismaClient = Pick<
   | "service"
   | "user"
 >;
+type AppointmentTransactionClient = Omit<AppointmentPrismaClient, "$transaction">;
 
 export class AppointmentMutationError extends Error {
   constructor(message: string) {
@@ -60,6 +62,33 @@ function getAppointmentDurationFromServices(
 export async function createCustomerAppointment(
   input: CreateCustomerAppointmentInput,
   db: AppointmentPrismaClient = prisma
+) {
+  try {
+    return await db.$transaction(
+      (tx) => createCustomerAppointmentInTransaction(input, tx),
+      {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+        maxWait: 10000,
+        timeout: 20000,
+      }
+    );
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      (error.code === "P2034" || error.code === "P2028")
+    ) {
+      throw new AppointmentMutationError(
+        "Esse horario acabou de ser reservado. Escolha outro horario."
+      );
+    }
+
+    throw error;
+  }
+}
+
+async function createCustomerAppointmentInTransaction(
+  input: CreateCustomerAppointmentInput,
+  db: AppointmentTransactionClient
 ) {
   const barberId = input.barberId.trim();
   const serviceIds = input.serviceIds.map((serviceId) => serviceId.trim()).filter(Boolean);
@@ -131,6 +160,8 @@ export async function createCustomerAppointment(
   const dayOfWeek = selectedDay.getDay();
   const dayStart = new Date(`${date}T00:00:00`);
   const dayEnd = new Date(`${date}T23:59:59.999`);
+
+  await db.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${barberId}), hashtext(${date}))`;
 
   const [availability, sameDayAppointments, blocks, recurringBlocks] = await Promise.all([
     db.barberAvailability.findFirst({

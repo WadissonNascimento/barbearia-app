@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition, type ReactNode } from "react";
 import FeedbackMessage from "@/components/FeedbackMessage";
 import EmptyState from "@/components/ui/EmptyState";
+import { PremiumSelect } from "@/components/ui/PremiumFilters";
 import SectionCard from "@/components/ui/SectionCard";
 import StatusBadge from "@/components/ui/StatusBadge";
 import {
@@ -37,6 +38,46 @@ function formatDateTime(value: Date) {
   };
 }
 
+function getTodayValue() {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getAgendaDays(selectedDate: string) {
+  const days: string[] = [];
+  const base = new Date();
+  base.setHours(0, 0, 0, 0);
+
+  for (let index = 0; index < 12; index += 1) {
+    const current = new Date(base);
+    current.setDate(base.getDate() + index);
+
+    const year = current.getFullYear();
+    const month = String(current.getMonth() + 1).padStart(2, "0");
+    const day = String(current.getDate()).padStart(2, "0");
+
+    days.push(`${year}-${month}-${day}`);
+  }
+
+  if (selectedDate && !days.includes(selectedDate)) {
+    return [selectedDate, ...days];
+  }
+
+  return days;
+}
+
+function formatAgendaDay(dateString: string) {
+  const date = new Date(`${dateString}T00:00:00`);
+
+  return {
+    weekday: date.toLocaleDateString("pt-BR", { weekday: "short" }),
+    day: date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }),
+  };
+}
+
 export function AppointmentsSection({
   appointments,
   filters,
@@ -51,6 +92,7 @@ export function AppointmentsSection({
   const [selectedView, setSelectedView] = useState(filters.view);
   const [selectedStatus, setSelectedStatus] = useState(filters.status);
   const [selectedDate, setSelectedDate] = useState(filters.date);
+  const agendaDays = useMemo(() => getAgendaDays(selectedDate), [selectedDate]);
 
   const filterDefaults = useMemo(
     () => ({
@@ -101,76 +143,99 @@ export function AppointmentsSection({
     <SectionCard
       title="Agenda"
       description="Seus horarios, clientes e proximas acoes."
-      className="rounded-[28px] bg-zinc-900/90"
+      className="max-w-full rounded-[28px] border-white/10 bg-white/[0.04] backdrop-blur"
       actions={
-        <div className="grid gap-3 sm:grid-cols-3">
-          <select
-            name="view"
-            value={selectedView}
-            onChange={(event) => {
-              const next = {
-                view: event.target.value as typeof filters.view,
-                status: selectedStatus,
-                date: selectedDate,
-              };
+        <div className="w-full space-y-4">
+          <div className="grid w-full gap-3 sm:grid-cols-[minmax(0,220px)_1fr]">
+            <PremiumSelect
+              name="view"
+              label="Visualizar"
+              value={selectedView}
+              options={[
+                { value: "day", label: "Dia" },
+                { value: "all", label: "Todos" },
+              ]}
+              onChange={(value) => {
+                const next = {
+                  view: value as typeof filters.view,
+                  status: selectedStatus,
+                  date: value === "day" && !selectedDate ? getTodayValue() : selectedDate,
+                };
 
-              setSelectedView(next.view);
-              applyFilters(next);
-            }}
-            className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm text-white outline-none"
-          >
-            <option value="day">Dia</option>
-            <option value="upcoming">Proximos</option>
-            <option value="all">Todos</option>
-          </select>
+                setSelectedView(next.view);
+                setSelectedDate(next.date);
+                applyFilters(next);
+              }}
+            />
 
-          <select
-            name="status"
-            value={selectedStatus}
-            onChange={(event) => {
-              const next = {
-                view: selectedView,
-                status: event.target.value,
-                date: selectedDate,
-              };
+            {selectedView === "day" ? (
+              <div className="min-w-0">
+                <p className="mb-2 block text-sm text-zinc-300">Data</p>
+                <div className="-mx-1 flex max-w-full gap-2 overflow-x-auto px-1 pb-1">
+                  {agendaDays.map((dayValue) => {
+                    const isSelected = dayValue === selectedDate;
+                    const { weekday, day } = formatAgendaDay(dayValue);
 
-              setSelectedStatus(next.status);
-              applyFilters(next);
-            }}
-            className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm text-white outline-none"
-          >
-            <option value="ALL">Todos os status</option>
-            <option value="PENDING">Pendente</option>
-            <option value="CONFIRMED">Confirmado</option>
-            <option value="COMPLETED">Concluido</option>
-            <option value="CANCELLED">Cancelado</option>
-            <option value="NO_SHOW">Nao compareceu</option>
-          </select>
+                    return (
+                      <button
+                        key={dayValue}
+                        type="button"
+                        onClick={() => {
+                          const next = {
+                            view: selectedView,
+                            status: selectedStatus,
+                            date: dayValue,
+                          };
 
-          <input
-            type="date"
-            name="date"
-            value={selectedDate}
-            onChange={(event) => {
-              const next = {
-                view: selectedView,
-                status: selectedStatus,
-                date: event.target.value,
-              };
+                          setSelectedDate(next.date);
+                          applyFilters(next);
+                        }}
+                        className={`min-w-[82px] rounded-2xl border px-3 py-3 text-left transition ${
+                          isSelected
+                            ? "border-[var(--brand)] bg-[var(--brand-muted)] text-white shadow-[0_18px_36px_rgba(14,165,233,0.18)]"
+                            : "border-white/10 bg-black/20 text-white hover:border-white/20"
+                        }`}
+                      >
+                        <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">
+                          {weekday}
+                        </p>
+                        <p className="mt-1 text-sm font-semibold text-white">{day}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
+          </div>
 
-              setSelectedDate(next.date);
-              applyFilters(next);
-            }}
-            disabled={selectedView !== "day"}
-            className={`rounded-xl border px-4 py-3 text-sm text-white outline-none ${
-              selectedView === "day"
-                ? "border-zinc-700 bg-zinc-950"
-                : "cursor-not-allowed border-zinc-800 bg-zinc-900 text-zinc-500"
-            }`}
-          />
+          <div className="max-w-sm">
+            <PremiumSelect
+              name="status"
+              label="Status"
+              value={selectedStatus}
+              options={[
+                { value: "ALL", label: "Todos os status" },
+                { value: "PENDING", label: "Pendente" },
+                { value: "CONFIRMED", label: "Confirmado" },
+                { value: "COMPLETED", label: "Concluido" },
+                { value: "CANCELLED", label: "Cancelado" },
+                { value: "NO_SHOW", label: "Nao compareceu" },
+              ]}
+              onChange={(value) => {
+                const next = {
+                  view: selectedView,
+                  status: value,
+                  date: selectedDate,
+                };
+
+                setSelectedStatus(next.status);
+                applyFilters(next);
+              }}
+            />
+          </div>
 
           {isFilterPending || selectedView !== "day" ? (
-            <p className="text-xs text-zinc-500 sm:col-span-3">
+            <p className="text-xs text-zinc-500">
               {isFilterPending
                 ? "Atualizando agenda..."
                 : "A data so vale quando o filtro estiver em Dia."}
@@ -194,74 +259,78 @@ export function AppointmentsSection({
             const { date, time } = formatDateTime(appointment.date);
 
             return (
-              <div
+              <article
                 key={appointment.id}
-                className="rounded-3xl border border-zinc-800 bg-zinc-950/70 p-5"
+                className="max-w-full overflow-hidden rounded-2xl border border-white/10 bg-black/20 p-4 transition hover:border-[var(--brand)]/30 sm:p-5"
               >
-                <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr_1fr_1fr_auto]">
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">
+                <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
+                    <p className="text-xs uppercase tracking-[0.18em] text-[var(--brand-strong)]">
+                      {date}
+                    </p>
+                    <p className="mt-1 text-3xl font-bold text-white">{time}</p>
+                  </div>
+                  <StatusBadge
+                    variant={appointmentStatusVariant(appointment.status)}
+                    className="w-fit max-w-full shrink-0"
+                  >
+                    {appointmentStatusLabel(appointment.status)}
+                  </StatusBadge>
+                </div>
+
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <div className="min-w-0 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-500">
                       Cliente
                     </p>
                     <Link
                       href={`/barber/clientes/${appointment.customer.id}`}
-                      className="mt-2 block text-lg font-medium text-white transition hover:text-[var(--brand)]"
+                      className="mt-2 block truncate text-lg font-semibold text-white transition hover:text-[var(--brand-strong)]"
                     >
                       {appointment.customer.name || "Cliente"}
                     </Link>
-                    <p className="mt-1 text-sm text-zinc-400">
+                    <p className="mt-1 break-words text-sm text-zinc-400">
                       {appointment.customer.phone || appointment.customer.email || "Sem contato"}
                     </p>
                   </div>
 
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">
+                  <div className="min-w-0 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-500">
                       Servico
                     </p>
-                    <p className="mt-2 text-white">
+                    <p className="mt-2 break-words text-base font-semibold text-white">
                       {getAppointmentDisplayName(appointment.services)}
                     </p>
                     <p className="mt-1 text-sm text-zinc-400">
                       {getAppointmentServiceMetaLine(appointment.services)}
                     </p>
                   </div>
+                </div>
 
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">
-                      Data
-                    </p>
-                    <p className="mt-2 text-white">{date}</p>
-                    <p className="mt-1 text-sm text-zinc-400">{time}</p>
-                  </div>
+                <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-500">
+                    Observacoes
+                  </p>
+                  <p className="mt-2 break-words text-sm leading-5 text-zinc-300">
+                    {appointment.notes || "Sem observacoes registradas"}
+                  </p>
+                </div>
 
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">
-                      Status
-                    </p>
-                    <div className="mt-2">
-                      <StatusBadge variant={appointmentStatusVariant(appointment.status)}>
-                        {appointmentStatusLabel(appointment.status)}
-                      </StatusBadge>
-                    </div>
-                    <p className="mt-1 text-sm text-zinc-400">
-                      {appointment.notes || "Sem observacoes"}
-                    </p>
-                  </div>
-
-                  <div className="flex flex-wrap gap-2 lg:justify-end">
+                <div className="mt-4 border-t border-white/10 pt-4">
+                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                     <Link
                       href={`/barber/clientes/${appointment.customer.id}`}
-                      className="rounded-xl border border-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:border-[var(--brand)] hover:text-[var(--brand)]"
+                      className="inline-flex min-h-11 items-center justify-center rounded-xl border border-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:border-[var(--brand)]/50 hover:bg-[var(--brand-muted)]"
                     >
                       Ver perfil
                     </Link>
 
-                    {appointment.status === "PENDING" && (
+                    {appointment.status === "PENDING" ? (
                       <>
                         <StatusButton
                           appointmentId={appointment.id}
                           status="CONFIRMED"
-                          className="bg-green-600 text-white hover:bg-green-500"
+                          variant="primary"
                           onFeedback={setFeedback}
                         >
                           Confirmar
@@ -269,7 +338,7 @@ export function AppointmentsSection({
                         <StatusButton
                           appointmentId={appointment.id}
                           status="CANCELLED"
-                          className="bg-red-600 text-white hover:bg-red-500"
+                          variant="danger"
                           onFeedback={setFeedback}
                         >
                           Cancelar
@@ -277,20 +346,20 @@ export function AppointmentsSection({
                         <StatusButton
                           appointmentId={appointment.id}
                           status="NO_SHOW"
-                          className="bg-orange-500 text-black hover:bg-orange-400"
+                          variant="warning"
                           onFeedback={setFeedback}
                         >
                           Nao veio
                         </StatusButton>
                       </>
-                    )}
+                    ) : null}
 
-                    {appointment.status === "CONFIRMED" && (
+                    {appointment.status === "CONFIRMED" ? (
                       <>
                         <StatusButton
                           appointmentId={appointment.id}
                           status="COMPLETED"
-                          className="bg-sky-600 text-white hover:bg-sky-500"
+                          variant="primary"
                           onFeedback={setFeedback}
                         >
                           Concluir
@@ -298,7 +367,7 @@ export function AppointmentsSection({
                         <StatusButton
                           appointmentId={appointment.id}
                           status="NO_SHOW"
-                          className="bg-orange-500 text-black hover:bg-orange-400"
+                          variant="warning"
                           onFeedback={setFeedback}
                         >
                           Nao veio
@@ -306,16 +375,16 @@ export function AppointmentsSection({
                         <StatusButton
                           appointmentId={appointment.id}
                           status="CANCELLED"
-                          className="bg-red-600 text-white hover:bg-red-500"
+                          variant="danger"
                           onFeedback={setFeedback}
                         >
                           Cancelar
                         </StatusButton>
                       </>
-                    )}
+                    ) : null}
                   </div>
                 </div>
-              </div>
+              </article>
             );
           })
         )}
@@ -327,13 +396,13 @@ export function AppointmentsSection({
 function StatusButton({
   appointmentId,
   status,
-  className,
+  variant,
   children,
   onFeedback,
 }: {
   appointmentId: string;
   status: string;
-  className: string;
+  variant: "primary" | "warning" | "danger";
   children: ReactNode;
   onFeedback: (feedback: {
     message: string | null;
@@ -342,6 +411,11 @@ function StatusButton({
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const classes = {
+    primary: "bg-[var(--brand)] text-white hover:brightness-110",
+    warning: "border border-amber-400/50 text-amber-200 hover:bg-amber-400/10",
+    danger: "border border-red-500/40 text-red-200 hover:bg-red-500/10",
+  };
 
   return (
     <button
@@ -361,7 +435,7 @@ function StatusButton({
           }
         });
       }}
-      className={`rounded-xl px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
+      className={`inline-flex min-h-11 min-w-0 items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${classes[variant]}`}
     >
       {isPending ? "Salvando..." : children}
     </button>

@@ -69,16 +69,17 @@ export default function BarberTodayDashboard({
   const visibleAppointments = useMemo(
     () =>
       appointments.filter(
-        (appointment) => !["CANCELLED", "NO_SHOW"].includes(appointment.status)
+        (appointment) =>
+          !["CANCELLED", "COMPLETED", "DONE", "NO_SHOW"].includes(appointment.status)
       ),
     [appointments]
   );
   const nextAppointment =
     visibleAppointments.find(
       (appointment) =>
-        new Date(appointment.date).getTime() >= Date.now() &&
-        !["COMPLETED"].includes(appointment.status)
+        new Date(appointment.date).getTime() >= Date.now()
     ) || visibleAppointments[0] || null;
+  const visibleUpcomingAppointments = upcomingAppointments.slice(0, 3);
 
   function updateStatus(appointment: DashboardAppointment, status: string) {
     setPendingKey(`${appointment.id}-${status}`);
@@ -92,16 +93,26 @@ export default function BarberTodayDashboard({
       setFeedback({ message: result.message, tone: result.tone });
 
       if (result.ok) {
-        setAppointments((current) =>
-          current.map((item) =>
+        const finalStatuses = ["CANCELLED", "COMPLETED", "DONE", "NO_SHOW"];
+
+        setAppointments((current) => {
+          if (finalStatuses.includes(status)) {
+            return current.filter((item) => item.id !== appointment.id);
+          }
+
+          return current.map((item) =>
             item.id === appointment.id ? { ...item, status } : item
-          )
-        );
-        setUpcomingAppointments((current) =>
-          current.map((item) =>
+          );
+        });
+        setUpcomingAppointments((current) => {
+          if (finalStatuses.includes(status)) {
+            return current.filter((item) => item.id !== appointment.id);
+          }
+
+          return current.map((item) =>
             item.id === appointment.id ? { ...item, status } : item
-          )
-        );
+          );
+        });
         router.refresh();
       }
 
@@ -110,10 +121,10 @@ export default function BarberTodayDashboard({
   }
 
   return (
-    <section className="space-y-5">
-      <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-4 shadow-[0_24px_70px_rgba(0,0,0,0.28)] backdrop-blur sm:p-6">
+    <section className="max-w-full space-y-5 overflow-hidden">
+      <div className="max-w-full overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.04] p-4 shadow-[0_24px_70px_rgba(0,0,0,0.28)] backdrop-blur sm:p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
+          <div className="min-w-0">
             <p className="text-xs uppercase tracking-[0.24em] text-[var(--brand-strong)]">
               Hoje
             </p>
@@ -125,7 +136,7 @@ export default function BarberTodayDashboard({
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 sm:min-w-[260px]">
+          <div className="grid w-full grid-cols-2 gap-2 sm:min-w-[260px] sm:w-auto">
             <QuickLink href="/barber/agenda" icon={<CalendarRange />}>
               Agenda
             </QuickLink>
@@ -171,10 +182,10 @@ export default function BarberTodayDashboard({
 
       <FeedbackMessage message={feedback.message} tone={feedback.tone} />
 
-      <div className="grid gap-5 lg:grid-cols-[1.25fr_0.75fr]">
-        <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-4 backdrop-blur sm:p-5">
-          <div className="flex items-center justify-between gap-3">
-            <div>
+      <div className="grid max-w-full gap-5 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,0.75fr)]">
+        <div className="min-w-0 overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.04] p-4 backdrop-blur sm:p-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
               <h2 className="text-xl font-semibold text-white">Agenda do dia</h2>
               <p className="mt-1 text-sm text-zinc-400">
                 Horario, cliente e proxima acao.
@@ -189,21 +200,21 @@ export default function BarberTodayDashboard({
           </div>
 
           <div className="mt-4 space-y-3">
-            {appointments.length === 0 ? (
+            {visibleAppointments.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-white/10 p-5 text-sm text-zinc-400">
-                Nenhum horario para hoje.
+                Nenhum proximo horario para hoje.
               </div>
             ) : (
-              appointments.map((appointment) => (
+              visibleAppointments.map((appointment) => (
                 <article
                   key={appointment.id}
-                  className={`rounded-2xl border p-4 transition ${
+                  className={`max-w-full overflow-hidden rounded-2xl border p-4 transition ${
                     appointment.id === nextAppointment?.id
                       ? "border-[var(--brand)]/50 bg-[var(--brand-muted)]"
                       : "border-white/10 bg-black/20"
                   }`}
                 >
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
                       <p className="text-2xl font-bold text-white">
                         {formatTime(appointment.date)}
@@ -221,7 +232,10 @@ export default function BarberTodayDashboard({
                         {appointment.serviceMeta}
                       </p>
                     </div>
-                    <StatusBadge variant={appointmentStatusVariant(appointment.status)}>
+                    <StatusBadge
+                      variant={appointmentStatusVariant(appointment.status)}
+                      className="w-fit max-w-full shrink-0"
+                    >
                       {appointmentStatusLabel(appointment.status)}
                     </StatusBadge>
                   </div>
@@ -279,25 +293,25 @@ export default function BarberTodayDashboard({
           </div>
         </div>
 
-        <aside className="space-y-5">
-          <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-4 backdrop-blur sm:p-5">
+        <aside className="min-w-0 space-y-5">
+          <div className="min-w-0 overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.04] p-4 backdrop-blur sm:p-5">
             <h2 className="text-xl font-semibold text-white">Proximos agendamentos</h2>
             <p className="mt-1 text-sm text-zinc-400">
               Pendentes e confirmados que ainda vao acontecer.
             </p>
 
             <div className="mt-4 space-y-3">
-              {upcomingAppointments.length === 0 ? (
+              {visibleUpcomingAppointments.length === 0 ? (
                 <p className="rounded-2xl border border-dashed border-white/10 p-4 text-sm text-zinc-400">
                   Nenhum agendamento futuro.
                 </p>
               ) : (
-                upcomingAppointments.map((appointment) => (
+                visibleUpcomingAppointments.map((appointment) => (
                   <article
                     key={appointment.id}
-                    className="rounded-2xl border border-white/10 bg-black/20 p-4"
+                    className="max-w-full overflow-hidden rounded-2xl border border-white/10 bg-black/20 p-4"
                   >
-                    <div className="flex items-start justify-between gap-3">
+                    <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div className="min-w-0">
                         <p className="text-xs uppercase tracking-[0.18em] text-[var(--brand-strong)]">
                           {formatDateLabel(appointment.date)}
@@ -315,7 +329,10 @@ export default function BarberTodayDashboard({
                           {appointment.serviceName}
                         </p>
                       </div>
-                      <StatusBadge variant={appointmentStatusVariant(appointment.status)}>
+                      <StatusBadge
+                        variant={appointmentStatusVariant(appointment.status)}
+                        className="w-fit max-w-full shrink-0"
+                      >
                         {appointmentStatusLabel(appointment.status)}
                       </StatusBadge>
                     </div>
@@ -331,13 +348,22 @@ export default function BarberTodayDashboard({
                       </div>
                     ) : null}
 
-                    {appointment.status === "PENDING" ? (
-                      <div className="mt-4">
+                    {["PENDING", "CONFIRMED"].includes(appointment.status) ? (
+                      <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                        {appointment.status === "PENDING" ? (
+                          <ActionButton
+                            pending={isPending && pendingKey === `${appointment.id}-CONFIRMED`}
+                            onClick={() => updateStatus(appointment, "CONFIRMED")}
+                          >
+                            Confirmar
+                          </ActionButton>
+                        ) : null}
                         <ActionButton
-                          pending={isPending && pendingKey === `${appointment.id}-CONFIRMED`}
-                          onClick={() => updateStatus(appointment, "CONFIRMED")}
+                          variant="danger"
+                          pending={isPending && pendingKey === `${appointment.id}-CANCELLED`}
+                          onClick={() => updateStatus(appointment, "CANCELLED")}
                         >
-                          Confirmar
+                          Cancelar
                         </ActionButton>
                       </div>
                     ) : null}
@@ -345,9 +371,16 @@ export default function BarberTodayDashboard({
                 ))
               )}
             </div>
+
+            <Link
+              href="/barber/agenda"
+              className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:border-[var(--brand)]/50 hover:bg-[var(--brand-muted)]"
+            >
+              Ver agenda completa
+            </Link>
           </div>
 
-          <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-4 backdrop-blur sm:p-5">
+          <div className="min-w-0 overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.04] p-4 backdrop-blur sm:p-5">
             <h2 className="text-xl font-semibold text-white">Proximo horario</h2>
             {nextAppointment ? (
               <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-4">
@@ -374,7 +407,7 @@ export default function BarberTodayDashboard({
             )}
           </div>
 
-          <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-4 backdrop-blur sm:p-5">
+          <div className="min-w-0 overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.04] p-4 backdrop-blur sm:p-5">
             <h2 className="text-xl font-semibold text-white">Servicos do dia</h2>
             <div className="mt-4 space-y-3">
               {summary.todayServices.length === 0 ? (
@@ -412,12 +445,12 @@ function QuickLink({
   return (
     <Link
       href={href}
-      className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm font-semibold text-white transition hover:border-[var(--brand)]/50 hover:bg-[var(--brand-muted)]"
+      className="flex min-h-12 min-w-0 items-center justify-center gap-2 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm font-semibold text-white transition hover:border-[var(--brand)]/50 hover:bg-[var(--brand-muted)]"
     >
       <span className="h-4 w-4 text-[var(--brand-strong)] [&>svg]:h-4 [&>svg]:w-4">
         {icon}
       </span>
-      {children}
+      <span className="min-w-0 truncate">{children}</span>
     </Link>
   );
 }
@@ -434,14 +467,14 @@ function MetricCard({
   helper: string;
 }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-      <div className="flex items-center gap-2 text-xs uppercase tracking-[0.16em] text-zinc-500">
+    <div className="min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-black/20 p-4">
+      <div className="flex min-w-0 items-center gap-2 text-xs uppercase tracking-[0.16em] text-zinc-500">
         <span className="h-4 w-4 text-[var(--brand-strong)] [&>svg]:h-4 [&>svg]:w-4">
           {icon}
         </span>
-        {label}
+        <span className="min-w-0 truncate">{label}</span>
       </div>
-      <p className="mt-3 text-2xl font-bold text-white">{value}</p>
+      <p className="mt-3 break-words text-2xl font-bold text-white">{value}</p>
       <p className="mt-1 text-xs text-zinc-400">{helper}</p>
     </div>
   );
@@ -469,7 +502,7 @@ function ActionButton({
       type="button"
       disabled={pending}
       onClick={onClick}
-      className={`min-h-11 rounded-xl px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${classes[variant]}`}
+      className={`min-h-11 min-w-0 rounded-xl px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${classes[variant]}`}
     >
       {pending ? "Salvando..." : children}
     </button>

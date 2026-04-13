@@ -1,6 +1,5 @@
 "use client";
 
-import { XCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
@@ -40,14 +39,13 @@ export default function CancelAppointmentButton({
   }
 
   return (
-    <div className="space-y-2">
+    <div className="w-full space-y-2 sm:w-auto">
       <button
         type="button"
         onClick={() => setIsDialogOpen(true)}
         disabled={disabled || isPending}
-        className="inline-flex items-center gap-2 rounded-2xl border border-red-400/30 px-4 py-3 text-sm font-semibold text-red-200 transition hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-60"
+        className="inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-red-500/40 px-4 py-2 text-sm font-semibold text-red-200 transition hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
       >
-        <XCircle aria-hidden="true" className="h-4 w-4" />
         <span>{isPending ? "Cancelando..." : "Cancelar agendamento"}</span>
       </button>
 
@@ -62,13 +60,7 @@ export default function CancelAppointmentButton({
           aria-labelledby="cancel-appointment-title"
         >
           <div className="w-full max-w-[420px] rounded-2xl border border-white/10 bg-[#080d18] p-5 text-white shadow-2xl shadow-black/60 sm:p-6">
-            <div className="flex justify-center">
-              <span className="flex h-12 w-12 items-center justify-center rounded-full bg-red-500/15 text-red-200 ring-1 ring-red-300/20">
-                <XCircle aria-hidden="true" className="h-6 w-6" />
-              </span>
-            </div>
-
-            <div className="mt-4 text-center">
+            <div className="text-center">
               <h2
                 id="cancel-appointment-title"
                 className="text-xl font-semibold"
@@ -85,7 +77,7 @@ export default function CancelAppointmentButton({
                 type="button"
                 onClick={() => setIsDialogOpen(false)}
                 disabled={isPending}
-                className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-xl border border-white/10 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Voltar
               </button>
@@ -93,7 +85,7 @@ export default function CancelAppointmentButton({
                 type="button"
                 onClick={cancelAppointment}
                 disabled={isPending}
-                className="rounded-xl bg-red-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-red-400 disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-xl border border-red-500/40 px-4 py-3 text-sm font-semibold text-red-200 transition hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isPending ? "Cancelando..." : "Cancelar"}
               </button>

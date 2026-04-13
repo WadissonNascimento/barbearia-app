@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
+import { PremiumDatePicker, PremiumSelect } from "@/components/ui/PremiumFilters";
 
 type Period = "week" | "month" | "custom";
 
@@ -63,64 +64,36 @@ export default function FinancePeriodFilters({
   return (
     <form className="grid gap-4 md:grid-cols-3">
       <div>
-        <label className="mb-2 block text-sm text-zinc-300">Periodo do painel</label>
-        <select
+        <PremiumSelect
           name="period"
+          label="Periodo do painel"
           value={filters.period}
-          onChange={(event) => {
+          options={[
+            { value: "week", label: "Esta semana" },
+            { value: "month", label: "Este mes" },
+            { value: "custom", label: "Escolher datas" },
+          ]}
+          onChange={(value) => {
             const next = {
               ...filters,
-              period: event.target.value as Period,
+              period: value as Period,
             };
 
             setFilters(next);
             applyFilters(next);
           }}
-          className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 outline-none"
-        >
-          <option value="week">Esta semana</option>
-          <option value="month">Este mes</option>
-          <option value="custom">Escolher datas</option>
-        </select>
-      </div>
-
-      <div>
-        <label className="mb-2 block text-sm text-zinc-300">Data inicial</label>
-        <input
-          type="date"
-          name="start"
-          value={filters.start}
-          onChange={(event) => {
-            const next = {
-              ...filters,
-              start: event.target.value,
-            };
-
-            setFilters(next);
-            if (next.period === "custom") {
-              applyFilters(next);
-            }
-          }}
-          readOnly={filters.period !== "custom"}
-          aria-disabled={filters.period !== "custom"}
-          className={`w-full rounded-xl border px-4 py-3 outline-none ${
-            filters.period === "custom"
-              ? "border-zinc-700 bg-zinc-950"
-              : "cursor-not-allowed border-zinc-800 bg-zinc-900 text-zinc-500"
-          }`}
         />
       </div>
 
       <div>
-        <label className="mb-2 block text-sm text-zinc-300">Data final</label>
-        <input
-          type="date"
-          name="end"
-          value={filters.end}
-          onChange={(event) => {
+        <PremiumDatePicker
+          name="start"
+          label="Data inicial"
+          value={filters.start}
+          onChange={(value) => {
             const next = {
               ...filters,
-              end: event.target.value,
+              start: value,
             };
 
             setFilters(next);
@@ -128,13 +101,27 @@ export default function FinancePeriodFilters({
               applyFilters(next);
             }
           }}
-          readOnly={filters.period !== "custom"}
-          aria-disabled={filters.period !== "custom"}
-          className={`w-full rounded-xl border px-4 py-3 outline-none ${
-            filters.period === "custom"
-              ? "border-zinc-700 bg-zinc-950"
-              : "cursor-not-allowed border-zinc-800 bg-zinc-900 text-zinc-500"
-          }`}
+          disabled={filters.period !== "custom"}
+        />
+      </div>
+
+      <div>
+        <PremiumDatePicker
+          name="end"
+          label="Data final"
+          value={filters.end}
+          onChange={(value) => {
+            const next = {
+              ...filters,
+              end: value,
+            };
+
+            setFilters(next);
+            if (next.period === "custom") {
+              applyFilters(next);
+            }
+          }}
+          disabled={filters.period !== "custom"}
         />
       </div>
 

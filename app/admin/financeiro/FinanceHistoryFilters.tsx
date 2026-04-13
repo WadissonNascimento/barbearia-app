@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
+import { PremiumDatePicker } from "@/components/ui/PremiumFilters";
 
 export default function FinanceHistoryFilters({
   historyStart,
@@ -46,40 +47,36 @@ export default function FinanceHistoryFilters({
   return (
     <form className="flex flex-wrap items-end gap-3">
       <div>
-        <label className="mb-2 block text-xs text-zinc-400">De</label>
-        <input
-          type="date"
+        <PremiumDatePicker
           name="historyStart"
+          label="De"
           value={filters.historyStart}
-          onChange={(event) => {
+          onChange={(value) => {
             const next = {
               ...filters,
-              historyStart: event.target.value,
+              historyStart: value,
             };
 
             setFilters(next);
             applyFilters(next);
           }}
-          className="rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm outline-none"
         />
       </div>
 
       <div>
-        <label className="mb-2 block text-xs text-zinc-400">Ate</label>
-        <input
-          type="date"
+        <PremiumDatePicker
           name="historyEnd"
+          label="Ate"
           value={filters.historyEnd}
-          onChange={(event) => {
+          onChange={(value) => {
             const next = {
               ...filters,
-              historyEnd: event.target.value,
+              historyEnd: value,
             };
 
             setFilters(next);
             applyFilters(next);
           }}
-          className="rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm outline-none"
         />
       </div>
 

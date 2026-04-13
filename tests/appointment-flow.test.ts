@@ -208,6 +208,74 @@ test("customer cannot create overlapping appointment for the same barber", async
   }
 });
 
+test("customer cannot create concurrent appointment for the same barber and time", async () => {
+  const { db, runId, cleanup } = await setupDatabase();
+
+  try {
+    const { barber, customer, corte } = await createFixture(db, runId);
+    const secondCustomer = await db.user.create({
+      data: {
+        name: "Segundo Cliente Teste",
+        email: `segundo-cliente-${runId}@test.local`,
+        role: "CUSTOMER",
+        isActive: true,
+      },
+    });
+    const nextDay = getNextBusinessDay();
+    const date = nextDay.toISOString().slice(0, 10);
+
+    const results = await Promise.allSettled([
+      createCustomerAppointment(
+        {
+          customerId: customer.id,
+          barberId: barber.id,
+          serviceIds: [corte.id],
+          date,
+          time: "16:00",
+        },
+        db
+      ),
+      createCustomerAppointment(
+        {
+          customerId: secondCustomer.id,
+          barberId: barber.id,
+          serviceIds: [corte.id],
+          date,
+          time: "16:00",
+        },
+        db
+      ),
+    ]);
+
+    const fulfilled = results.filter((result) => result.status === "fulfilled");
+    const rejected = results.filter((result) => result.status === "rejected");
+
+    assert.equal(fulfilled.length, 1);
+    assert.equal(rejected.length, 1);
+    assert.equal(
+      rejected[0].reason instanceof AppointmentMutationError &&
+        rejected[0].reason.message ===
+          "Esse horario acabou de ser reservado. Escolha outro horario.",
+      true
+    );
+
+    const appointmentCount = await db.appointment.count({
+      where: {
+        barberId: barber.id,
+        date: new Date(`${date}T16:00:00`),
+        status: {
+          in: ["PENDING", "CONFIRMED"],
+        },
+      },
+    });
+
+    assert.equal(appointmentCount, 1);
+  } finally {
+    await cleanup();
+    await db.$disconnect();
+  }
+});
+
 test("booking availability respects recurring blocks and ignores cancelled appointments", async () => {
   const { db, runId, cleanup } = await setupDatabase();
 

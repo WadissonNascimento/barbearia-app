@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { PremiumDatePicker, PremiumSelect } from "@/components/ui/PremiumFilters";
 
 export default function OrdersFilters({
   dateFrom,
@@ -39,42 +40,31 @@ export default function OrdersFilters({
       }}
     >
       <div>
-        <label className="mb-2 block text-sm text-zinc-300">De</label>
-        <input
-          type="date"
+        <PremiumDatePicker
           name="dateFrom"
+          label="De"
           value={filters.dateFrom}
-          onChange={(event) => setFilters((current) => ({ ...current, dateFrom: event.target.value }))}
-          className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 outline-none"
+          onChange={(value) => setFilters((current) => ({ ...current, dateFrom: value }))}
         />
       </div>
 
       <div>
-        <label className="mb-2 block text-sm text-zinc-300">Ate</label>
-        <input
-          type="date"
+        <PremiumDatePicker
           name="dateTo"
+          label="Ate"
           value={filters.dateTo}
-          onChange={(event) => setFilters((current) => ({ ...current, dateTo: event.target.value }))}
-          className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 outline-none"
+          onChange={(value) => setFilters((current) => ({ ...current, dateTo: value }))}
         />
       </div>
 
       <div>
-        <label className="mb-2 block text-sm text-zinc-300">Status</label>
-        <select
+        <PremiumSelect
           name="status"
+          label="Status"
           value={filters.status}
-          onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))}
-          className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 outline-none"
-        >
-          <option value="">Todos</option>
-          {statusOptions.map((orderStatus) => (
-            <option key={orderStatus.value} value={orderStatus.value}>
-              {orderStatus.label}
-            </option>
-          ))}
-        </select>
+          onChange={(value) => setFilters((current) => ({ ...current, status: value }))}
+          options={[{ value: "", label: "Todos" }, ...statusOptions]}
+        />
       </div>
 
       <div className="flex items-end">

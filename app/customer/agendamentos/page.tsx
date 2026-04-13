@@ -131,10 +131,11 @@ export default async function CustomerAppointmentsPage() {
                     />
                   </div>
 
-                  <div className="mt-5 grid gap-3 border-t border-white/10 pt-4 sm:flex sm:flex-wrap sm:items-center">
+                  <div className="mt-5 border-t border-white/10 pt-4">
+                    <div className="grid gap-3 sm:grid-cols-3">
                     <Link
                       href="/agendar"
-                      className="inline-flex items-center justify-center rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/5"
+                      className="inline-flex min-h-11 items-center justify-center rounded-xl border border-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/5"
                     >
                       Remarcar horario
                     </Link>
@@ -143,7 +144,7 @@ export default async function CustomerAppointmentsPage() {
                         href={whatsappHref}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex items-center justify-center gap-2.5 rounded-2xl bg-[#25D366] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#1ebe5d]"
+                        className="inline-flex min-h-11 items-center justify-center gap-2.5 rounded-xl bg-[#25D366] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#1ebe5d]"
                       >
                         <WhatsAppIcon />
                         <span>Falar no WhatsApp</span>
@@ -152,7 +153,8 @@ export default async function CustomerAppointmentsPage() {
                     {canCancel ? (
                       <CancelAppointmentButton appointmentId={appointment.id} />
                     ) : null}
-                    <p className="flex items-center text-xs leading-5 text-zinc-500 sm:ml-1">
+                    </div>
+                    <p className="mt-3 text-xs leading-5 text-zinc-500">
                       Chegue 5 minutos antes do horario marcado.
                     </p>
                   </div>

@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
+import { PremiumDatePicker, PremiumSelect } from "@/components/ui/PremiumFilters";
 
 type ComparisonControlsProps = {
   period: string;
@@ -25,18 +26,23 @@ export default function ComparisonControls({
   compareEnd,
 }: ComparisonControlsProps) {
   const [mode, setMode] = useState<"auto" | "custom">(compareMode);
+  const [compareDates, setCompareDates] = useState({ compareStart, compareEnd });
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  function submitCustomComparison(form: HTMLFormElement) {
-    const formData = new FormData(form);
-    const nextParams = new URLSearchParams(searchParams.toString());
+  useEffect(() => {
+    setMode(compareMode);
+    setCompareDates({ compareStart, compareEnd });
+  }, [compareEnd, compareMode, compareStart]);
 
-    const nextCompareMode = String(formData.get("compareMode") || "auto");
-    const nextCompareStart = String(formData.get("compareStart") || "");
-    const nextCompareEnd = String(formData.get("compareEnd") || "");
+  function submitCustomComparison(
+    nextCompareMode: string,
+    nextCompareStart: string,
+    nextCompareEnd: string
+  ) {
+    const nextParams = new URLSearchParams(searchParams.toString());
 
     nextParams.set("compareMode", nextCompareMode);
     if (nextCompareStart) {
@@ -66,59 +72,45 @@ export default function ComparisonControls({
 
       <div className="grid gap-4 md:grid-cols-3">
         <div>
-          <label className="mb-2 block text-sm text-zinc-300">Comparar com</label>
-          <select
+          <PremiumSelect
             name="compareMode"
+            label="Comparar com"
             value={mode}
-            onChange={(event) => setMode(event.target.value as "auto" | "custom")}
-            className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 outline-none"
-          >
-            <option value="auto">Periodo anterior automatico</option>
-            <option value="custom">Datas escolhidas por mim</option>
-          </select>
-        </div>
-
-        <div>
-          <label className="mb-2 block text-sm text-zinc-300">Data inicial da comparacao</label>
-          <input
-            type="date"
-            name="compareStart"
-            defaultValue={compareStart}
-            readOnly={mode !== "custom"}
-            aria-disabled={mode !== "custom"}
-            onChange={(event) => {
-              if (mode !== "custom") return;
-              const form = event.currentTarget.form;
-              if (!form) return;
-              submitCustomComparison(form);
-            }}
-            className={`w-full rounded-xl border px-4 py-3 outline-none transition ${
-              mode === "custom"
-                ? "border-zinc-700 bg-zinc-950 hover:border-zinc-500"
-                : "cursor-not-allowed border-zinc-800 bg-zinc-900/80 text-zinc-500"
-            }`}
+            options={[
+              { value: "auto", label: "Periodo anterior automatico" },
+              { value: "custom", label: "Datas escolhidas por mim" },
+            ]}
+            onChange={(value) => setMode(value as "auto" | "custom")}
           />
         </div>
 
         <div>
-          <label className="mb-2 block text-sm text-zinc-300">Data final da comparacao</label>
-          <input
-            type="date"
-            name="compareEnd"
-            defaultValue={compareEnd}
-            readOnly={mode !== "custom"}
-            aria-disabled={mode !== "custom"}
-            onChange={(event) => {
+          <PremiumDatePicker
+            name="compareStart"
+            label="Data inicial da comparacao"
+            value={compareDates.compareStart}
+            disabled={mode !== "custom"}
+            onChange={(value) => {
               if (mode !== "custom") return;
-              const form = event.currentTarget.form;
-              if (!form) return;
-              submitCustomComparison(form);
+              const next = { ...compareDates, compareStart: value };
+              setCompareDates(next);
+              submitCustomComparison(mode, next.compareStart, next.compareEnd);
             }}
-            className={`w-full rounded-xl border px-4 py-3 outline-none transition ${
-              mode === "custom"
-                ? "border-zinc-700 bg-zinc-950 hover:border-zinc-500"
-                : "cursor-not-allowed border-zinc-800 bg-zinc-900/80 text-zinc-500"
-            }`}
+          />
+        </div>
+
+        <div>
+          <PremiumDatePicker
+            name="compareEnd"
+            label="Data final da comparacao"
+            value={compareDates.compareEnd}
+            disabled={mode !== "custom"}
+            onChange={(value) => {
+              if (mode !== "custom") return;
+              const next = { ...compareDates, compareEnd: value };
+              setCompareDates(next);
+              submitCustomComparison(mode, next.compareStart, next.compareEnd);
+            }}
           />
         </div>
       </div>

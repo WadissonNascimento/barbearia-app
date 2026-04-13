@@ -20,7 +20,7 @@ function getExpirationDate() {
 
 const MAX_CODE_ATTEMPTS = 5;
 const PASSWORD_REQUIREMENT_MESSAGE =
-  "A senha deve ter no minimo 7 caracteres, pelo menos 1 letra e 1 caractere especial.";
+  "A senha deve ter no minimo 7 caracteres, uma letra e um caractere especial.";
 
 function isValidRegistrationPassword(password: string) {
   return (

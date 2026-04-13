@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import FeedbackMessage from "@/components/FeedbackMessage";
 import { formatCurrency } from "@/lib/utils";
@@ -130,6 +130,7 @@ export default function BookingClient({
   const selectedPrice = selectedServices.reduce((sum, service) => sum + service.price, 0);
   const totalSlots =
     periodSlots.morning.length + periodSlots.afternoon.length + periodSlots.night.length;
+  const hasBookingConflict = bookingError?.toLowerCase().includes("reservado") ?? false;
 
   useEffect(() => {
     setSelectedServiceIds((current) =>
@@ -142,21 +143,19 @@ export default function BookingClient({
     setBookingDetails(null);
   }, [visibleServices]);
 
-  useEffect(() => {
-    if (!selectedBarberId || selectedServiceIds.length === 0 || !selectedDate) {
-      setPeriodSlots({
-        morning: [],
-        afternoon: [],
-        night: [],
-      });
-      setIsDayAvailable(false);
-      setAvailabilityError(null);
-      return;
-    }
+  const loadAvailability = useCallback(
+    async (signal?: AbortSignal) => {
+      if (!selectedBarberId || selectedServiceIds.length === 0 || !selectedDate) {
+        setPeriodSlots({
+          morning: [],
+          afternoon: [],
+          night: [],
+        });
+        setIsDayAvailable(false);
+        setAvailabilityError(null);
+        return;
+      }
 
-    const controller = new AbortController();
-
-    async function loadAvailability() {
       setAvailabilityLoading(true);
       setAvailabilityError(null);
 
@@ -171,7 +170,7 @@ export default function BookingClient({
             serviceIds: selectedServiceIds,
             date: selectedDate,
           }),
-          signal: controller.signal,
+          signal,
         });
 
         const data = (await response.json()) as {
@@ -193,7 +192,7 @@ export default function BookingClient({
           }
         );
       } catch (error) {
-        if (controller.signal.aborted) {
+        if (signal?.aborted) {
           return;
         }
 
@@ -209,16 +208,31 @@ export default function BookingClient({
             : "Nao foi possivel carregar os horarios."
         );
       } finally {
-        if (!controller.signal.aborted) {
+        if (!signal?.aborted) {
           setAvailabilityLoading(false);
         }
       }
+    },
+    [selectedBarberId, selectedDate, selectedServiceIds]
+  );
+
+  useEffect(() => {
+    if (!selectedBarberId || selectedServiceIds.length === 0 || !selectedDate) {
+      setPeriodSlots({
+        morning: [],
+        afternoon: [],
+        night: [],
+      });
+      setIsDayAvailable(false);
+      setAvailabilityError(null);
+      return;
     }
 
-    void loadAvailability();
+    const controller = new AbortController();
+    void loadAvailability(controller.signal);
 
     return () => controller.abort();
-  }, [selectedBarberId, selectedDate, selectedServiceIds]);
+  }, [loadAvailability, selectedBarberId, selectedDate, selectedServiceIds]);
 
   function toggleService(serviceId: string) {
     setSelectedServiceIds((current) =>
@@ -307,6 +321,7 @@ export default function BookingClient({
           ? error.message
           : "Nao foi possivel concluir o agendamento."
       );
+      void loadAvailability();
     } finally {
       setBookingSlot(null);
     }
@@ -520,7 +535,10 @@ export default function BookingClient({
 
           <div className="space-y-3">
             <FeedbackMessage message={availabilityError} tone="error" />
-            <FeedbackMessage message={bookingError} tone="error" />
+            <FeedbackMessage
+              message={hasBookingConflict ? null : bookingError}
+              tone="error"
+            />
           </div>
 
           {!selectedBarberId || selectedServiceIds.length === 0 || !selectedDate ? (
@@ -579,6 +597,20 @@ export default function BookingClient({
         <BookingSuccessDialog
           details={bookingDetails}
           whatsappNumber={whatsappNumber}
+        />
+      ) : null}
+
+      {bookingError ? (
+        <BookingErrorDialog
+          message={
+            hasBookingConflict
+              ? "Esse horario acabou de ser reservado por outro cliente. Escolha outro horario livre para continuar."
+              : bookingError
+          }
+          onReschedule={() => {
+            setBookingError(null);
+            void loadAvailability();
+          }}
         />
       ) : null}
 
@@ -698,6 +730,66 @@ function BarberProfileStrip({
         </p>
       </div>
     </div>
+  );
+}
+
+function BookingErrorDialog({
+  message,
+  onReschedule,
+}: {
+  message: string;
+  onReschedule: () => void;
+}) {
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  if (!isMounted) {
+    return null;
+  }
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/75 px-4 py-6 backdrop-blur-md"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="booking-error-title"
+    >
+      <div className="max-h-[calc(100svh-32px)] w-full max-w-md overflow-y-auto rounded-2xl border border-red-500/30 bg-[#050b16] p-5 text-white shadow-[0_24px_80px_rgba(0,0,0,0.6)]">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-red-500/35 bg-red-500/10 text-red-200">
+          <span className="text-sm font-bold">!</span>
+        </div>
+
+        <div className="mt-4 text-center">
+          <p className="text-xs uppercase tracking-[0.22em] text-red-200">
+            Nao foi possivel agendar
+          </p>
+          <h2 id="booking-error-title" className="mt-2 text-2xl font-bold">
+            Horario indisponivel
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-zinc-400">{message}</p>
+        </div>
+
+        <div className="mt-5 grid gap-3">
+          <button
+            type="button"
+            onClick={onReschedule}
+            className="inline-flex min-h-12 items-center justify-center rounded-xl bg-[var(--brand)] px-4 py-3 text-sm font-semibold text-white transition hover:brightness-110"
+          >
+            Reagendar em outro horario
+          </button>
+          <Link
+            href="/"
+            className="inline-flex min-h-12 items-center justify-center rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+          >
+            Sair para tela inicial
+          </Link>
+        </div>
+      </div>
+    </div>,
+    document.body
   );
 }
 

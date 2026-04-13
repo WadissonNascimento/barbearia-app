@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition, type ReactNode } from "react";
 import FeedbackMessage from "@/components/FeedbackMessage";
 import EmptyState from "@/components/ui/EmptyState";
+import { PremiumDatePicker, PremiumSelect } from "@/components/ui/PremiumFilters";
 import SectionCard from "@/components/ui/SectionCard";
 import {
   createCouponAction,
@@ -101,13 +102,14 @@ export default function AdminCouponsClient({
 
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Tipo">
-                <select
+                <PremiumSelect
                   name="discountType"
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 outline-none"
-                >
-                  <option value="PERCENT">Percentual</option>
-                  <option value="FIXED">Valor fixo</option>
-                </select>
+                  defaultValue="PERCENT"
+                  options={[
+                    { value: "PERCENT", label: "Percentual" },
+                    { value: "FIXED", label: "Valor fixo" },
+                  ]}
+                />
               </Field>
 
               <Field label="Valor do desconto">
@@ -156,10 +158,8 @@ export default function AdminCouponsClient({
               </Field>
 
               <Field label="Valido ate">
-                <input
-                  type="date"
+                <PremiumDatePicker
                   name="expiresAt"
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 outline-none"
                 />
               </Field>
             </div>
@@ -256,14 +256,14 @@ export default function AdminCouponsClient({
                   </Field>
 
                   <Field label="Tipo">
-                    <select
+                    <PremiumSelect
                       name="discountType"
                       defaultValue={coupon.discountType}
-                      className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 outline-none"
-                    >
-                      <option value="PERCENT">Percentual</option>
-                      <option value="FIXED">Valor fixo</option>
-                    </select>
+                      options={[
+                        { value: "PERCENT", label: "Percentual" },
+                        { value: "FIXED", label: "Valor fixo" },
+                      ]}
+                    />
                   </Field>
 
                   <Field label="Valor do desconto">
@@ -311,15 +311,13 @@ export default function AdminCouponsClient({
                   </Field>
 
                   <Field label="Valido ate">
-                    <input
-                      type="date"
+                    <PremiumDatePicker
                       name="expiresAt"
                       defaultValue={
                         coupon.expiresAt
                           ? new Date(coupon.expiresAt).toISOString().slice(0, 10)
                           : ""
                       }
-                      className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 outline-none"
                     />
                   </Field>
 
