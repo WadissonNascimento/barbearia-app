@@ -78,9 +78,10 @@ export default function RegisterForm() {
           <input
             id="phone"
             name="phone"
-            type="text"
+            type="tel"
+            required
             className={inputClassName}
-            placeholder="Opcional"
+            placeholder="Seu telefone"
           />
         </div>
 
@@ -96,8 +97,11 @@ export default function RegisterForm() {
             name="password"
             type="password"
             required
+            minLength={7}
+            pattern="^(?=.*[A-Za-z])(?=.*[^A-Za-z0-9]).{7,}$"
             className={passwordInputClassName}
-            placeholder="Minimo 6 caracteres"
+            placeholder="Minimo 7 caracteres, 1 letra e 1 especial"
+            title="Use no minimo 7 caracteres, com pelo menos 1 letra e 1 caractere especial."
           />
         </div>
 

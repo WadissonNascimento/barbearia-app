@@ -19,6 +19,16 @@ function getExpirationDate() {
 }
 
 const MAX_CODE_ATTEMPTS = 5;
+const PASSWORD_REQUIREMENT_MESSAGE =
+  "A senha deve ter no minimo 7 caracteres, pelo menos 1 letra e 1 caractere especial.";
+
+function isValidRegistrationPassword(password: string) {
+  return (
+    password.length >= 7 &&
+    /[A-Za-z]/.test(password) &&
+    /[^A-Za-z0-9]/.test(password)
+  );
+}
 
 function buildPendingRegistrationRedirect(email: string, code?: string) {
   const devCodeQuery =
@@ -49,16 +59,16 @@ export async function registerCustomerAction(
   const password = String(formData.get("password") || "").trim();
   const phone = String(formData.get("phone") || "").trim();
 
-  if (!name || !email || !password) {
+  if (!name || !email || !phone || !password) {
     return {
-      error: "Nome, e-mail e senha sao obrigatorios.",
+      error: "Nome, e-mail, telefone e senha sao obrigatorios.",
       success: null,
     };
   }
 
-  if (password.length < 6) {
+  if (!isValidRegistrationPassword(password)) {
     return {
-      error: "A senha deve ter pelo menos 6 caracteres.",
+      error: PASSWORD_REQUIREMENT_MESSAGE,
       success: null,
     };
   }
@@ -99,7 +109,7 @@ export async function registerCustomerAction(
       data: {
         name,
         email,
-        phone: phone || null,
+        phone,
         passwordHash: hashedPassword,
         role: "CUSTOMER",
         code,
