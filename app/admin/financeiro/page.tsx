@@ -158,18 +158,21 @@ export default async function AdminFinanceiroPage({
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-4">
-              <p className="text-sm text-zinc-400">Entrou no caixa</p>
-              <p className="mt-2 text-2xl font-semibold text-white">
+              <p className="text-sm text-zinc-400">Total faturado</p>
+              <p className="mt-2 text-xs uppercase tracking-[0.18em] text-zinc-500">
+                Periodo atual
+              </p>
+              <p className="mt-1 text-2xl font-semibold text-white">
                 {formatCurrency(data.comparison.current.grossRevenue)}
               </p>
               <p className="mt-2 text-sm text-zinc-500">
-                Periodo comparado: {formatCurrency(data.comparison.previous.grossRevenue)}
+                Periodo anterior: {formatCurrency(data.comparison.previous.grossRevenue)}
               </p>
               <p className={`mt-1 text-sm ${getDeltaTone(
                 data.comparison.current.grossRevenue,
                 data.comparison.previous.grossRevenue
               )}`}>
-                Mudanca: {formatDelta(
+                Diferenca: {formatDelta(
                   data.comparison.current.grossRevenue,
                   data.comparison.previous.grossRevenue
                 )}
@@ -178,17 +181,20 @@ export default async function AdminFinanceiroPage({
 
             <div className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-4">
               <p className="text-sm text-zinc-400">Fica para a barbearia</p>
-              <p className="mt-2 text-2xl font-semibold text-emerald-300">
+              <p className="mt-2 text-xs uppercase tracking-[0.18em] text-zinc-500">
+                Periodo atual
+              </p>
+              <p className="mt-1 text-2xl font-semibold text-emerald-300">
                 {formatCurrency(data.comparison.current.shopNetRevenue)}
               </p>
               <p className="mt-2 text-sm text-zinc-500">
-                Periodo comparado: {formatCurrency(data.comparison.previous.shopNetRevenue)}
+                Periodo anterior: {formatCurrency(data.comparison.previous.shopNetRevenue)}
               </p>
               <p className={`mt-1 text-sm ${getDeltaTone(
                 data.comparison.current.shopNetRevenue,
                 data.comparison.previous.shopNetRevenue
               )}`}>
-                Mudanca: {formatDelta(
+                Diferenca: {formatDelta(
                   data.comparison.current.shopNetRevenue,
                   data.comparison.previous.shopNetRevenue
                 )}
@@ -197,17 +203,20 @@ export default async function AdminFinanceiroPage({
 
             <div className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-4">
               <p className="text-sm text-zinc-400">A pagar aos barbeiros</p>
-              <p className="mt-2 text-2xl font-semibold text-amber-300">
+              <p className="mt-2 text-xs uppercase tracking-[0.18em] text-zinc-500">
+                Periodo atual
+              </p>
+              <p className="mt-1 text-2xl font-semibold text-amber-300">
                 {formatCurrency(data.comparison.current.commissionTotal)}
               </p>
               <p className="mt-2 text-sm text-zinc-500">
-                Periodo comparado: {formatCurrency(data.comparison.previous.commissionTotal)}
+                Periodo anterior: {formatCurrency(data.comparison.previous.commissionTotal)}
               </p>
               <p className={`mt-1 text-sm ${getDeltaTone(
                 data.comparison.current.commissionTotal,
                 data.comparison.previous.commissionTotal
               )}`}>
-                Mudanca: {formatDelta(
+                Diferenca: {formatDelta(
                   data.comparison.current.commissionTotal,
                   data.comparison.previous.commissionTotal
                 )}
@@ -216,17 +225,20 @@ export default async function AdminFinanceiroPage({
 
             <div className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-4">
               <p className="text-sm text-zinc-400">Atendimentos feitos</p>
-              <p className="mt-2 text-2xl font-semibold text-white">
+              <p className="mt-2 text-xs uppercase tracking-[0.18em] text-zinc-500">
+                Periodo atual
+              </p>
+              <p className="mt-1 text-2xl font-semibold text-white">
                 {data.comparison.current.appointmentsCount}
               </p>
               <p className="mt-2 text-sm text-zinc-500">
-                Periodo comparado: {data.comparison.previous.appointmentsCount}
+                Periodo anterior: {data.comparison.previous.appointmentsCount}
               </p>
               <p className={`mt-1 text-sm ${getDeltaTone(
                 data.comparison.current.appointmentsCount,
                 data.comparison.previous.appointmentsCount
               )}`}>
-                Mudanca: {formatDelta(
+                Diferenca: {formatDelta(
                   data.comparison.current.appointmentsCount,
                   data.comparison.previous.appointmentsCount,
                   "number"
