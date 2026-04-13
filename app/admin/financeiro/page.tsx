@@ -70,10 +70,6 @@ export default async function AdminFinanceiroPage({
     ...data.analytics.dailySeries.map((item) => item.grossRevenue),
     1
   );
-  const maxWeekdayRevenue = Math.max(
-    ...data.analytics.weekdayPerformance.map((item) => item.grossRevenue),
-    1
-  );
   const maxServiceRevenue = Math.max(
     ...data.analytics.topServices.map((item) => item.grossRevenue),
     1
@@ -353,46 +349,7 @@ export default async function AdminFinanceiroPage({
         </SectionCard>
       </div>
 
-      <div className="mt-8 grid gap-8 xl:grid-cols-[0.82fr_1.18fr]">
-        <SectionCard
-          title="Dias mais fortes"
-          description="Quanto mais destacada a cor, maior foi o faturamento daquele dia."
-        >
-          {data.analytics.weekdayPerformance.length === 0 ? (
-            <EmptyState
-              title="Sem movimento semanal"
-              description="Quando houver faturamento no periodo, os dias mais fortes aparecerao aqui."
-            />
-          ) : (
-            <div className="grid gap-3 sm:grid-cols-2">
-              {data.analytics.weekdayPerformance.map((item) => {
-                const intensity = Math.max(
-                  0.18,
-                  item.grossRevenue / maxWeekdayRevenue
-                );
-
-                return (
-                  <div
-                    key={item.label}
-                    className="rounded-2xl border border-zinc-800 p-4"
-                    style={{
-                      backgroundColor: `rgba(56, 189, 248, ${intensity})`,
-                    }}
-                  >
-                    <p className="text-sm font-semibold capitalize text-white">{item.label}</p>
-                    <p className="mt-2 text-lg font-semibold text-white">
-                      {formatCurrency(item.grossRevenue)}
-                    </p>
-                    <p className="mt-1 text-sm text-white/80">
-                      {item.appointmentsCount} atendimento(s)
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </SectionCard>
-
+      <div className="mt-8 grid gap-8">
         <SectionCard
           title="Valores por barbeiro"
           description="Compare quanto cada profissional vendeu, quanto recebe e quanto fica para a barbearia."
