@@ -8,6 +8,7 @@ import {
   mutationSuccess,
   type MutationResult,
 } from "@/lib/mutationResult";
+import { enforceRateLimit, logSecurityEvent } from "@/lib/security";
 
 export async function cancelCustomerAppointmentAction(
   formData: FormData
@@ -15,6 +16,10 @@ export async function cancelCustomerAppointmentAction(
   const session = await auth();
 
   if (!session?.user?.id || session.user.role !== "CUSTOMER") {
+    logSecurityEvent("access_denied", {
+      action: "cancelCustomerAppointmentAction",
+      role: session?.user?.role || "anonymous",
+    });
     return mutationError("Entre como cliente para cancelar o agendamento.");
   }
 
@@ -36,6 +41,11 @@ export async function cancelCustomerAppointmentAction(
   });
 
   if (!appointment || appointment.customerId !== session.user.id) {
+    logSecurityEvent("idor_blocked", {
+      action: "cancelCustomerAppointmentAction",
+      userId: session.user.id,
+      appointmentId,
+    });
     return mutationError("Agendamento nao encontrado para sua conta.");
   }
 
@@ -75,7 +85,22 @@ export async function submitAppointmentReviewAction(
   const session = await auth();
 
   if (!session?.user?.id || session.user.role !== "CUSTOMER") {
+    logSecurityEvent("access_denied", {
+      action: "submitAppointmentReviewAction",
+      role: session?.user?.role || "anonymous",
+    });
     return mutationError("Entre como cliente para avaliar o atendimento.");
+  }
+
+  const rateLimit = await enforceRateLimit({
+    scope: "review:create",
+    identifier: session.user.id,
+    limit: 10,
+    windowMs: 60 * 60 * 1000,
+  });
+
+  if (!rateLimit.allowed) {
+    return mutationError("Muitas avaliacoes em pouco tempo. Aguarde e tente novamente.");
   }
 
   const appointmentId = String(formData.get("appointmentId") || "").trim();
@@ -107,6 +132,11 @@ export async function submitAppointmentReviewAction(
   });
 
   if (!appointment || appointment.customerId !== session.user.id) {
+    logSecurityEvent("idor_blocked", {
+      action: "submitAppointmentReviewAction",
+      userId: session.user.id,
+      appointmentId,
+    });
     return mutationError("Agendamento nao encontrado para sua conta.");
   }
 

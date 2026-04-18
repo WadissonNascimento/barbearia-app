@@ -116,14 +116,14 @@ export function AppointmentsSection({
   }) {
     const params = new URLSearchParams();
     const view = nextFilters.view || "day";
-    const status = nextFilters.status || "ALL";
+    const status = nextFilters.status || "ACTIVE";
     const date = nextFilters.date || "";
 
     if (view && view !== "day") {
       params.set("view", view);
     }
 
-    if (status && status !== "ALL") {
+    if (status && status !== "ACTIVE") {
       params.set("status", status);
     }
 
@@ -214,7 +214,8 @@ export function AppointmentsSection({
               label="Status"
               value={selectedStatus}
               options={[
-                { value: "ALL", label: "Todos os status" },
+                { value: "ACTIVE", label: "Fluxo do dia" },
+                { value: "ALL", label: "Historico completo" },
                 { value: "PENDING", label: "Pendente" },
                 { value: "CONFIRMED", label: "Confirmado" },
                 { value: "COMPLETED", label: "Concluido" },

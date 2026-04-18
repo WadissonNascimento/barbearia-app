@@ -4,6 +4,7 @@ import {
   getAdminAgendaReport,
   type AdminAgendaFilters,
 } from "@/lib/adminReports";
+import { enforceRateLimit, logSecurityEvent } from "@/lib/security";
 
 function getFilename() {
   const today = new Date().toISOString().slice(0, 10);
@@ -14,11 +15,29 @@ export async function GET(request: Request) {
   const session = await auth();
 
   if (!session?.user) {
+    logSecurityEvent("access_denied", { route: "/admin/agenda/export" });
     return new Response("Nao autenticado.", { status: 401 });
   }
 
   if (session.user.role !== "ADMIN") {
+    logSecurityEvent("access_denied", {
+      route: "/admin/agenda/export",
+      role: session.user.role,
+    });
     return new Response("Nao autorizado.", { status: 403 });
+  }
+
+  const rateLimit = await enforceRateLimit({
+    scope: "admin:agenda_export",
+    identifier: session.user.id,
+    limit: 20,
+    windowMs: 15 * 60 * 1000,
+  });
+
+  if (!rateLimit.allowed) {
+    return new Response("Muitas exportacoes. Aguarde e tente novamente.", {
+      status: 429,
+    });
   }
 
   const { searchParams } = new URL(request.url);

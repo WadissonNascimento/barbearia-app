@@ -9,6 +9,27 @@ const ALLOWED_TYPES = new Map([
   ["image/webp", "webp"],
 ]);
 
+function hasAllowedImageSignature(buffer: Buffer, type: string) {
+  if (type === "image/jpeg") {
+    return buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
+  }
+
+  if (type === "image/png") {
+    return buffer.subarray(0, 8).equals(
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+    );
+  }
+
+  if (type === "image/webp") {
+    return (
+      buffer.subarray(0, 4).toString("ascii") === "RIFF" &&
+      buffer.subarray(8, 12).toString("ascii") === "WEBP"
+    );
+  }
+
+  return false;
+}
+
 export async function saveBarberPhoto(file: File) {
   if (!file || file.size === 0) {
     throw new Error("Escolha uma foto para enviar.");
@@ -30,6 +51,10 @@ export async function saveBarberPhoto(file: File) {
   const filename = `${randomUUID()}.${extension}`;
   const absolutePath = path.join(uploadDir, filename);
   const buffer = Buffer.from(await file.arrayBuffer());
+
+  if (!hasAllowedImageSignature(buffer, file.type)) {
+    throw new Error("O arquivo enviado nao parece ser uma imagem valida.");
+  }
 
   await writeFile(absolutePath, buffer);
 

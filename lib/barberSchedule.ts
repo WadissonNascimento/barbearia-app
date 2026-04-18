@@ -85,5 +85,9 @@ export function getAppointmentServicesOccupiedDuration(
 
 export function isActiveAppointmentStatus(status: string) {
   const normalized = normalizeAppointmentStatus(status);
-  return normalized !== "CANCELLED" && normalized !== "NO_SHOW";
+  return (
+    normalized !== "CANCELLED" &&
+    normalized !== "COMPLETED" &&
+    normalized !== "NO_SHOW"
+  );
 }

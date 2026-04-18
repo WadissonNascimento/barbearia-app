@@ -79,6 +79,7 @@ export default async function BarberPage() {
         <BarberTodayDashboard
           barberName={session.user.name || "Barbeiro"}
           summary={dashboard.summary}
+          walkInServices={dashboard.walkInServices}
         />
 
         <div className="mt-6">

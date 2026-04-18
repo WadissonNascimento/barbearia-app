@@ -1,10 +1,12 @@
 "use client";
 
+/* eslint-disable @next/next/no-img-element */
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import FeedbackMessage from "@/components/FeedbackMessage";
 import StatusBadge from "@/components/ui/StatusBadge";
+import { prepareProductImageUpload } from "@/lib/productImageClient";
 import {
   deleteProduct,
   toggleProduct,
@@ -46,6 +48,11 @@ export default function ProductCardClient({
 }: ProductCardClientProps) {
   const router = useRouter();
   const [isActive, setIsActive] = useState(product.isActive);
+  const [imageUrl, setImageUrl] = useState(product.imageUrl);
+  const [imageUpload, setImageUpload] = useState<{
+    file: File;
+    previewUrl: string;
+  } | null>(null);
   const [feedback, setFeedback] = useState<{
     message: string | null;
     tone: "success" | "error" | "info";
@@ -53,9 +60,17 @@ export default function ProductCardClient({
   const [pendingKey, setPendingKey] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
+  useEffect(() => {
+    return () => {
+      if (imageUpload?.previewUrl) {
+        URL.revokeObjectURL(imageUpload.previewUrl);
+      }
+    };
+  }, [imageUpload]);
+
   function runAction(
     key: string,
-    action: () => Promise<void | { message?: string; deleted?: boolean }>,
+    action: () => Promise<void | { message?: string; deleted?: boolean; imageUrl?: string }>,
     successMessage: string | (() => string)
   ) {
     setPendingKey(key);
@@ -65,6 +80,18 @@ export default function ProductCardClient({
         const actionResult = await action();
         if (actionResult?.deleted === false) {
           setIsActive(false);
+          setImageUrl(null);
+        }
+
+        if (actionResult?.imageUrl) {
+          setImageUrl(actionResult.imageUrl);
+          setImageUpload((current) => {
+            if (current?.previewUrl) {
+              URL.revokeObjectURL(current.previewUrl);
+            }
+
+            return null;
+          });
         }
 
         setFeedback({
@@ -98,9 +125,15 @@ export default function ProductCardClient({
 
       <div className="grid gap-4 md:grid-cols-[120px_1fr_auto]">
         <div className="relative h-28 overflow-hidden rounded-xl bg-zinc-950">
-          {product.imageUrl ? (
+          {imageUpload?.previewUrl ? (
+            <img
+              src={imageUpload.previewUrl}
+              alt={product.name}
+              className="h-full w-full object-cover"
+            />
+          ) : imageUrl ? (
             <Image
-              src={product.imageUrl}
+              src={imageUrl}
               alt={product.name}
               fill
               className="object-cover"
@@ -140,6 +173,16 @@ export default function ProductCardClient({
               event.preventDefault();
               const formData = new FormData(event.currentTarget);
 
+              if (!imageUpload) {
+                setFeedback({
+                  message: "Selecione uma nova imagem para enviar.",
+                  tone: "error",
+                });
+                return;
+              }
+
+              formData.set("image", imageUpload.file);
+
               runAction(
                 "image",
                 () => updateProductImage(formData),
@@ -151,7 +194,37 @@ export default function ProductCardClient({
             <input
               name="image"
               type="file"
-              accept="image/*"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={async (event) => {
+                const file = event.currentTarget.files?.[0];
+
+                if (!file) {
+                  setImageUpload(null);
+                  return;
+                }
+
+                try {
+                  const prepared = await prepareProductImageUpload(file);
+                  setImageUpload((current) => {
+                    if (current?.previewUrl) {
+                      URL.revokeObjectURL(current.previewUrl);
+                    }
+
+                    return prepared;
+                  });
+                  setFeedback({ message: null, tone: "success" });
+                } catch (error) {
+                  event.currentTarget.value = "";
+                  setImageUpload(null);
+                  setFeedback({
+                    message:
+                      error instanceof Error
+                        ? error.message
+                        : "Nao foi possivel preparar a imagem.",
+                    tone: "error",
+                  });
+                }
+              }}
               className="max-w-full text-sm text-zinc-300 file:mr-3 file:rounded-lg file:border-0 file:bg-sky-600 file:px-3 file:py-2 file:text-white"
             />
             <button

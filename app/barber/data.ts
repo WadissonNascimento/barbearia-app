@@ -55,7 +55,8 @@ export async function getBarberDashboardData(
   const selectedDate = getSelectedDate(filters);
   const { start: selectedStart, end: selectedEnd } = getDayRange(selectedDate);
   const { start: todayStart, end: todayEnd } = getDayRange(new Date());
-  const status = normalizeAppointmentStatus(filters.status || "ALL");
+  const rawStatus = filters.status || "ACTIVE";
+  const status = rawStatus === "ACTIVE" ? "ACTIVE" : normalizeAppointmentStatus(rawStatus);
 
   const appointmentWhere =
     view === "all"
@@ -80,7 +81,11 @@ export async function getBarberDashboardData(
   const appointments = await prisma.appointment.findMany({
     where: {
       ...appointmentWhere,
-      ...(status !== "ALL" ? { status } : {}),
+      ...(status === "ACTIVE"
+        ? { status: { notIn: ["CANCELLED"] } }
+        : status !== "ALL"
+        ? { status }
+        : {}),
     },
     include: {
       customer: true,
@@ -102,6 +107,7 @@ export async function getBarberDashboardData(
     recurringBlocks,
     clientNotes,
     allBarberAppointments,
+    walkInServices,
   ] =
     await Promise.all([
       prisma.appointment.count({
@@ -110,6 +116,9 @@ export async function getBarberDashboardData(
           date: {
             gte: todayStart,
             lte: todayEnd,
+          },
+          status: {
+            notIn: ["CANCELLED"],
           },
         },
       }),
@@ -131,6 +140,9 @@ export async function getBarberDashboardData(
           date: {
             gte: todayStart,
             lte: todayEnd,
+          },
+          status: {
+            notIn: ["CANCELLED"],
           },
         },
         include: {
@@ -209,6 +221,20 @@ export async function getBarberDashboardData(
         orderBy: {
           date: "desc",
         },
+      }),
+      prisma.service.findMany({
+        where: {
+          OR: [{ barberId }, { barberId: null }],
+          isActive: true,
+        },
+        orderBy: [
+          {
+            barberId: "desc",
+          },
+          {
+            name: "asc",
+          },
+        ],
       }),
     ]);
 
@@ -333,6 +359,7 @@ export async function getBarberDashboardData(
       status: normalizeAppointmentStatus(appointment.status),
     })),
     services,
+    walkInServices,
     availabilities,
     blocks,
     recurringBlocks,

@@ -102,6 +102,10 @@ async function createCustomerAppointmentInTransaction(
     );
   }
 
+  if (serviceIds.length > 8 || (notes && notes.length > 400)) {
+    throw new AppointmentMutationError("Os dados do agendamento excedem o tamanho permitido.");
+  }
+
   const barber = await db.user.findFirst({
     where: {
       id: barberId,

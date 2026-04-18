@@ -8,6 +8,7 @@ import {
   createCustomerAppointment,
 } from "@/lib/appointmentMutations";
 import type { FormFeedbackState } from "@/lib/formFeedbackState";
+import { enforceRateLimit } from "@/lib/security";
 
 export async function createAppointmentAction(
   _prevState: FormFeedbackState,
@@ -21,6 +22,20 @@ export async function createAppointmentAction(
 
   if (session.user.role !== "CUSTOMER") {
     redirect("/painel");
+  }
+
+  const rateLimit = await enforceRateLimit({
+    scope: "booking:create_action",
+    identifier: session.user.id,
+    limit: 12,
+    windowMs: 60 * 60 * 1000,
+  });
+
+  if (!rateLimit.allowed) {
+    return {
+      error: "Muitos agendamentos em pouco tempo. Tente novamente mais tarde.",
+      success: null,
+    };
   }
 
   const barberId = String(formData.get("barberId") || "");

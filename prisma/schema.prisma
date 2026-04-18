@@ -275,6 +275,7 @@ model Product {
   description String?
   price       Float
   imageUrl    String?
+  imagePath   String?  @map("image_path")
   stock       Int      @default(0)
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())

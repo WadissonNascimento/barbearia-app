@@ -9,6 +9,7 @@ import {
   sendPasswordResetCodeEmail,
 } from "@/lib/mail";
 import { prisma } from "@/lib/prisma";
+import { enforceRateLimit, logSecurityEvent } from "@/lib/security";
 
 function generateCode() {
   return randomInt(100000, 1000000).toString();
@@ -35,6 +36,20 @@ export async function requestPasswordResetAction(
     };
   }
 
+  const rateLimit = await enforceRateLimit({
+    scope: "password_reset:start",
+    identifier: email,
+    limit: 5,
+    windowMs: 60 * 60 * 1000,
+  });
+
+  if (!rateLimit.allowed) {
+    return {
+      error: "Muitas solicitacoes de recuperacao. Aguarde e tente novamente.",
+      success: null,
+    };
+  }
+
   const user = await prisma.user.findUnique({
     where: { email },
   });
@@ -53,7 +68,8 @@ export async function requestPasswordResetAction(
     }
 
     return {
-      error: "Nao encontramos uma conta com esse e-mail.",
+      error:
+        "Se existir uma conta ativa com esse e-mail, enviaremos um codigo de recuperacao.",
       success: null,
     };
   }
@@ -82,10 +98,7 @@ export async function requestPasswordResetAction(
     });
   } catch (error) {
     return {
-      error:
-        error instanceof Error
-          ? error.message
-          : "Nao foi possivel enviar o codigo de recuperacao.",
+      error: "Nao foi possivel enviar o codigo de recuperacao.",
       success: null,
     };
   }
@@ -108,6 +121,20 @@ export async function resendPasswordResetCodeAction(
   if (!email) {
     return {
       error: "Informe o e-mail para reenviar o codigo.",
+      success: null,
+    };
+  }
+
+  const rateLimit = await enforceRateLimit({
+    scope: "password_reset:resend",
+    identifier: email,
+    limit: 3,
+    windowMs: 30 * 60 * 1000,
+  });
+
+  if (!rateLimit.allowed) {
+    return {
+      error: "Muitos reenvios solicitados. Aguarde e tente novamente.",
       success: null,
     };
   }
@@ -147,10 +174,7 @@ export async function resendPasswordResetCodeAction(
     });
   } catch (error) {
     return {
-      error:
-        error instanceof Error
-          ? error.message
-          : "Nao foi possivel reenviar o codigo.",
+      error: "Nao foi possivel reenviar o codigo.",
       success: null,
     };
   }
@@ -177,6 +201,20 @@ export async function resetPasswordWithCodeAction(
   if (!email || !code || !password || !confirmPassword) {
     return {
       error: "Preencha e-mail, codigo e nova senha.",
+      success: null,
+    };
+  }
+
+  const rateLimit = await enforceRateLimit({
+    scope: "password_reset:verify",
+    identifier: email,
+    limit: 10,
+    windowMs: 15 * 60 * 1000,
+  });
+
+  if (!rateLimit.allowed) {
+    return {
+      error: "Muitas tentativas de verificacao. Aguarde e tente novamente.",
       success: null,
     };
   }
@@ -221,6 +259,7 @@ export async function resetPasswordWithCodeAction(
   }
 
   if (resetRequest.code !== code) {
+    logSecurityEvent("password_reset_code_failed", { email });
     await prisma.passwordResetRequest.update({
       where: { email },
       data: {

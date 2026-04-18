@@ -3,10 +3,28 @@ import { reserveInventoryForOrder } from "@/lib/orderInventory";
 import { prisma } from "@/lib/prisma";
 import { getMercadoPagoClient } from "@/lib/mercadopago";
 import { Payment } from "mercadopago";
+import {
+  enforceRateLimit,
+  rateLimitResponse,
+  readJsonWithLimit,
+} from "@/lib/security";
 
 export async function POST(request: Request) {
+  const rateLimit = await enforceRateLimit({
+    scope: "mercadopago:webhook",
+    limit: 120,
+    windowMs: 15 * 60 * 1000,
+  });
+
+  if (!rateLimit.allowed) {
+    return rateLimitResponse();
+  }
+
   try {
-    const body = await request.json().catch(() => null);
+    const body = await readJsonWithLimit<{ type?: string; data?: { id?: string } }>(
+      request,
+      16 * 1024
+    ).catch(() => null);
     const topic = new URL(request.url).searchParams.get("topic") || body?.type;
     const paymentId =
       new URL(request.url).searchParams.get("id") || body?.data?.id;
@@ -49,8 +67,9 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ ok: true });
   } catch (error) {
+    console.error("Erro no webhook Mercado Pago:", error);
     return NextResponse.json(
-      { ok: false, error: String(error) },
+      { ok: false },
       { status: 500 }
     );
   }

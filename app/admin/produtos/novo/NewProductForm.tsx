@@ -1,9 +1,11 @@
 "use client";
 
+/* eslint-disable @next/next/no-img-element */
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import FeedbackMessage from "@/components/FeedbackMessage";
 import { createProductFromForm } from "@/app/actions/productActions";
+import { prepareProductImageUpload } from "@/lib/productImageClient";
 
 export default function NewProductForm() {
   const router = useRouter();
@@ -11,7 +13,19 @@ export default function NewProductForm() {
     message: string | null;
     tone: "success" | "error" | "info";
   }>({ message: null, tone: "success" });
+  const [imageUpload, setImageUpload] = useState<{
+    file: File;
+    previewUrl: string;
+  } | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    return () => {
+      if (imageUpload?.previewUrl) {
+        URL.revokeObjectURL(imageUpload.previewUrl);
+      }
+    };
+  }, [imageUpload]);
 
   return (
     <form
@@ -23,6 +37,15 @@ export default function NewProductForm() {
 
         startTransition(async () => {
           try {
+            if (!imageUpload) {
+              setFeedback({
+                message: "Selecione uma imagem principal para o produto.",
+                tone: "error",
+              });
+              return;
+            }
+
+            formData.set("image", imageUpload.file);
             await createProductFromForm(formData);
             setFeedback({
               message: "Produto criado com sucesso. Abrindo a lista...",
@@ -84,12 +107,52 @@ export default function NewProductForm() {
         <input
           name="image"
           type="file"
-          accept="image/*"
+          accept="image/jpeg,image/png,image/webp"
+          onChange={async (event) => {
+            const file = event.currentTarget.files?.[0];
+
+            if (!file) {
+              setImageUpload(null);
+              return;
+            }
+
+            try {
+              const prepared = await prepareProductImageUpload(file);
+              setImageUpload((current) => {
+                if (current?.previewUrl) {
+                  URL.revokeObjectURL(current.previewUrl);
+                }
+
+                return prepared;
+              });
+              setFeedback({ message: null, tone: "success" });
+            } catch (error) {
+              event.currentTarget.value = "";
+              setImageUpload(null);
+              setFeedback({
+                message:
+                  error instanceof Error
+                    ? error.message
+                    : "Nao foi possivel preparar a imagem.",
+                tone: "error",
+              });
+            }
+          }}
           className="w-full text-sm text-zinc-300 file:mr-4 file:rounded-lg file:border-0 file:bg-sky-600 file:px-4 file:py-2 file:text-white"
+          required
         />
         <p className="mt-2 text-xs text-zinc-500">
-          Selecione uma imagem salva no seu celular ou computador.
+          JPG, PNG ou WEBP ate 2MB. A imagem sera otimizada antes do envio.
         </p>
+        {imageUpload ? (
+          <div className="relative mt-4 aspect-video overflow-hidden rounded-xl border border-white/10 bg-black/40">
+            <img
+              src={imageUpload.previewUrl}
+              alt="Preview do produto"
+              className="h-full w-full object-contain p-3"
+            />
+          </div>
+        ) : null}
       </div>
 
       <button

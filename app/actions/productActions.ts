@@ -4,7 +4,11 @@ import { auth } from "@/auth";
 import { registerStockMovement } from "@/lib/inventory";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
-import { normalizeProductImageUrl, saveProductImage } from "@/lib/productImages";
+import {
+  deleteProductImage,
+  normalizeProductImageUrl,
+  uploadProductImage,
+} from "@/lib/productImages";
 
 async function ensureProductAccess() {
   const session = await auth();
@@ -80,8 +84,9 @@ export async function createProductFromForm(formData: FormData) {
     throw new Error("Preencha nome, preco e estoque corretamente.");
   }
 
-  const imageUrl =
-    imageFile instanceof File ? await saveProductImage(imageFile) : null;
+  if (!(imageFile instanceof File) || imageFile.size === 0) {
+    throw new Error("Selecione uma imagem principal para o produto.");
+  }
 
   const product = await prisma.product.create({
     data: {
@@ -89,16 +94,33 @@ export async function createProductFromForm(formData: FormData) {
       description: description || null,
       price,
       stock,
-      imageUrl,
     },
   });
 
-  await registerStockMovement({
-    productId: product.id,
-    type: "IN",
-    quantity: stock,
-    reason: "Cadastro inicial do produto",
-  });
+  try {
+    const image = await uploadProductImage({
+      productId: product.id,
+      file: imageFile,
+    });
+
+    await prisma.product.update({
+      where: { id: product.id },
+      data: {
+        imageUrl: image.imageUrl,
+        imagePath: image.imagePath,
+      },
+    });
+
+    await registerStockMovement({
+      productId: product.id,
+      type: "IN",
+      quantity: stock,
+      reason: "Cadastro inicial do produto",
+    });
+  } catch (error) {
+    await prisma.product.delete({ where: { id: product.id } }).catch(() => undefined);
+    throw error;
+  }
 
   revalidateProductViews();
   return product;
@@ -171,14 +193,40 @@ export async function updateProductImage(formData: FormData) {
     throw new Error("Selecione uma imagem para enviar.");
   }
 
-  const imageUrl = await saveProductImage(imageFile);
-
-  await prisma.product.update({
+  const currentProduct = await prisma.product.findUnique({
     where: { id: productId },
-    data: { imageUrl },
+    select: {
+      id: true,
+      imagePath: true,
+    },
   });
 
+  if (!currentProduct) {
+    throw new Error("Produto nao encontrado.");
+  }
+
+  const image = await uploadProductImage({
+    productId: currentProduct.id,
+    file: imageFile,
+  });
+
+  try {
+    await prisma.product.update({
+      where: { id: productId },
+      data: {
+        imageUrl: image.imageUrl,
+        imagePath: image.imagePath,
+      },
+    });
+  } catch (error) {
+    await deleteProductImage(image.imagePath);
+    throw error;
+  }
+
+  await deleteProductImage(currentProduct.imagePath);
   revalidateProductViews();
+
+  return image;
 }
 
 export async function deleteProduct(id: string) {
@@ -189,6 +237,7 @@ export async function deleteProduct(id: string) {
     select: {
       id: true,
       isActive: true,
+      imagePath: true,
       _count: {
         select: {
           orderItems: true,
@@ -205,9 +254,14 @@ export async function deleteProduct(id: string) {
   if (product._count.orderItems > 0 || product._count.stockMovements > 0) {
     await prisma.product.update({
       where: { id },
-      data: { isActive: false },
+      data: {
+        isActive: false,
+        imageUrl: null,
+        imagePath: null,
+      },
     });
 
+    await deleteProductImage(product.imagePath);
     revalidateProductViews();
     return {
       deleted: false,
@@ -221,6 +275,7 @@ export async function deleteProduct(id: string) {
     where: { id },
   });
 
+  await deleteProductImage(product.imagePath);
   revalidateProductViews();
   return {
     deleted: true,

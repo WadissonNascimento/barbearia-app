@@ -9,6 +9,7 @@ import {
   sendVerificationCodeEmail,
 } from "@/lib/mail";
 import type { FormFeedbackState } from "@/lib/formFeedbackState";
+import { enforceRateLimit, logSecurityEvent } from "@/lib/security";
 
 function generateVerificationCode() {
   return randomInt(100000, 1000000).toString();
@@ -62,6 +63,20 @@ export async function registerCustomerAction(
   if (!name || !email || !phone || !password) {
     return {
       error: "Nome, e-mail, telefone e senha sao obrigatorios.",
+      success: null,
+    };
+  }
+
+  const rateLimit = await enforceRateLimit({
+    scope: "register:start",
+    identifier: email,
+    limit: 5,
+    windowMs: 60 * 60 * 1000,
+  });
+
+  if (!rateLimit.allowed) {
+    return {
+      error: "Muitas tentativas de cadastro. Aguarde e tente novamente.",
       success: null,
     };
   }
@@ -134,10 +149,7 @@ export async function registerCustomerAction(
     }
 
     return {
-      error:
-        error instanceof Error
-          ? error.message
-          : "Nao foi possivel enviar o codigo de verificacao.",
+      error: "Nao foi possivel enviar o codigo de verificacao.",
       success: null,
     };
   }
@@ -157,6 +169,20 @@ export async function verifyRegistrationCodeAction(
   if (!email || !code) {
     return {
       error: "Informe o e-mail e o codigo de verificacao.",
+      success: null,
+    };
+  }
+
+  const rateLimit = await enforceRateLimit({
+    scope: "register:verify",
+    identifier: email,
+    limit: 10,
+    windowMs: 15 * 60 * 1000,
+  });
+
+  if (!rateLimit.allowed) {
+    return {
+      error: "Muitas tentativas de verificacao. Aguarde e tente novamente.",
       success: null,
     };
   }
@@ -187,6 +213,7 @@ export async function verifyRegistrationCodeAction(
   }
 
   if (pending.code !== code) {
+    logSecurityEvent("registration_code_failed", { email });
     await prisma.pendingRegistration.update({
       where: { email },
       data: {
@@ -252,6 +279,20 @@ export async function resendRegistrationCodeAction(
     };
   }
 
+  const rateLimit = await enforceRateLimit({
+    scope: "register:resend",
+    identifier: email,
+    limit: 3,
+    windowMs: 30 * 60 * 1000,
+  });
+
+  if (!rateLimit.allowed) {
+    return {
+      error: "Muitos reenvios solicitados. Aguarde e tente novamente.",
+      success: null,
+    };
+  }
+
   const pending = await prisma.pendingRegistration.findUnique({
     where: { email },
   });
@@ -303,10 +344,7 @@ export async function resendRegistrationCodeAction(
     });
 
     return {
-      error:
-        error instanceof Error
-          ? error.message
-          : "Nao foi possivel reenviar o codigo.",
+      error: "Nao foi possivel reenviar o codigo.",
       success: null,
     };
   }

@@ -5,16 +5,37 @@ import {
   AppointmentMutationError,
   createCustomerAppointment,
 } from "@/lib/appointmentMutations";
+import {
+  enforceRateLimit,
+  logSecurityEvent,
+  rateLimitResponse,
+  readJsonWithLimit,
+} from "@/lib/security";
 
 export async function POST(request: Request) {
   const session = await auth();
 
   if (!session?.user?.id || session.user.role !== "CUSTOMER") {
+    logSecurityEvent("access_denied", {
+      route: "/api/booking/appointments",
+      role: session?.user?.role || "anonymous",
+    });
     return NextResponse.json({ message: "Nao autorizado." }, { status: 401 });
   }
 
+  const rateLimit = await enforceRateLimit({
+    scope: "booking:create",
+    identifier: session.user.id,
+    limit: 12,
+    windowMs: 60 * 60 * 1000,
+  });
+
+  if (!rateLimit.allowed) {
+    return rateLimitResponse("Muitos agendamentos em pouco tempo. Tente novamente mais tarde.");
+  }
+
   try {
-    const body = (await request.json()) as {
+    const body = (await readJsonWithLimit(request, 8 * 1024)) as {
       barberId?: string;
       serviceIds?: string[];
       date?: string;
@@ -50,6 +71,10 @@ export async function POST(request: Request) {
       appointmentId: appointment.id,
     });
   } catch (error) {
+    if (error instanceof Error && error.message === "PAYLOAD_TOO_LARGE") {
+      return NextResponse.json({ message: "Requisicao muito grande." }, { status: 413 });
+    }
+
     if (error instanceof AppointmentMutationError) {
       return NextResponse.json({ message: error.message }, { status: 400 });
     }

@@ -8,6 +8,7 @@ import {
 } from "@/lib/appointmentStatus";
 import {
   AppointmentMutationError,
+  createCustomerAppointment,
   updateAppointmentStatusForBarber,
 } from "@/lib/appointmentMutations";
 import {
@@ -17,6 +18,7 @@ import {
 } from "@/lib/mutationResult";
 import { deleteLocalBarberPhoto, saveBarberPhoto } from "@/lib/barberPhoto";
 import { prisma } from "@/lib/prisma";
+import { enforceRateLimit } from "@/lib/security";
 
 async function requireBarber() {
   const session = await auth();
@@ -63,6 +65,20 @@ function revalidateBarberViews() {
   revalidatePath("/customer");
   revalidatePath("/admin/agenda");
   revalidatePath("/admin/barbeiros");
+}
+
+function getTodayValue() {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function getMinutesFromTime(time: string) {
+  const [hours, minutes] = time.split(":").map(Number);
+  return hours * 60 + minutes;
 }
 
 export async function updateOwnBarberPhotoAction(
@@ -136,6 +152,114 @@ export async function updateAppointmentStatusAction(
 
   revalidateBarberViews();
   return mutationSuccess("Status do agendamento atualizado.");
+}
+
+export async function createWalkInAppointmentAction(
+  formData: FormData
+): Promise<MutationResult> {
+  const barber = await requireBarber();
+  const customerName = String(formData.get("customerName") || "").trim();
+  const customerPhone = String(formData.get("customerPhone") || "").trim();
+  const serviceId = String(formData.get("serviceId") || "").trim();
+  const startTime = String(formData.get("startTime") || "").trim();
+  const extraNotes = String(formData.get("notes") || "").trim();
+
+  const rateLimit = await enforceRateLimit({
+    scope: "barber:walk_in",
+    identifier: barber.id,
+    limit: 20,
+    windowMs: 60 * 60 * 1000,
+  });
+
+  if (!rateLimit.allowed) {
+    return mutationError("Muitos encaixes em pouco tempo. Aguarde e tente novamente.");
+  }
+
+  if (
+    !customerName ||
+    customerName.length > 80 ||
+    customerPhone.length > 30 ||
+    !serviceId ||
+    !/^\d{2}:\d{2}$/.test(startTime) ||
+    extraNotes.length > 200
+  ) {
+    return mutationError("Preencha cliente, servico e horario corretamente.");
+  }
+
+  const now = new Date();
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  const selectedMinutes = getMinutesFromTime(startTime);
+
+  if (selectedMinutes < nowMinutes || selectedMinutes > nowMinutes + 30) {
+    return mutationError("Encaixe precisa comecar agora ou nos proximos 30 minutos.");
+  }
+
+  const service = await prisma.service.findFirst({
+    where: {
+      id: serviceId,
+      OR: [{ barberId: barber.id }, { barberId: null }],
+      isActive: true,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (!service) {
+    return mutationError("Servico indisponivel para encaixe.");
+  }
+
+  const existingCustomer = customerPhone
+    ? await prisma.user.findFirst({
+        where: {
+          phone: customerPhone,
+          role: "CUSTOMER",
+        },
+        select: {
+          id: true,
+        },
+      })
+    : null;
+
+  const customer =
+    existingCustomer ||
+    (await prisma.user.create({
+      data: {
+        name: customerName,
+        phone: customerPhone || null,
+        role: "CUSTOMER",
+        isActive: true,
+      },
+      select: {
+        id: true,
+      },
+    }));
+
+  try {
+    const appointment = await createCustomerAppointment({
+      customerId: customer.id,
+      barberId: barber.id,
+      serviceIds: [service.id],
+      date: getTodayValue(),
+      time: startTime,
+      notes: `Encaixe${extraNotes ? ` - ${extraNotes}` : ""}`,
+      now: new Date(now.getTime() - 60 * 1000),
+    });
+
+    await prisma.appointment.update({
+      where: { id: appointment.id },
+      data: { status: "CONFIRMED" },
+    });
+  } catch (error) {
+    if (error instanceof AppointmentMutationError) {
+      return mutationError(error.message);
+    }
+
+    throw error;
+  }
+
+  revalidateBarberViews();
+  return mutationSuccess("Encaixe criado e confirmado na agenda.");
 }
 
 export async function createBarberServiceAction(

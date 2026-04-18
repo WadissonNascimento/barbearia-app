@@ -8,27 +8,50 @@ import {
   getCheckoutProducts,
 } from "@/lib/checkout";
 import { getPreferenceClient } from "@/lib/mercadopago";
+import {
+  enforceRateLimit,
+  rateLimitResponse,
+  readJsonWithLimit,
+} from "@/lib/security";
 
 const schema = z.object({
-  customerName: z.string().min(2),
-  customerEmail: z.string().email(),
-  customerPhone: z.string().min(8),
-  customerAddress: z.string().min(8),
-  shippingZipCode: z.string().min(8),
-  couponCode: z.string().optional().nullable(),
+  customerName: z.string().trim().min(2).max(80),
+  customerEmail: z.string().trim().toLowerCase().email().max(160),
+  customerPhone: z.string().trim().min(8).max(30),
+  customerAddress: z.string().trim().min(8).max(240),
+  shippingZipCode: z.string().trim().min(8).max(12),
+  couponCode: z.string().trim().max(40).optional().nullable(),
   items: z
     .array(
       z.object({
-        productId: z.string(),
-        quantity: z.number().int().positive(),
+        productId: z.string().trim().min(1).max(80),
+        quantity: z.number().int().positive().max(20),
       })
     )
-    .min(1),
-});
+    .min(1)
+    .max(30),
+}).strict();
 
 export async function POST(request: Request) {
+  if (process.env.ENABLE_ONLINE_CHECKOUT !== "true") {
+    return NextResponse.json(
+      { message: "Checkout online temporariamente desativado." },
+      { status: 403 }
+    );
+  }
+
+  const rateLimit = await enforceRateLimit({
+    scope: "checkout:create",
+    limit: 20,
+    windowMs: 60 * 60 * 1000,
+  });
+
+  if (!rateLimit.allowed) {
+    return rateLimitResponse("Muitas tentativas de checkout. Tente novamente mais tarde.");
+  }
+
   try {
-    const body = await request.json();
+    const body = await readJsonWithLimit(request, 24 * 1024);
     const parsed = schema.parse(body);
 
     const dbProducts = await getCheckoutProducts(parsed.items);
@@ -191,6 +214,9 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
+    const isPayloadTooLarge =
+      error instanceof Error && error.message === "PAYLOAD_TOO_LARGE";
+
     if (error instanceof ZodError) {
       return NextResponse.json(
         { message: "Confira os dados de entrega e tente novamente." },
@@ -201,10 +227,11 @@ export async function POST(request: Request) {
     console.error("Erro ao criar checkout Mercado Pago:", error);
     return NextResponse.json(
       {
-        message:
-          error instanceof Error ? error.message : "Erro ao criar checkout.",
+        message: isPayloadTooLarge
+          ? "Requisicao muito grande."
+          : "Erro ao criar checkout.",
       },
-      { status: 500 }
+      { status: isPayloadTooLarge ? 413 : 500 }
     );
   }
 }

@@ -20,6 +20,7 @@ import {
 import { formatCurrency } from "@/lib/utils";
 import { updateAppointmentStatusAction } from "../actions";
 import type { getBarberDashboardData } from "../data";
+import WalkInAppointmentCard from "./WalkInAppointmentCard";
 
 type BarberDashboardData = Awaited<ReturnType<typeof getBarberDashboardData>>;
 type DashboardAppointment = BarberDashboardData["summary"]["todayAppointments"][number];
@@ -50,9 +51,11 @@ function formatTodayLabel() {
 export default function BarberTodayDashboard({
   barberName,
   summary,
+  walkInServices,
 }: {
   barberName: string;
   summary: BarberDashboardData["summary"];
+  walkInServices: BarberDashboardData["walkInServices"];
 }) {
   const router = useRouter();
   const [appointments, setAppointments] = useState(summary.todayAppointments);
@@ -79,6 +82,7 @@ export default function BarberTodayDashboard({
       (appointment) =>
         new Date(appointment.date).getTime() >= Date.now()
     ) || visibleAppointments[0] || null;
+  const nextAppointmentDate = nextAppointment ? new Date(nextAppointment.date) : null;
   const visibleUpcomingAppointments = upcomingAppointments.slice(0, 3);
 
   function updateStatus(appointment: DashboardAppointment, status: string) {
@@ -141,7 +145,7 @@ export default function BarberTodayDashboard({
               Agenda
             </QuickLink>
             <QuickLink href="/barber/disponibilidade" icon={<Clock3 />}>
-              Pausar
+              Disponibidade
             </QuickLink>
             <QuickLink href="/barber/clientes" icon={<Users />}>
               Clientes
@@ -294,6 +298,11 @@ export default function BarberTodayDashboard({
         </div>
 
         <aside className="min-w-0 space-y-5">
+          <WalkInAppointmentCard
+            services={walkInServices}
+            nextAppointmentDate={nextAppointmentDate}
+          />
+
           <div className="min-w-0 overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.04] p-4 backdrop-blur sm:p-5">
             <h2 className="text-xl font-semibold text-white">Proximos agendamentos</h2>
             <p className="mt-1 text-sm text-zinc-400">
