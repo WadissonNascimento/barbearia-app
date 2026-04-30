@@ -1,6 +1,6 @@
 import sharp from "sharp";
 
-const OUTPUT_IMAGE_SIZE = 679;
+const OUTPUT_IMAGE_SIZE = 800;
 const TARGET_PRODUCT_FILL = 0.94;
 const REMOVE_BG_ENDPOINT = "https://api.remove.bg/v1.0/removebg";
 
@@ -13,8 +13,12 @@ const OUTPUT_BACKGROUND = {
 
 export async function processProductImageBuffer(
   inputBuffer: Buffer,
-  mimeType: string
+  mimeType: string,
+  options?: {
+    outputFormat?: "webp" | "jpeg" | "png";
+  }
 ) {
+  const outputFormat = options?.outputFormat ?? "webp";
   const backgroundRemoved = await removeBackgroundIfConfigured(
     inputBuffer,
     mimeType
@@ -39,22 +43,31 @@ export async function processProductImageBuffer(
     .png()
     .toBuffer();
 
-  const outputBuffer = await sharp({
+  const canvas = sharp({
     create: {
       width: OUTPUT_IMAGE_SIZE,
       height: OUTPUT_IMAGE_SIZE,
       channels: 4,
       background: OUTPUT_BACKGROUND,
     },
-  })
-    .composite([{ input: foreground, gravity: "center" }])
-    .webp({ quality: 86 })
-    .toBuffer();
+  }).composite([{ input: foreground, gravity: "center" }]);
+
+  const outputBuffer =
+    outputFormat === "png"
+      ? await canvas.png({ compressionLevel: 9 }).toBuffer()
+      : outputFormat === "jpeg"
+        ? await canvas.jpeg({ quality: 90 }).toBuffer()
+        : await canvas.webp({ quality: 86 }).toBuffer();
 
   return {
     buffer: outputBuffer,
-    mimeType: "image/webp",
-    extension: "webp",
+    mimeType:
+      outputFormat === "png"
+        ? "image/png"
+        : outputFormat === "jpeg"
+          ? "image/jpeg"
+          : "image/webp",
+    extension: outputFormat === "jpeg" ? "jpg" : outputFormat,
     size: OUTPUT_IMAGE_SIZE,
     backgroundRemoved: backgroundRemoved.backgroundRemoved,
   };
@@ -78,9 +91,10 @@ async function removeBackgroundIfConfigured(
   formData.append("size", "auto");
   formData.append("crop", "true");
   formData.append("format", "png");
+  const bodyBytes = new Uint8Array(inputBuffer);
   formData.append(
     "image_file",
-    new Blob([inputBuffer], { type: mimeType }),
+    new Blob([bodyBytes], { type: mimeType }),
     "product-image"
   );
 

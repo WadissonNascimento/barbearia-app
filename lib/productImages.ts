@@ -107,7 +107,7 @@ export async function uploadProductImage({
       "Content-Type": processed.mimeType,
       "x-upsert": "false",
     },
-    body: processed.buffer,
+    body: new Uint8Array(processed.buffer),
   });
 
   if (!response.ok) {

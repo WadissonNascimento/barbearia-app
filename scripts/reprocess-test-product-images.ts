@@ -18,6 +18,13 @@ const MIME_BY_EXTENSION: Record<string, string> = {
   ".webp": "image/webp",
 };
 
+const OUTPUT_FORMAT_BY_EXTENSION: Record<string, "jpeg" | "png" | "webp"> = {
+  ".jpg": "jpeg",
+  ".jpeg": "jpeg",
+  ".png": "png",
+  ".webp": "webp",
+};
+
 async function main() {
   const entries = await fs.readdir(DIRECTORY, { withFileTypes: true });
 
@@ -35,7 +42,10 @@ async function main() {
 
     const absolutePath = path.join(DIRECTORY, entry.name);
     const inputBuffer = await fs.readFile(absolutePath);
-    const processed = await processProductImageBuffer(inputBuffer, mimeType);
+    const outputFormat = OUTPUT_FORMAT_BY_EXTENSION[extension];
+    const processed = await processProductImageBuffer(inputBuffer, mimeType, {
+      outputFormat,
+    });
 
     await fs.writeFile(absolutePath, processed.buffer);
     console.log(

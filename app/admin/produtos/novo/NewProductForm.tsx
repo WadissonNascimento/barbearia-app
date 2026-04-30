@@ -143,7 +143,7 @@ export default function NewProductForm() {
         />
         <p className="mt-2 text-xs text-zinc-500">
           JPG, PNG ou WEBP ate 2MB. O sistema remove bordas vazias, centraliza o produto
-          e padroniza em 679x679 antes do envio.
+          e padroniza em 800x800 antes do envio.
         </p>
         {imageUpload ? (
           <div className="relative mt-4 aspect-square overflow-hidden rounded-xl border border-white/10 bg-[#edf1f7]">
