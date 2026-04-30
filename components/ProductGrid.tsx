@@ -20,14 +20,29 @@ export function ProductGrid({
   products: Product[];
   whatsappNumber: string;
 }) {
+  const clampStyle = {
+    display: "-webkit-box",
+    WebkitBoxOrient: "vertical" as const,
+    overflow: "hidden",
+  };
+
+  const getShortDescription = (description: string | null) => {
+    const cleaned = (description ?? "Produto sem descricao.")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    if (cleaned.length <= 42) {
+      return cleaned;
+    }
+
+    return `${cleaned.slice(0, 39).trimEnd()}...`;
+  };
+
   return (
     <div className="space-y-8">
       <div className="rounded-lg border border-white/10 bg-white/[0.04] px-5 py-4">
         <div>
-          <p className="text-xs uppercase tracking-[0.22em] text-sky-300">
-            Arsenal
-          </p>
-          <h2 className="mt-1 text-2xl font-semibold text-white">
+          <h2 className="text-2xl font-semibold text-white">
             Catalogo disponivel
           </h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-400">
@@ -36,16 +51,16 @@ export function ProductGrid({
         </div>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-2 gap-2.5 sm:gap-4 md:grid-cols-2 xl:grid-cols-3">
         {products.map((product) => (
           <div
             key={product.id}
-            className="group overflow-hidden rounded-lg border border-white/10 bg-white/[0.04] shadow-[0_20px_60px_rgba(0,0,0,0.28)] transition hover:border-sky-400/30 hover:bg-white/[0.06]"
+            className="group overflow-hidden rounded-[14px] border border-white/10 bg-[#111622] shadow-[0_16px_36px_rgba(0,0,0,0.24)] transition hover:border-sky-400/20"
           >
-            <div className="relative h-64 border-b border-white/10 bg-black/10">
-              <div className="absolute left-4 top-4 z-10 flex flex-wrap gap-2">
+            <div className="relative aspect-square overflow-hidden border-b border-white/10 bg-[#edf1f7]">
+              <div className="absolute left-2 top-2 z-10 flex flex-wrap gap-2 sm:left-4 sm:top-4">
                 {product.stock <= 3 ? (
-                  <span className="rounded-full border border-amber-300/30 bg-amber-500/15 px-3 py-1 text-xs font-semibold text-amber-100">
+                  <span className="rounded-full border border-amber-300/25 bg-amber-500/90 px-2 py-1 text-[9px] font-semibold text-white sm:px-3 sm:text-xs">
                     Consultar estoque
                   </span>
                 ) : null}
@@ -56,40 +71,41 @@ export function ProductGrid({
                   alt={product.name}
                   fill
                   sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 33vw"
-                  className="object-contain p-6 transition duration-300 group-hover:scale-105"
+                  className="object-contain transition duration-300 group-hover:scale-[1.02]"
                 />
               ) : (
-                <div className="flex h-full items-center justify-center text-zinc-500">
+                <div className="flex h-full items-center justify-center px-4 text-center text-sm text-zinc-500">
                   Sem imagem
                 </div>
               )}
             </div>
 
-            <div className="p-5">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h3 className="text-xl font-semibold text-white">
-                    {product.name}
-                  </h3>
-                  <p className="mt-2 text-sm text-zinc-400">
-                    {product.description || "Produto sem descricao."}
-                  </p>
-                </div>
-                <span className="rounded-full border border-[var(--brand)]/30 bg-[var(--brand-muted)] px-3 py-1 text-xs font-medium text-[var(--brand-strong)]">
-                  {product.stock > 0 ? "Disponivel" : "Sob consulta"}
-                </span>
+            <div className="p-3 sm:p-4">
+              <div>
+                <h3
+                  className="min-h-[3.9rem] text-[15px] font-semibold leading-6 text-white sm:min-h-[4rem] sm:text-lg"
+                  style={{ ...clampStyle, WebkitLineClamp: 2 }}
+                >
+                  {product.name}
+                </h3>
+                <p
+                  className="mt-1.5 min-h-[2.9rem] text-[12px] leading-5 text-zinc-400 sm:min-h-[3.2rem] sm:text-sm"
+                  style={{ ...clampStyle, WebkitLineClamp: 2 }}
+                >
+                  {getShortDescription(product.description)}
+                </p>
               </div>
 
-              <div className="mt-5">
-                <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">
+              <div className="mt-3 sm:mt-4">
+                <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500 sm:text-xs">
                   Preco
                 </p>
-                <p className="mt-1 text-2xl font-bold text-white">
+                <p className="mt-1 text-[18px] font-bold text-white sm:text-2xl">
                   {formatCurrency(product.price)}
                 </p>
               </div>
 
-              <div className="mt-5">
+              <div className="mt-3 sm:mt-4">
                 {whatsappNumber ? (
                   <a
                     href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(
@@ -97,7 +113,7 @@ export function ProductGrid({
                     )}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-[var(--brand)] px-4 py-3 text-sm font-semibold text-white transition hover:brightness-110"
+                    className="inline-flex min-h-11 w-full items-center justify-center rounded-[10px] bg-[var(--brand)] px-3 py-3 text-center text-[12px] font-semibold leading-5 text-white transition hover:brightness-110 sm:px-4 sm:text-sm"
                   >
                     Entrar em contato com o vendedor
                   </a>

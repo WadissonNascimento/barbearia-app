@@ -3,5 +3,13 @@ export function normalizeProductImageUrl(imageUrl: string | null | undefined) {
     return null;
   }
 
-  return imageUrl.startsWith("/") ? imageUrl : null;
+  if (imageUrl.startsWith("/")) {
+    return imageUrl;
+  }
+
+  if (/^https?:\/\//i.test(imageUrl)) {
+    return imageUrl;
+  }
+
+  return null;
 }

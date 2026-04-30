@@ -120,7 +120,7 @@ export default function HomeClient({
                 href="/produtos"
                 className="rounded-lg border border-white/10 bg-white/[0.04] px-6 py-3 text-center text-white transition hover:bg-white/[0.08] active:scale-[0.98]"
               >
-                Ver arsenal
+                Arsenal do barbeiro
               </Link>
             </div>
 
@@ -173,7 +173,7 @@ export default function HomeClient({
                   <button
                     type="button"
                     onClick={prevSlide}
-                    className="absolute left-2 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-lg border border-white/10 bg-black/35 text-lg text-white backdrop-blur-xl transition hover:bg-[var(--brand-muted)] sm:left-4 sm:h-12 sm:w-12 sm:text-xl"
+                    className="absolute left-2 top-1/2 z-20 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-lg border border-white/10 bg-black/35 text-lg text-white backdrop-blur-xl transition hover:bg-[var(--brand-muted)] sm:left-4 sm:flex sm:h-12 sm:w-12 sm:text-xl"
                     aria-label="Foto anterior"
                   >
                     {"<"}
@@ -182,7 +182,7 @@ export default function HomeClient({
                   <button
                     type="button"
                     onClick={nextSlide}
-                    className="absolute right-2 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-lg border border-white/10 bg-black/35 text-lg text-white backdrop-blur-xl transition hover:bg-[var(--brand-muted)] sm:right-4 sm:h-12 sm:w-12 sm:text-xl"
+                    className="absolute right-2 top-1/2 z-20 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-lg border border-white/10 bg-black/35 text-lg text-white backdrop-blur-xl transition hover:bg-[var(--brand-muted)] sm:right-4 sm:flex sm:h-12 sm:w-12 sm:text-xl"
                     aria-label="Proxima foto"
                   >
                     {">"}
@@ -218,9 +218,6 @@ export default function HomeClient({
                 </div>
               </div>
 
-              <p className="mt-3 text-center text-[11px] text-zinc-400 sm:text-sm">
-                No celular, arraste para os lados para ver os cortes.
-              </p>
             </div>
           </div>
         </div>

@@ -142,14 +142,16 @@ export default function NewProductForm() {
           required
         />
         <p className="mt-2 text-xs text-zinc-500">
-          JPG, PNG ou WEBP ate 2MB. A imagem sera otimizada antes do envio.
+          JPG, PNG ou WEBP ate 2MB. O sistema remove bordas vazias, centraliza o produto
+          e padroniza em 679x679 antes do envio.
         </p>
         {imageUpload ? (
-          <div className="relative mt-4 aspect-video overflow-hidden rounded-xl border border-white/10 bg-black/40">
+          <div className="relative mt-4 aspect-square overflow-hidden rounded-xl border border-white/10 bg-[#edf1f7]">
+            <div className="pointer-events-none absolute inset-[5%] rounded-[18px] border border-black/8" />
             <img
               src={imageUpload.previewUrl}
               alt="Preview do produto"
-              className="h-full w-full object-contain p-3"
+              className="h-full w-full object-contain"
             />
           </div>
         ) : null}

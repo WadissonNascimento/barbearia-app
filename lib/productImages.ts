@@ -1,5 +1,6 @@
 import { randomUUID } from "crypto";
 import { normalizeProductImageUrl } from "@/lib/productImageUrl";
+import { processProductImageBuffer } from "@/lib/productImagePipeline";
 
 const MAX_PRODUCT_IMAGE_SIZE = 2 * 1024 * 1024;
 const ALLOWED_IMAGE_TYPES = new Set([
@@ -90,7 +91,8 @@ export async function uploadProductImage({
 }) {
   const { supabaseUrl, serviceRoleKey, bucket } = getStorageConfig();
   const buffer = await getValidatedImageBuffer(file);
-  const extension = file.type === "image/webp" ? "webp" : file.type === "image/png" ? "png" : "jpg";
+  const processed = await processProductImageBuffer(buffer, file.type);
+  const extension = processed.extension;
   const imagePath = `products/${productId}/${randomUUID()}.${extension}`;
   const uploadUrl = `${supabaseUrl}/storage/v1/object/${bucket}/${encodeStoragePath(
     imagePath
@@ -102,10 +104,10 @@ export async function uploadProductImage({
       apikey: serviceRoleKey,
       Authorization: `Bearer ${serviceRoleKey}`,
       "Cache-Control": "31536000",
-      "Content-Type": file.type,
+      "Content-Type": processed.mimeType,
       "x-upsert": "false",
     },
-    body: buffer,
+    body: processed.buffer,
   });
 
   if (!response.ok) {
