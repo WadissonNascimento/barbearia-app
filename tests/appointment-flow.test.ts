@@ -3,6 +3,7 @@ import test from "node:test";
 import { PrismaClient } from "@prisma/client";
 import {
   AppointmentMutationError,
+  cancelAppointmentByCustomer,
   createCustomerAppointment,
   updateAppointmentStatusForBarber,
 } from "@/lib/appointmentMutations";
@@ -27,6 +28,38 @@ async function setupDatabase() {
     db,
     runId,
     async cleanup() {
+      await db.stockMovement.deleteMany({
+        where: {
+          product: {
+            name: {
+              contains: runId,
+            },
+          },
+        },
+      });
+      await db.extraStockMovement.deleteMany({
+        where: {
+          extraProduct: {
+            name: {
+              contains: runId,
+            },
+          },
+        },
+      });
+      await db.product.deleteMany({
+        where: {
+          name: {
+            contains: runId,
+          },
+        },
+      });
+      await db.extraProduct.deleteMany({
+        where: {
+          name: {
+            contains: runId,
+          },
+        },
+      });
       await db.service.deleteMany({
         where: {
           name: {
@@ -102,7 +135,27 @@ async function createFixture(db: PrismaClient, suffix: string) {
     },
   });
 
-  return { barber, customer, corte, barba };
+  const pomada = await db.extraProduct.create({
+    data: {
+      name: `Pomada Teste ${suffix}`,
+      category: "SHELF",
+      price: 25,
+      stock: 4,
+      isActive: true,
+    },
+  });
+
+  const bebida = await db.extraProduct.create({
+    data: {
+      name: `Bebida Teste ${suffix}`,
+      category: "BEVERAGE",
+      price: 8,
+      stock: 6,
+      isActive: true,
+    },
+  });
+
+  return { barber, customer, corte, barba, pomada, bebida };
 }
 
 test("customer can book and conclude an appointment", async () => {
@@ -324,6 +377,72 @@ test("booking availability respects recurring blocks and ignores cancelled appoi
     assert.equal(availability.periodSlots.afternoon.includes("13:00"), false);
     assert.equal(availability.periodSlots.afternoon.includes("13:10"), false);
     assert.equal(availability.periodSlots.afternoon.includes("15:00"), true);
+  } finally {
+    await cleanup();
+    await db.$disconnect();
+  }
+});
+
+test("customer can reserve extras and stock returns on cancellation", async () => {
+  const { db, runId, cleanup } = await setupDatabase();
+
+  try {
+    const { barber, customer, corte, pomada, bebida } = await createFixture(db, runId);
+    const nextDay = getNextBusinessDay();
+    const date = nextDay.toISOString().slice(0, 10);
+
+    const appointment = await createCustomerAppointment(
+      {
+        customerId: customer.id,
+        barberId: barber.id,
+        serviceIds: [corte.id],
+        extras: [
+          { extraProductId: pomada.id, quantity: 1 },
+          { extraProductId: bebida.id, quantity: 2 },
+        ],
+        date,
+        time: "11:00",
+      },
+      db
+    );
+
+    assert.equal(appointment.items.length, 2);
+
+    const reservedProducts = await db.extraProduct.findMany({
+      where: {
+        id: {
+          in: [pomada.id, bebida.id],
+        },
+      },
+      orderBy: {
+        name: "asc",
+      },
+    });
+
+    assert.equal(reservedProducts.find((product) => product.id === pomada.id)?.stock, 3);
+    assert.equal(reservedProducts.find((product) => product.id === bebida.id)?.stock, 4);
+
+    await cancelAppointmentByCustomer(
+      {
+        appointmentId: appointment.id,
+        customerId: customer.id,
+      },
+      db
+    );
+
+    const restoredProducts = await db.extraProduct.findMany({
+      where: {
+        id: {
+          in: [pomada.id, bebida.id],
+        },
+      },
+      orderBy: {
+        name: "asc",
+      },
+    });
+
+    assert.equal(restoredProducts.find((product) => product.id === pomada.id)?.stock, 4);
+    assert.equal(restoredProducts.find((product) => product.id === bebida.id)?.stock, 6);
   } finally {
     await cleanup();
     await db.$disconnect();

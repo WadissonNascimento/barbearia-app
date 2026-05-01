@@ -72,13 +72,17 @@ export function PremiumSelect({
 
   return (
     <div ref={wrapperRef} className={`relative ${className}`.trim()}>
-      {label ? <p className="mb-2 block text-sm text-zinc-300">{label}</p> : null}
+      {label ? (
+        <p className="mb-2 block text-[11px] font-medium uppercase tracking-[0.18em] text-zinc-400">
+          {label}
+        </p>
+      ) : null}
       {name ? <input type="hidden" name={name} value={currentValue} /> : null}
       <button
         type="button"
         disabled={disabled}
         onClick={() => setOpen((current) => !current)}
-        className={`flex min-h-11 w-full items-center justify-between gap-3 rounded-xl border px-4 py-3 text-left text-sm outline-none transition ${
+        className={`flex min-h-11 w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left text-sm outline-none transition ${
           disabled
             ? "cursor-not-allowed border-white/10 bg-black/10 text-zinc-500"
             : "border-white/10 bg-black/20 text-white hover:border-[var(--brand)]/45 focus:border-[var(--brand)]/60"
@@ -91,7 +95,7 @@ export function PremiumSelect({
       </button>
 
       {open && !disabled ? (
-        <div className="absolute left-0 right-0 z-50 mt-2 overflow-hidden rounded-xl border border-white/10 bg-[#050b16] p-1 shadow-[0_22px_70px_rgba(0,0,0,0.65)]">
+        <div className="absolute left-0 right-0 z-50 mt-2 overflow-hidden rounded-2xl border border-white/10 bg-[#050b16] p-1 shadow-[0_22px_70px_rgba(0,0,0,0.65)]">
           {options.map((option) => (
             <button
               key={option.value}
@@ -324,13 +328,17 @@ export function PremiumDatePicker({
 
   return (
     <div className={`relative ${className}`.trim()}>
-      {label ? <p className="mb-2 block text-sm text-zinc-300">{label}</p> : null}
+      {label ? (
+        <p className="mb-2 block text-[11px] font-medium uppercase tracking-[0.18em] text-zinc-400">
+          {label}
+        </p>
+      ) : null}
       {name ? <input type="hidden" name={name} value={selectedValue} required={required} /> : null}
       <button
         type="button"
         disabled={disabled}
         onClick={() => setOpen((current) => !current)}
-        className={`flex min-h-11 w-full items-center justify-between gap-3 rounded-xl border px-4 py-3 text-left text-sm outline-none transition ${
+        className={`flex min-h-11 w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left text-sm outline-none transition ${
           disabled
             ? "cursor-not-allowed border-white/10 bg-black/10 text-zinc-500"
             : "border-white/10 bg-black/20 text-white hover:border-[var(--brand)]/45 focus:border-[var(--brand)]/60"
@@ -556,13 +564,17 @@ export function PremiumDateTimePicker({
 
   return (
     <div className={`relative ${className}`.trim()}>
-      {label ? <p className="mb-2 block text-sm text-zinc-300">{label}</p> : null}
+      {label ? (
+        <p className="mb-2 block text-[11px] font-medium uppercase tracking-[0.18em] text-zinc-400">
+          {label}
+        </p>
+      ) : null}
       {name ? <input type="hidden" name={name} value={selectedValue} required={required} /> : null}
       <button
         type="button"
         disabled={disabled}
         onClick={() => setOpen(true)}
-        className={`flex min-h-11 w-full items-center justify-between gap-3 rounded-xl border px-4 py-3 text-left text-sm outline-none transition ${
+        className={`flex min-h-11 w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left text-sm outline-none transition ${
           disabled
             ? "cursor-not-allowed border-white/10 bg-black/10 text-zinc-500"
             : "border-white/10 bg-black/20 text-white hover:border-[var(--brand)]/45 focus:border-[var(--brand)]/60"

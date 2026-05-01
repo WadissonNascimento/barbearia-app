@@ -95,6 +95,7 @@ export default async function ProdutosPage() {
                       id: product.id,
                       name: product.name,
                       description: product.description,
+                      category: product.category,
                       price: product.price,
                       isActive: product.isActive,
                       stock: product.stock,

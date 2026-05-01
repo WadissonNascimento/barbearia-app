@@ -22,13 +22,16 @@ function revalidateServiceViews() {
   revalidatePath("/admin/servicos");
   revalidatePath("/agendar");
   revalidatePath("/barber");
+  revalidatePath("/barber/servicos");
 }
 
-export async function createGlobalServiceAction(
+export async function createAdminServiceAction(
   formData: FormData
 ): Promise<MutationResult> {
   await requireAdmin();
 
+  const serviceScope = String(formData.get("serviceScope") || "GLOBAL");
+  const barberIdRaw = String(formData.get("barberId") || "").trim();
   const name = String(formData.get("name") || "").trim();
   const description = String(formData.get("description") || "").trim();
   const price = Number(formData.get("price") || 0);
@@ -39,9 +42,35 @@ export async function createGlobalServiceAction(
     return mutationError("Preencha nome, preco, duracao e comissao corretamente.");
   }
 
+  const isExclusive = serviceScope === "EXCLUSIVE";
+  let barberId: string | null = null;
+
+  if (isExclusive) {
+    if (!barberIdRaw) {
+      return mutationError("Escolha o barbeiro que vai atender esse servico exclusivo.");
+    }
+
+    const barber = await prisma.user.findFirst({
+      where: {
+        id: barberIdRaw,
+        role: "BARBER",
+        isActive: true,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!barber) {
+      return mutationError("Barbeiro invalido para esse servico exclusivo.");
+    }
+
+    barberId = barber.id;
+  }
+
   await prisma.service.create({
     data: {
-      barberId: null,
+      barberId,
       name,
       description: description || null,
       price,
@@ -53,7 +82,11 @@ export async function createGlobalServiceAction(
   });
 
   revalidateServiceViews();
-  return mutationSuccess("Servico geral criado com sucesso.");
+  return mutationSuccess(
+    isExclusive
+      ? "Servico exclusivo criado com sucesso."
+      : "Servico geral criado com sucesso."
+  );
 }
 
 export async function updateGlobalServiceAction(

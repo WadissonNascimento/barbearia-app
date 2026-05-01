@@ -46,7 +46,7 @@ export default async function AgendarPage() {
     redirect("/painel");
   }
 
-  const [barbers, services] = await Promise.all([
+  const [barbers, services, extras] = await Promise.all([
     prisma.user.findMany({
       where: {
         role: "BARBER",
@@ -77,12 +77,31 @@ export default async function AgendarPage() {
         bufferAfter: true,
       },
     }),
+    prisma.extraProduct.findMany({
+      where: {
+        isActive: true,
+        stock: {
+          gt: 0,
+        },
+      },
+      orderBy: [{ category: "asc" }, { name: "asc" }],
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        category: true,
+        price: true,
+        stock: true,
+        imageUrl: true,
+      },
+    }),
   ]);
 
   return (
     <BookingClient
       barbers={barbers}
       services={services}
+      extras={extras}
       initialDate={getTodayString()}
       nextDays={getNextDays(12)}
       whatsappNumber={process.env.BARBER_WHATSAPP_NUMBER || ""}

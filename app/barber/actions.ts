@@ -9,6 +9,7 @@ import {
 import {
   AppointmentMutationError,
   createCustomerAppointment,
+  toggleAppointmentItemsDelivered,
   updateAppointmentStatusForBarber,
 } from "@/lib/appointmentMutations";
 import {
@@ -154,6 +155,40 @@ export async function updateAppointmentStatusAction(
   return mutationSuccess("Status do agendamento atualizado.");
 }
 
+export async function toggleAppointmentItemsDeliveredAction(
+  formData: FormData
+): Promise<MutationResult> {
+  const barber = await requireBarber();
+  const appointmentId = String(formData.get("appointmentId") || "").trim();
+
+  if (!appointmentId) {
+    return mutationError("Agendamento invalido.");
+  }
+
+  try {
+    const result = await toggleAppointmentItemsDelivered({
+      appointmentId,
+      barberId: barber.id,
+    });
+
+    revalidateBarberViews();
+    revalidatePath("/customer/agendamentos");
+    revalidatePath("/admin/agenda");
+
+    return mutationSuccess(
+      result.delivered
+        ? "Extras marcados como entregues."
+        : "Entrega dos extras desmarcada."
+    );
+  } catch (error) {
+    if (error instanceof AppointmentMutationError) {
+      return mutationError(error.message);
+    }
+
+    throw error;
+  }
+}
+
 export async function createWalkInAppointmentAction(
   formData: FormData
 ): Promise<MutationResult> {
@@ -190,8 +225,8 @@ export async function createWalkInAppointmentAction(
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
   const selectedMinutes = getMinutesFromTime(startTime);
 
-  if (selectedMinutes < nowMinutes || selectedMinutes > nowMinutes + 30) {
-    return mutationError("Encaixe precisa comecar agora ou nos proximos 30 minutos.");
+  if (selectedMinutes < nowMinutes) {
+    return mutationError("Encaixe precisa usar um horario que ainda nao passou.");
   }
 
   const service = await prisma.service.findFirst({
@@ -244,6 +279,7 @@ export async function createWalkInAppointmentAction(
       time: startTime,
       notes: `Encaixe${extraNotes ? ` - ${extraNotes}` : ""}`,
       now: new Date(now.getTime() - 60 * 1000),
+      conflictMode: "SAME_START_ONLY",
     });
 
     await prisma.appointment.update({
@@ -259,161 +295,7 @@ export async function createWalkInAppointmentAction(
   }
 
   revalidateBarberViews();
-  return mutationSuccess("Encaixe criado e confirmado na agenda.");
-}
-
-export async function createBarberServiceAction(
-  formData: FormData
-): Promise<MutationResult> {
-  const barber = await requireBarber();
-  const name = String(formData.get("name") || "").trim();
-  const description = String(formData.get("description") || "").trim();
-  const price = Number(formData.get("price") || 0);
-  const duration = Number(formData.get("duration") || 0);
-  const bufferAfter = Number(formData.get("bufferAfter") || 0);
-
-  if (
-    !name ||
-    price <= 0 ||
-    duration <= 0 ||
-    bufferAfter < 0
-  ) {
-    return mutationError(
-      "Preencha nome, preco, duracao e intervalo corretamente."
-    );
-  }
-
-  await prisma.service.create({
-    data: {
-      barberId: barber.id,
-      name,
-      description: description || null,
-      price,
-      duration,
-      bufferAfter,
-      commissionType: "PERCENT",
-      commissionValue: 40,
-      isActive: true,
-    },
-  });
-
-  revalidateBarberViews();
-  return mutationSuccess("Servico criado com sucesso.");
-}
-
-export async function updateBarberServiceAction(
-  formData: FormData
-): Promise<MutationResult> {
-  const barber = await requireBarber();
-  const serviceId = String(formData.get("serviceId") || "");
-  const name = String(formData.get("name") || "").trim();
-  const description = String(formData.get("description") || "").trim();
-  const price = Number(formData.get("price") || 0);
-  const duration = Number(formData.get("duration") || 0);
-  const bufferAfter = Number(formData.get("bufferAfter") || 0);
-
-  if (
-    !serviceId ||
-    !name ||
-    price <= 0 ||
-    duration <= 0 ||
-    bufferAfter < 0
-  ) {
-    return mutationError(
-      "Preencha nome, preco, duracao e intervalo corretamente."
-    );
-  }
-
-  const service = await prisma.service.findUnique({
-    where: { id: serviceId },
-  });
-
-  if (!service || service.barberId !== barber.id) {
-    return mutationError("Servico nao encontrado para este barbeiro.");
-  }
-
-  await prisma.service.update({
-    where: { id: serviceId },
-    data: {
-      name,
-      description: description || null,
-      price,
-      duration,
-      bufferAfter,
-    },
-  });
-
-  revalidateBarberViews();
-  return mutationSuccess("Servico atualizado com sucesso.");
-}
-
-export async function toggleBarberServiceAction(
-  formData: FormData
-): Promise<MutationResult> {
-  const barber = await requireBarber();
-  const serviceId = String(formData.get("serviceId") || "");
-
-  const service = await prisma.service.findUnique({
-    where: { id: serviceId },
-  });
-
-  if (!service || service.barberId !== barber.id) {
-    return mutationError("Servico nao encontrado para este barbeiro.");
-  }
-
-  await prisma.service.update({
-    where: { id: serviceId },
-    data: {
-      isActive: !service.isActive,
-    },
-  });
-
-  revalidateBarberViews();
-  return mutationSuccess(
-    service.isActive ? "Servico desativado." : "Servico ativado."
-  );
-}
-
-export async function deleteBarberServiceAction(
-  formData: FormData
-): Promise<MutationResult> {
-  const barber = await requireBarber();
-  const serviceId = String(formData.get("serviceId") || "");
-
-  const service = await prisma.service.findUnique({
-    where: { id: serviceId },
-  });
-
-  if (!service || service.barberId !== barber.id) {
-    return mutationError("Servico nao encontrado para este barbeiro.");
-  }
-
-  const appointmentUses = await prisma.appointmentService.count({
-    where: { serviceId },
-  });
-
-  if (appointmentUses > 0) {
-    await prisma.service.update({
-      where: { id: serviceId },
-      data: {
-        isActive: false,
-      },
-    });
-
-    revalidateBarberViews();
-    return mutationSuccess(
-      "Servico desativado para preservar o historico de agendamentos.",
-      undefined,
-      "info"
-    );
-  }
-
-  await prisma.service.delete({
-    where: { id: serviceId },
-  });
-
-  revalidateBarberViews();
-  return mutationSuccess("Servico removido com sucesso.");
+  return mutationSuccess("Encaixe criado com sucesso!");
 }
 
 export async function saveBarberAvailabilityAction(

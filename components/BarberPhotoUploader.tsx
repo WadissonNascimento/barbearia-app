@@ -58,7 +58,13 @@ export default function BarberPhotoUploader({
   }
 
   return (
-    <form className={compact ? "flex items-center gap-3" : "rounded-2xl border border-white/10 bg-black/20 p-4"}>
+    <form
+      className={
+        compact
+          ? "flex items-center justify-between gap-3 rounded-[20px] border border-white/10 bg-black/20 p-3"
+          : "rounded-2xl border border-white/10 bg-black/20 p-4"
+      }
+    >
       <div className="flex items-center gap-3">
         <button
           type="button"
@@ -93,7 +99,7 @@ export default function BarberPhotoUploader({
               </p>
             </>
           ) : (
-            <p className="truncate text-sm text-zinc-400">Foto do perfil</p>
+            <p className="truncate text-sm font-medium text-zinc-200">Foto do perfil</p>
           )}
 
           {feedback ? (
@@ -104,7 +110,7 @@ export default function BarberPhotoUploader({
         </div>
       </div>
 
-      <label className={compact ? "ml-auto inline-flex cursor-pointer items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-xs font-semibold text-white transition hover:bg-white/5" : "mt-4 inline-flex cursor-pointer items-center gap-2 rounded-xl border border-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/5"}>
+      <label className={compact ? "inline-flex shrink-0 cursor-pointer items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-xs font-semibold text-white transition hover:bg-white/5" : "mt-4 inline-flex cursor-pointer items-center gap-2 rounded-xl border border-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/5"}>
         <Camera aria-hidden="true" className="h-4 w-4" />
         {isPending ? "Enviando..." : "Trocar foto"}
         <input

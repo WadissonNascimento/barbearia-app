@@ -1,8 +1,12 @@
 import { prisma } from "@/lib/prisma";
+import { getAppointmentItemsLabel } from "@/lib/appointmentItems";
+import { getAppointmentServicesOccupiedDuration } from "@/lib/barberSchedule";
 import {
+  getAppointmentBarberPayoutTotal,
   getAppointmentDisplayName,
+  getAppointmentGrandTotal,
+  getAppointmentServiceRevenue,
   getAppointmentServiceMetaLine,
-  getAppointmentTotalPrice,
 } from "@/lib/appointmentServices";
 import { normalizeAppointmentStatus } from "@/lib/appointmentStatus";
 
@@ -89,6 +93,7 @@ export async function getBarberDashboardData(
     },
     include: {
       customer: true,
+      items: true,
       services: true,
     },
     orderBy: {
@@ -147,6 +152,7 @@ export async function getBarberDashboardData(
         },
         include: {
           customer: true,
+          items: true,
           services: true,
         },
         orderBy: {
@@ -165,6 +171,7 @@ export async function getBarberDashboardData(
         },
         include: {
           customer: true,
+          items: true,
           services: true,
         },
         orderBy: {
@@ -301,25 +308,20 @@ export async function getBarberDashboardData(
       status,
       date: view === "day" ? selectedDate.toISOString().slice(0, 10) : "",
     },
-    summary: {
+      summary: {
       appointmentsToday,
       completedToday,
       clientsToday: new Set(activeTodayAppointments.map((appointment) => appointment.customerId)).size,
       scheduledRevenueToday: activeTodayAppointments.reduce(
-        (sum, appointment) => sum + getAppointmentTotalPrice(appointment.services),
+        (sum, appointment) => sum + getAppointmentGrandTotal(appointment.services, appointment.items),
         0
       ),
       completedRevenueToday: completedTodayAppointments.reduce(
-        (sum, appointment) => sum + getAppointmentTotalPrice(appointment.services),
+        (sum, appointment) => sum + getAppointmentGrandTotal(appointment.services, appointment.items),
         0
       ),
       barberPayoutToday: completedTodayAppointments.reduce(
-        (sum, appointment) =>
-          sum +
-          appointment.services.reduce(
-            (serviceSum, service) => serviceSum + service.barberPayoutSnapshot,
-            0
-          ),
+        (sum, appointment) => sum + getAppointmentBarberPayoutTotal(appointment.services),
         0
       ),
       todayServices,
@@ -336,7 +338,11 @@ export async function getBarberDashboardData(
         },
         serviceName: getAppointmentDisplayName(appointment.services),
         serviceMeta: getAppointmentServiceMetaLine(appointment.services),
-        totalPrice: getAppointmentTotalPrice(appointment.services),
+        extrasLabel: getAppointmentItemsLabel(appointment.items),
+        itemsDelivered: appointment.items.length > 0 && appointment.items.every((item) => item.isDelivered),
+        totalPrice: getAppointmentGrandTotal(appointment.services, appointment.items),
+        serviceRevenue: getAppointmentServiceRevenue(appointment.services),
+        occupiedDuration: getAppointmentServicesOccupiedDuration(appointment.services),
       })),
       nextAppointments: upcomingAppointments.map((appointment) => ({
         id: appointment.id,
@@ -351,7 +357,11 @@ export async function getBarberDashboardData(
         },
         serviceName: getAppointmentDisplayName(appointment.services),
         serviceMeta: getAppointmentServiceMetaLine(appointment.services),
-        totalPrice: getAppointmentTotalPrice(appointment.services),
+        extrasLabel: getAppointmentItemsLabel(appointment.items),
+        itemsDelivered: appointment.items.length > 0 && appointment.items.every((item) => item.isDelivered),
+        totalPrice: getAppointmentGrandTotal(appointment.services, appointment.items),
+        serviceRevenue: getAppointmentServiceRevenue(appointment.services),
+        occupiedDuration: getAppointmentServicesOccupiedDuration(appointment.services),
       })),
     },
     appointments: appointments.map((appointment) => ({
@@ -409,6 +419,7 @@ export async function getBarberClientProfile(barberId: string, customerId: strin
           barberId,
         },
         include: {
+          items: true,
           services: true,
         },
         orderBy: {
@@ -432,7 +443,7 @@ export async function getBarberClientProfile(barberId: string, customerId: strin
     (appointment) => normalizeAppointmentStatus(appointment.status) === "COMPLETED"
   ).length;
   const totalSpent = customer.customerAppointments.reduce(
-    (sum, appointment) => sum + getAppointmentTotalPrice(appointment.services),
+    (sum, appointment) => sum + getAppointmentGrandTotal(appointment.services, appointment.items),
     0
   );
   const favoriteServiceMap = new Map<string, number>();

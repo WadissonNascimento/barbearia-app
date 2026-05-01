@@ -7,33 +7,33 @@ import { useEffect, useState, useTransition } from "react";
 import FeedbackMessage from "@/components/FeedbackMessage";
 import StatusBadge from "@/components/ui/StatusBadge";
 import {
-  PRODUCT_CATEGORY_OPTIONS,
-  getProductCategoryLabel,
-} from "@/lib/productCategories";
+  EXTRA_CATEGORY_OPTIONS,
+  getExtraCategoryLabel,
+} from "@/lib/extraCategories";
 import { prepareProductImageUpload } from "@/lib/productImageClient";
 import {
-  deleteProduct,
-  toggleProduct,
-  updateProductFromForm,
-  updateProductImage,
-} from "@/app/actions/productActions";
+  deleteExtraProduct,
+  toggleExtraProduct,
+  updateExtraProductFromForm,
+  updateExtraProductImage,
+} from "@/app/actions/extraProductActions";
 
-type ProductCardClientProps = {
-  product: {
+type ExtraProductCardClientProps = {
+  extra: {
     id: string;
     name: string;
-    description: string | null;
+    description: null | string;
     category: string;
     price: number;
     isActive: boolean;
     stock: number;
-    imageUrl: string | null;
+    imageUrl: null | string;
     stockMovements: Array<{
       id: string;
       createdAt: Date;
       type: string;
       quantity: number;
-      reason: string | null;
+      reason: null | string;
     }>;
   };
 };
@@ -42,35 +42,41 @@ function stockMovementTypeLabel(type: string) {
   switch (type) {
     case "IN":
       return "Entrada";
-    case "OUT":
-      return "Saida";
+    case "RESERVE_OUT":
+      return "Reserva";
+    case "CANCEL_RETURN":
+      return "Devolucao";
+    case "ADJUST_IN":
+      return "Ajuste +";
+    case "ADJUST_OUT":
+      return "Ajuste -";
     default:
       return type;
   }
 }
 
-export default function ProductCardClient({
-  product,
-}: ProductCardClientProps) {
+export default function ExtraProductCardClient({
+  extra,
+}: ExtraProductCardClientProps) {
   const router = useRouter();
-  const [isActive, setIsActive] = useState(product.isActive);
-  const [imageUrl, setImageUrl] = useState(product.imageUrl);
+  const [isActive, setIsActive] = useState(extra.isActive);
+  const [imageUrl, setImageUrl] = useState(extra.imageUrl);
   const [draft, setDraft] = useState({
-    name: product.name,
-    description: product.description || "",
-    category: product.category,
-    price: product.price.toFixed(2),
-    stock: String(product.stock),
+    name: extra.name,
+    description: extra.description || "",
+    category: extra.category,
+    price: extra.price.toFixed(2),
+    stock: String(extra.stock),
   });
   const [imageUpload, setImageUpload] = useState<{
     file: File;
     previewUrl: string;
   } | null>(null);
   const [feedback, setFeedback] = useState<{
-    message: string | null;
+    message: null | string;
     tone: "success" | "error" | "info";
   }>({ message: null, tone: "success" });
-  const [pendingKey, setPendingKey] = useState<string | null>(null);
+  const [pendingKey, setPendingKey] = useState<null | string>(null);
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -110,18 +116,14 @@ export default function ProductCardClient({
         setFeedback({
           message:
             actionResult?.message ||
-            (typeof successMessage === "function"
-              ? successMessage()
-              : successMessage),
+            (typeof successMessage === "function" ? successMessage() : successMessage),
           tone: "success",
         });
         router.refresh();
       } catch (error) {
         setFeedback({
           message:
-            error instanceof Error
-              ? error.message
-              : "Nao foi possivel atualizar o produto.",
+            error instanceof Error ? error.message : "Nao foi possivel atualizar o extra.",
           tone: "error",
         });
       } finally {
@@ -132,25 +134,14 @@ export default function ProductCardClient({
 
   return (
     <div className="space-y-3">
-      <div className="space-y-3">
-        <FeedbackMessage message={feedback.message} tone={feedback.tone} />
-      </div>
+      <FeedbackMessage message={feedback.message} tone={feedback.tone} />
 
-      <div className="grid gap-4 md:grid-cols-[140px_1fr_auto]">
-        <div className="relative h-28 overflow-hidden rounded-xl bg-zinc-950">
+      <div className="grid gap-4 md:grid-cols-[120px_1fr_auto]">
+        <div className="relative h-28 overflow-hidden rounded-2xl bg-zinc-950">
           {imageUpload?.previewUrl ? (
-            <img
-              src={imageUpload.previewUrl}
-              alt={product.name}
-              className="h-full w-full object-cover"
-            />
+            <img src={imageUpload.previewUrl} alt={extra.name} className="h-full w-full object-cover" />
           ) : imageUrl ? (
-            <Image
-              src={imageUrl}
-              alt={product.name}
-              fill
-              className="object-cover"
-            />
+            <Image src={imageUrl} alt={extra.name} fill className="object-cover" />
           ) : (
             <div className="flex h-full items-center justify-center text-xs text-zinc-500">
               Sem imagem
@@ -163,9 +154,7 @@ export default function ProductCardClient({
             <StatusBadge variant={isActive ? "success" : "neutral"}>
               {isActive ? "Ativo" : "Oculto"}
             </StatusBadge>
-            <StatusBadge variant="info">
-              {getProductCategoryLabel(draft.category)}
-            </StatusBadge>
+            <StatusBadge variant="info">{getExtraCategoryLabel(draft.category)}</StatusBadge>
             <StatusBadge
               variant={
                 Number(draft.stock) === 0
@@ -184,7 +173,7 @@ export default function ProductCardClient({
             onSubmit={(event) => {
               event.preventDefault();
               const formData = new FormData();
-              formData.set("productId", product.id);
+              formData.set("extraProductId", extra.id);
               formData.set("name", draft.name);
               formData.set("description", draft.description);
               formData.set("category", draft.category);
@@ -193,8 +182,8 @@ export default function ProductCardClient({
 
               runAction(
                 "details",
-                () => updateProductFromForm(formData),
-                "Produto atualizado com sucesso."
+                () => updateExtraProductFromForm(formData),
+                "Extra atualizado com sucesso."
               );
             }}
           >
@@ -214,14 +203,11 @@ export default function ProductCardClient({
                 <select
                   value={draft.category}
                   onChange={(event) =>
-                    setDraft((current) => ({
-                      ...current,
-                      category: event.target.value,
-                    }))
+                    setDraft((current) => ({ ...current, category: event.target.value }))
                   }
                   className="w-full rounded-xl border border-white/10 bg-black px-4 py-3 text-white"
                 >
-                  {PRODUCT_CATEGORY_OPTIONS.map((option) => (
+                  {EXTRA_CATEGORY_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
                       {option.label}
                     </option>
@@ -237,8 +223,8 @@ export default function ProductCardClient({
                 onChange={(event) =>
                   setDraft((current) => ({ ...current, description: event.target.value }))
                 }
-                rows={3}
-                className="min-h-24 w-full rounded-xl border border-white/10 bg-black px-4 py-3 text-white"
+                rows={2}
+                className="min-h-20 w-full rounded-xl border border-white/10 bg-black px-4 py-3 text-white"
               />
             </label>
 
@@ -287,10 +273,7 @@ export default function ProductCardClient({
               const formData = new FormData(event.currentTarget);
 
               if (!imageUpload) {
-                setFeedback({
-                  message: "Selecione uma nova imagem para enviar.",
-                  tone: "error",
-                });
+                setFeedback({ message: "Selecione uma nova imagem para enviar.", tone: "error" });
                 return;
               }
 
@@ -298,19 +281,18 @@ export default function ProductCardClient({
 
               runAction(
                 "image",
-                () => updateProductImage(formData),
+                () => updateExtraProductImage(formData),
                 "Imagem atualizada com sucesso."
               );
             }}
           >
-            <input type="hidden" name="productId" value={product.id} />
+            <input type="hidden" name="extraProductId" value={extra.id} />
             <input
               name="image"
               type="file"
               accept="image/jpeg,image/png,image/webp"
               onChange={async (event) => {
                 const file = event.currentTarget.files?.[0];
-
                 if (!file) {
                   setImageUpload(null);
                   return;
@@ -322,7 +304,6 @@ export default function ProductCardClient({
                     if (current?.previewUrl) {
                       URL.revokeObjectURL(current.previewUrl);
                     }
-
                     return prepared;
                   });
                   setFeedback({ message: null, tone: "success" });
@@ -345,21 +326,17 @@ export default function ProductCardClient({
               disabled={isPending && pendingKey === "image"}
               className="rounded-lg bg-sky-600 px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isPending && pendingKey === "image"
-                ? "Enviando..."
-                : "Trocar imagem"}
+              {isPending && pendingKey === "image" ? "Enviando..." : "Trocar imagem"}
             </button>
           </form>
 
           <div className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-4">
-            <p className="text-sm font-medium text-white">
-              Ultimas movimentacoes
-            </p>
+            <p className="text-sm font-medium text-white">Ultimas movimentacoes</p>
             <div className="mt-2 space-y-1 text-sm text-zinc-400">
-              {product.stockMovements.length === 0 ? (
+              {extra.stockMovements.length === 0 ? (
                 <p>Nenhuma movimentacao registrada ainda.</p>
               ) : (
-                product.stockMovements.map((movement) => (
+                extra.stockMovements.map((movement) => (
                   <p key={movement.id}>
                     {new Date(movement.createdAt).toLocaleDateString("pt-BR")} -{" "}
                     {stockMovementTypeLabel(movement.type)} {movement.quantity}
@@ -379,10 +356,10 @@ export default function ProductCardClient({
               runAction(
                 "toggle",
                 async () => {
-                  const updatedProduct = await toggleProduct(product.id);
-                  setIsActive(updatedProduct.isActive);
+                  const updatedExtra = await toggleExtraProduct(extra.id);
+                  setIsActive(updatedExtra.isActive);
                 },
-                () => (isActive ? "Produto ocultado." : "Produto ativado.")
+                () => (isActive ? "Extra ocultado." : "Extra ativado.")
               )
             }
             className="rounded bg-yellow-600 px-3 py-2 disabled:cursor-not-allowed disabled:opacity-60"
@@ -400,7 +377,7 @@ export default function ProductCardClient({
             onClick={() => {
               if (
                 !window.confirm(
-                  "Excluir produto? Se houver historico, ele sera apenas ocultado para preservar pedidos."
+                  "Excluir extra? Se houver historico, ele sera apenas ocultado para preservar entregas."
                 )
               ) {
                 return;
@@ -408,8 +385,8 @@ export default function ProductCardClient({
 
               runAction(
                 "delete",
-                () => deleteProduct(product.id),
-                "Produto excluido com sucesso."
+                () => deleteExtraProduct(extra.id),
+                "Extra excluido com sucesso."
               );
             }}
             className="rounded bg-red-600 px-3 py-2 disabled:cursor-not-allowed disabled:opacity-60"

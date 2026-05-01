@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition, type ReactNode } from "react";
 import FeedbackMessage from "@/components/FeedbackMessage";
 import {
-  createGlobalServiceAction,
+  createAdminServiceAction,
   deleteGlobalServiceAction,
   toggleGlobalServiceAction,
   updateGlobalServiceAction,
@@ -25,12 +25,20 @@ type ServiceItem = {
   } | null;
 };
 
+type BarberOption = {
+  id: string;
+  name: string | null;
+  email: string | null;
+};
+
 export default function AdminServicesClient({
   globalServices,
   barberServices,
+  barbers,
 }: {
   globalServices: ServiceItem[];
   barberServices: ServiceItem[];
+  barbers: BarberOption[];
 }) {
   const router = useRouter();
   const [feedback, setFeedback] = useState<{
@@ -39,6 +47,7 @@ export default function AdminServicesClient({
   }>({ message: null, tone: "success" });
   const [pendingKey, setPendingKey] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [serviceScope, setServiceScope] = useState<"GLOBAL" | "EXCLUSIVE">("GLOBAL");
 
   function runAction(
     key: string,
@@ -73,30 +82,100 @@ export default function AdminServicesClient({
 
       <div className="grid gap-6 xl:grid-cols-[360px_1fr]">
         <form
-          className="rounded-3xl border border-zinc-800 bg-zinc-900 p-6"
+          className="overflow-hidden rounded-[32px] border border-sky-500/20 bg-[linear-gradient(180deg,rgba(16,26,46,0.98),rgba(10,15,28,0.98))] shadow-[0_24px_80px_rgba(2,132,199,0.16)]"
           onSubmit={(event) => {
             event.preventDefault();
             const form = event.currentTarget;
 
             runAction(
               "create-service",
-              createGlobalServiceAction,
+              createAdminServiceAction,
               new FormData(form),
-              () => form.reset()
+              () => {
+                form.reset();
+                setServiceScope("GLOBAL");
+              }
             );
           }}
         >
-          <h2 className="text-xl font-semibold">Novo servico geral</h2>
-          <p className="mt-1 text-sm text-zinc-400">
-            Esse servico podera ser usado em qualquer barbeiro no agendamento.
-          </p>
+          <div className="border-b border-white/10 bg-white/[0.03] px-6 py-5">
+            <p className="text-xs uppercase tracking-[0.24em] text-sky-300">
+              Cadastro
+            </p>
+            <h2 className="mt-2 text-2xl font-semibold text-white">
+              Novo servico
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-zinc-300">
+              Crie um servico geral da casa ou um servico exclusivo de um barbeiro,
+              sem sair do painel do admin.
+            </p>
+          </div>
 
-          <div className="mt-5 space-y-4">
+          <div className="space-y-5 px-6 py-6">
+            <input type="hidden" name="serviceScope" value={serviceScope} />
+
+            <div className="grid grid-cols-2 gap-3 rounded-2xl border border-white/10 bg-black/20 p-2">
+              <button
+                type="button"
+                onClick={() => setServiceScope("GLOBAL")}
+                className={`rounded-xl px-4 py-3 text-sm font-semibold transition ${
+                  serviceScope === "GLOBAL"
+                    ? "bg-[var(--brand)] text-white shadow-[0_12px_30px_rgba(14,165,233,0.28)]"
+                    : "text-zinc-300 hover:bg-white/5"
+                }`}
+              >
+                Servico geral
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setServiceScope("EXCLUSIVE")}
+                className={`rounded-xl px-4 py-3 text-sm font-semibold transition ${
+                  serviceScope === "EXCLUSIVE"
+                    ? "bg-[var(--brand)] text-white shadow-[0_12px_30px_rgba(14,165,233,0.28)]"
+                    : "text-zinc-300 hover:bg-white/5"
+                }`}
+              >
+                Servico exclusivo
+              </button>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-zinc-300">
+              {serviceScope === "GLOBAL"
+                ? "Esse servico entra na agenda de qualquer barbeiro disponivel."
+                : "Esse servico vai ficar disponivel apenas para o barbeiro selecionado."}
+            </div>
+
+            {serviceScope === "EXCLUSIVE" ? (
+              <Field label="Barbeiro responsavel">
+                <select
+                  name="barberId"
+                  required
+                  defaultValue=""
+                  className="w-full rounded-2xl border border-white/10 bg-zinc-950/80 px-4 py-3 text-sm text-white outline-none transition focus:border-sky-400/40 focus:bg-zinc-950"
+                >
+                  <option value="" disabled>
+                    Selecione o barbeiro
+                  </option>
+                  {barbers.map((barber) => (
+                    <option key={barber.id} value={barber.id}>
+                      {barber.name || barber.email || "Barbeiro"}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            ) : null}
+
             <Field label="Nome">
               <input
                 name="name"
                 required
-                className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm outline-none"
+                className="w-full rounded-2xl border border-white/10 bg-zinc-950/80 px-4 py-3 text-sm text-white outline-none transition focus:border-sky-400/40 focus:bg-zinc-950"
+                placeholder={
+                  serviceScope === "GLOBAL"
+                    ? "Ex.: Corte + barba"
+                    : "Ex.: Platinado premium"
+                }
               />
             </Field>
 
@@ -104,7 +183,8 @@ export default function AdminServicesClient({
               <textarea
                 name="description"
                 rows={3}
-                className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm outline-none"
+                className="w-full rounded-2xl border border-white/10 bg-zinc-950/80 px-4 py-3 text-sm text-white outline-none transition focus:border-sky-400/40 focus:bg-zinc-950"
+                placeholder="Detalhes que ajudam na agenda e no entendimento do atendimento."
               />
             </Field>
 
@@ -116,7 +196,7 @@ export default function AdminServicesClient({
                   min="1"
                   name="price"
                   required
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm outline-none"
+                  className="w-full rounded-2xl border border-white/10 bg-zinc-950/80 px-4 py-3 text-sm text-white outline-none transition focus:border-sky-400/40 focus:bg-zinc-950"
                 />
               </Field>
 
@@ -127,7 +207,7 @@ export default function AdminServicesClient({
                   step="5"
                   name="duration"
                   required
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm outline-none"
+                  className="w-full rounded-2xl border border-white/10 bg-zinc-950/80 px-4 py-3 text-sm text-white outline-none transition focus:border-sky-400/40 focus:bg-zinc-950"
                 />
               </Field>
             </div>
@@ -141,17 +221,19 @@ export default function AdminServicesClient({
                 name="commissionValue"
                 defaultValue={40}
                 required
-                className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm outline-none"
+                className="w-full rounded-2xl border border-white/10 bg-zinc-950/80 px-4 py-3 text-sm text-white outline-none transition focus:border-sky-400/40 focus:bg-zinc-950"
               />
             </Field>
 
             <button
               type="submit"
               disabled={isPending && pendingKey === "create-service"}
-              className="w-full rounded-xl bg-white px-4 py-3 font-semibold text-black transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+              className="w-full rounded-2xl bg-[var(--brand)] px-4 py-3.5 font-semibold text-white shadow-[0_18px_40px_rgba(14,165,233,0.28)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isPending && pendingKey === "create-service"
                 ? "Criando..."
+                : serviceScope === "EXCLUSIVE"
+                ? "Criar servico exclusivo"
                 : "Criar servico geral"}
             </button>
           </div>
@@ -189,7 +271,7 @@ export default function AdminServicesClient({
             <div className="mb-4">
               <h2 className="text-xl font-semibold text-white">Servicos exclusivos dos barbeiros</h2>
               <p className="text-sm text-zinc-400">
-                O barbeiro pode editar dados operacionais, mas a comissao continua sob controle do admin.
+                Criados e controlados pelo admin para barbeiros especificos.
               </p>
             </div>
 
@@ -312,7 +394,7 @@ function ServiceCard({
             name="name"
             defaultValue={service.name}
             required
-            className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm outline-none"
+            className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm text-white outline-none"
           />
         </Field>
 
@@ -321,7 +403,7 @@ function ServiceCard({
             name="description"
             defaultValue={service.description || ""}
             rows={3}
-            className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm outline-none"
+            className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm text-white outline-none"
           />
         </Field>
 
@@ -334,7 +416,7 @@ function ServiceCard({
               name="price"
               defaultValue={service.price}
               required
-              className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm outline-none"
+              className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm text-white outline-none"
             />
           </Field>
 
@@ -346,7 +428,7 @@ function ServiceCard({
               name="duration"
               defaultValue={service.duration}
               required
-              className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm outline-none"
+              className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm text-white outline-none"
             />
           </Field>
         </div>
@@ -360,7 +442,7 @@ function ServiceCard({
             name="commissionValue"
             defaultValue={service.commissionValue}
             required
-            className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm outline-none"
+            className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm text-white outline-none"
           />
         </Field>
 

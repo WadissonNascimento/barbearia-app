@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useId, useRef } from "react";
 import { LogoutButton } from "@/components/LogoutButton";
 
 type HeaderRole = "ADMIN" | "BARBER" | "CUSTOMER" | null;
@@ -49,6 +49,7 @@ function getHeaderLinks(role: HeaderRole): {
       secondary: [
         { href: "/admin/servicos", label: "Servicos" },
         { href: "/admin/produtos", label: "Produtos" },
+        { href: "/admin/extras", label: "Extras" },
         { href: "/admin/avaliacoes", label: "Avaliacoes" },
       ],
     };
@@ -109,6 +110,7 @@ const navIcons: Record<string, LucideIcon> = {
   "/admin/avaliacoes": MessageSquareText,
   "/admin/barbeiros": Users,
   "/admin/cupons": BadgePercent,
+  "/admin/extras": ShoppingBag,
   "/admin/financeiro": WalletCards,
   "/admin/produtos": Boxes,
   "/admin/servicos": Scissors,
@@ -139,27 +141,27 @@ export default function Header({
   role: HeaderRole;
   userName?: string | null;
 }) {
-  const [isOpen, setIsOpen] = useState(false);
   const pathname = usePathname();
   const nav = getHeaderLinks(role);
+  const menuToggleId = useId();
+  const menuToggleRef = useRef<HTMLInputElement | null>(null);
 
-  useEffect(() => {
-    function handleEsc(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setIsOpen(false);
-      }
+  function closeMenu() {
+    if (menuToggleRef.current) {
+      menuToggleRef.current.checked = false;
     }
-
-    window.addEventListener("keydown", handleEsc);
-    return () => window.removeEventListener("keydown", handleEsc);
-  }, []);
-
-  useEffect(() => {
-    setIsOpen(false);
-  }, [pathname]);
+  }
 
   return (
     <>
+      <input
+        ref={menuToggleRef}
+        id={menuToggleId}
+        type="checkbox"
+        className="peer sr-only"
+        aria-hidden="true"
+      />
+
       <header className="sticky top-0 z-[100] w-full max-w-full overflow-hidden border-b border-white/10 bg-[#030712]/90 backdrop-blur-2xl">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <Link href={nav.homeHref} className="flex min-w-0 items-center gap-3">
@@ -196,47 +198,38 @@ export default function Header({
               ))}
             </nav>
 
-            <button
-              type="button"
-              aria-label="Abrir menu"
-              onClick={() => setIsOpen((prev) => !prev)}
-              className="group relative flex h-12 w-12 items-center justify-center rounded-2xl border border-white/15 bg-white/[0.04] text-white transition hover:border-[var(--brand)]/50 hover:bg-[var(--brand-muted)] active:scale-95"
-            >
-              <span
-                className={`absolute h-[2px] w-5 rounded-full bg-white transition-all duration-300 ${
-                  isOpen ? "rotate-45" : "-translate-y-[6px]"
-                }`}
-              />
-              <span
-                className={`absolute h-[2px] w-5 rounded-full bg-white transition-all duration-300 ${
-                  isOpen ? "opacity-0" : "opacity-100"
-                }`}
-              />
-              <span
-                className={`absolute h-[2px] w-5 rounded-full bg-white transition-all duration-300 ${
-                  isOpen ? "-rotate-45" : "translate-y-[6px]"
-                }`}
-              />
-            </button>
+            <div className="relative">
+              <label
+                htmlFor={menuToggleId}
+                aria-label="Abrir menu"
+                className="group relative flex h-12 w-12 cursor-pointer items-center justify-center rounded-2xl border border-white/15 bg-white/[0.04] text-white transition hover:border-[var(--brand)]/50 hover:bg-[var(--brand-muted)] active:scale-95"
+              >
+                <span className="absolute h-[2px] w-5 -translate-y-[6px] rounded-full bg-white transition-all duration-300" />
+                <span className="absolute h-[2px] w-5 rounded-full bg-white transition-all duration-300" />
+                <span className="absolute h-[2px] w-5 translate-y-[6px] rounded-full bg-white transition-all duration-300" />
+              </label>
+            </div>
           </div>
         </div>
       </header>
 
-      <div
-        onClick={() => setIsOpen(false)}
-        className={`fixed inset-0 z-[140] bg-black/45 backdrop-blur-[2px] transition-all duration-300 ${
-          isOpen
-            ? "pointer-events-auto opacity-100"
-            : "pointer-events-none opacity-0"
-        }`}
+      <label
+        htmlFor={menuToggleId}
+        aria-label="Fechar menu"
+        className="pointer-events-none fixed inset-0 z-[140] cursor-pointer bg-black/45 opacity-0 backdrop-blur-[2px] transition peer-checked:pointer-events-auto peer-checked:opacity-100"
       />
 
+      <label
+        htmlFor={menuToggleId}
+        aria-label="Fechar menu"
+        className="pointer-events-none fixed right-4 top-3 z-[160] flex h-12 w-12 cursor-pointer items-center justify-center rounded-2xl border border-white/15 bg-[#030712]/95 text-white opacity-0 shadow-[0_12px_32px_rgba(0,0,0,0.35)] transition hover:border-[var(--brand)]/50 hover:bg-[var(--brand-muted)] active:scale-95 peer-checked:pointer-events-auto peer-checked:opacity-100 sm:right-6"
+      >
+        <span className="absolute h-[2px] w-5 translate-y-0 rotate-45 rounded-full bg-white" />
+        <span className="absolute h-[2px] w-5 translate-y-0 -rotate-45 rounded-full bg-white" />
+      </label>
+
       <div
-        className={`fixed left-3 right-3 top-[76px] z-[150] max-w-[calc(100vw-1.5rem)] rounded-3xl border border-white/10 bg-[#030712]/95 p-3 shadow-[0_20px_60px_rgba(0,0,0,0.45)] backdrop-blur-2xl transition-all duration-300 sm:left-auto sm:right-4 sm:top-[84px] sm:w-[320px] ${
-          isOpen
-            ? "translate-y-0 scale-100 opacity-100"
-            : "pointer-events-none -translate-y-3 scale-95 opacity-0"
-        }`}
+        className="pointer-events-none fixed left-3 right-3 top-[76px] z-[170] max-w-[calc(100vw-1.5rem)] translate-y-2 rounded-3xl border border-white/10 bg-[#030712]/95 p-3 opacity-0 shadow-[0_20px_60px_rgba(0,0,0,0.45)] backdrop-blur-2xl transition duration-200 peer-checked:pointer-events-auto peer-checked:translate-y-0 peer-checked:opacity-100 sm:left-auto sm:right-4 sm:top-[84px] sm:w-[320px]"
       >
         <div className="mb-3 flex items-center justify-between border-b border-white/10 pb-3">
           <p className="text-sm font-semibold text-white">Menu</p>
@@ -251,10 +244,10 @@ export default function Header({
               <Link
                 key={link.href}
                 href={link.href}
-                onClick={() => setIsOpen(false)}
+                onClick={closeMenu}
                 className={`flex w-full items-center gap-3 rounded-2xl px-5 py-3 text-sm font-semibold transition active:scale-[0.98] ${
                   isActivePath(pathname, link.href)
-                  ? "bg-[var(--brand)] text-white shadow-[0_12px_24px_rgba(37,99,235,0.35)]"
+                    ? "bg-[var(--brand)] text-white shadow-[0_12px_24px_rgba(37,99,235,0.35)]"
                     : "border border-white/10 bg-white/[0.04] text-white hover:border-[var(--brand)]/40 hover:bg-[var(--brand-muted)]"
                 }`}
               >
@@ -269,7 +262,7 @@ export default function Header({
               <Link
                 key={link.href}
                 href={link.href}
-                onClick={() => setIsOpen(false)}
+                onClick={closeMenu}
                 className="flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-3 text-sm text-white transition hover:border-[var(--brand)]/40 hover:bg-[var(--brand-muted)] active:scale-[0.98]"
               >
                 <NavItemIcon href={link.href} className="h-5 w-5 shrink-0" />
@@ -277,7 +270,7 @@ export default function Header({
               </Link>
             ))}
             {role ? (
-              <div className="pt-1">
+              <div className="pt-1" onClick={closeMenu}>
                 <LogoutButton />
               </div>
             ) : null}

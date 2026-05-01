@@ -142,16 +142,16 @@ export default function HomeClient({
             </div>
           </div>
 
-          <div className="order-1 lg:order-2">
+          <div className="order-1 mx-auto w-full max-w-[560px] lg:order-2 lg:max-w-none">
             <div className="relative">
-              <div className="surface-card-strong relative overflow-hidden rounded-lg p-2">
+              <div className="surface-card-strong relative overflow-hidden rounded-2xl p-2">
                 <div
-                  className="relative select-none overflow-hidden rounded-lg"
+                  className="relative select-none overflow-hidden rounded-[20px]"
                   onTouchStart={handleTouchStart}
                   onTouchMove={handleTouchMove}
                   onTouchEnd={handleTouchEnd}
                 >
-                  <div className="relative h-[440px] w-full sm:h-[560px] lg:h-[680px]">
+                  <div className="relative h-[290px] w-full sm:h-[360px] md:h-[420px] lg:h-[560px] xl:h-[620px]">
                     {corteImages.map((src, index) => (
                       <Image
                         key={src}
@@ -188,7 +188,7 @@ export default function HomeClient({
                     {">"}
                   </button>
 
-                  <div className="absolute bottom-24 left-1/2 z-20 flex -translate-x-1/2 gap-2">
+                  <div className="absolute bottom-5 left-1/2 z-20 flex -translate-x-1/2 gap-2">
                     {corteImages.map((_, index) => (
                       <button
                         key={index}
@@ -204,17 +204,6 @@ export default function HomeClient({
                     ))}
                   </div>
 
-                  <div className="absolute bottom-0 left-0 right-0 z-20 p-3 sm:p-5">
-                    <div className="rounded-lg border border-white/10 bg-black/35 p-4 backdrop-blur-xl sm:p-5">
-                      <h2 className="text-lg font-semibold sm:text-2xl">
-                        Cortes reais, resultado de verdade
-                      </h2>
-
-                      <p className="mt-2 text-xs text-zinc-300 sm:text-sm">
-                        Veja estilos feitos na barbearia.
-                      </p>
-                    </div>
-                  </div>
                 </div>
               </div>
 

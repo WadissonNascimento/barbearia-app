@@ -1,4 +1,5 @@
 import { formatCurrency } from "@/lib/utils";
+import { getAppointmentItemsTotal } from "@/lib/appointmentItems";
 
 export type AppointmentServiceSummary = {
   id: string;
@@ -50,6 +51,41 @@ export function getAppointmentTotalPrice(
   }>
 ) {
   return services.reduce((sum, service) => sum + service.priceSnapshot, 0);
+}
+
+export function getAppointmentServiceRevenue(
+  services: Array<{
+    priceSnapshot: number;
+  }>
+) {
+  return getAppointmentTotalPrice(services);
+}
+
+export function getAppointmentBarberPayoutTotal(
+  services: Array<{
+    barberPayoutSnapshot: number;
+  }>
+) {
+  return services.reduce((sum, service) => sum + service.barberPayoutSnapshot, 0);
+}
+
+export function getAppointmentShopRevenueTotal(
+  services: Array<{
+    shopRevenueSnapshot: number;
+  }>
+) {
+  return services.reduce((sum, service) => sum + service.shopRevenueSnapshot, 0);
+}
+
+export function getAppointmentGrandTotal(
+  services: Array<{
+    priceSnapshot: number;
+  }>,
+  items: Array<{
+    subtotal: number;
+  }> = []
+) {
+  return getAppointmentTotalPrice(services) + getAppointmentItemsTotal(items);
 }
 
 export function getAppointmentTotalDuration(

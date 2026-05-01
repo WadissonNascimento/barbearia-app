@@ -10,6 +10,9 @@ export default async function ProdutosPage() {
   const products = await prisma.product.findMany({
     where: {
       isActive: true,
+      stock: {
+        gt: 0,
+      },
     },
     orderBy: {
       createdAt: "desc",

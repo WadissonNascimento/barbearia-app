@@ -43,6 +43,24 @@ export async function createAppointmentAction(
     .split(",")
     .map((value) => value.trim())
     .filter(Boolean);
+  const extrasRaw = String(formData.get("extras") || "");
+  const extras = extrasRaw
+    ? extrasRaw
+        .split(",")
+        .map((entry) => {
+          const [extraProductId, quantity] = entry.split(":");
+          return {
+            extraProductId: (extraProductId || "").trim(),
+            quantity: Number(quantity || 0),
+          };
+        })
+        .filter(
+          (extra) =>
+            extra.extraProductId &&
+            Number.isInteger(extra.quantity) &&
+            extra.quantity > 0
+        )
+    : [];
   const date = String(formData.get("date") || "");
   const time = String(formData.get("time") || "");
   const notes = String(formData.get("notes") || "").trim();
@@ -59,6 +77,7 @@ export async function createAppointmentAction(
       customerId: session.user.id,
       barberId,
       serviceIds,
+      extras,
       date,
       time,
       notes,

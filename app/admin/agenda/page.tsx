@@ -3,13 +3,14 @@ import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import EmptyState from "@/components/ui/EmptyState";
+import { getAppointmentItemsLabel } from "@/lib/appointmentItems";
 import PageHeader from "@/components/ui/PageHeader";
 import { PremiumDatePicker, PremiumSelect } from "@/components/ui/PremiumFilters";
 import SectionCard from "@/components/ui/SectionCard";
 import StatusBadge from "@/components/ui/StatusBadge";
 import {
   getAppointmentDisplayName,
-  getAppointmentTotalPrice,
+  getAppointmentGrandTotal,
 } from "@/lib/appointmentServices";
 import {
   appointmentStatusLabel,
@@ -210,6 +211,7 @@ export default async function AdminAgendaPage({
                   <th className="px-4 py-3">Barbeiro</th>
                   <th className="px-4 py-3">Cliente</th>
                   <th className="px-4 py-3">Servico</th>
+                  <th className="px-4 py-3">Extras</th>
                   <th className="px-4 py-3">Valor</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3">Observacoes</th>
@@ -239,8 +241,11 @@ export default async function AdminAgendaPage({
                       <td className="px-4 py-3">
                         {getAppointmentDisplayName(appointment.services)}
                       </td>
+                      <td className="px-4 py-3 text-zinc-300">
+                        {getAppointmentItemsLabel(appointment.items)}
+                      </td>
                       <td className="px-4 py-3">
-                        {getAppointmentTotalPrice(appointment.services).toLocaleString("pt-BR", {
+                        {getAppointmentGrandTotal(appointment.services, appointment.items).toLocaleString("pt-BR", {
                           style: "currency",
                           currency: "BRL",
                         })}

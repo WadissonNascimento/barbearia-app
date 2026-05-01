@@ -4,6 +4,7 @@ import {
   normalizeAppointmentStatus,
   type AppointmentStatus,
 } from "@/lib/appointmentStatus";
+import { registerExtraStockMovement } from "@/lib/extraInventory";
 import {
   getAppointmentServicesOccupiedDuration,
   isActiveAppointmentStatus,
@@ -19,9 +20,12 @@ type AppointmentPrismaClient = Pick<
   | "$transaction"
   | "$executeRaw"
   | "appointment"
+  | "appointmentItem"
   | "appointmentService"
   | "barberAvailability"
   | "barberBlock"
+  | "extraProduct"
+  | "extraStockMovement"
   | "recurringBarberBlock"
   | "service"
   | "user"
@@ -39,10 +43,15 @@ export type CreateCustomerAppointmentInput = {
   customerId: string;
   barberId: string;
   serviceIds: string[];
+  extras?: Array<{
+    extraProductId: string;
+    quantity: number;
+  }>;
   date: string;
   time: string;
   notes?: string | null;
   now?: Date;
+  conflictMode?: "OVERLAP" | "SAME_START_ONLY";
 };
 
 function getAppointmentDurationFromServices(
@@ -92,9 +101,18 @@ async function createCustomerAppointmentInTransaction(
 ) {
   const barberId = input.barberId.trim();
   const serviceIds = input.serviceIds.map((serviceId) => serviceId.trim()).filter(Boolean);
+  const extras = (input.extras || [])
+    .map((extra) => ({
+      extraProductId: extra.extraProductId.trim(),
+      quantity: Number(extra.quantity),
+    }))
+    .filter(
+      (extra) => extra.extraProductId && Number.isInteger(extra.quantity) && extra.quantity > 0
+    );
   const date = input.date.trim();
   const time = input.time.trim();
   const notes = input.notes?.trim() || null;
+  const conflictMode = input.conflictMode || "OVERLAP";
 
   if (!input.customerId || !barberId || serviceIds.length === 0 || !date || !time) {
     throw new AppointmentMutationError(
@@ -102,8 +120,16 @@ async function createCustomerAppointmentInTransaction(
     );
   }
 
-  if (serviceIds.length > 8 || (notes && notes.length > 400)) {
+  if (serviceIds.length > 8 || extras.length > 12 || (notes && notes.length > 400)) {
     throw new AppointmentMutationError("Os dados do agendamento excedem o tamanho permitido.");
+  }
+
+  const extrasByProductId = new Map<string, number>();
+  for (const extra of extras) {
+    extrasByProductId.set(
+      extra.extraProductId,
+      (extrasByProductId.get(extra.extraProductId) || 0) + extra.quantity
+    );
   }
 
   const barber = await db.user.findFirst({
@@ -147,6 +173,39 @@ async function createCustomerAppointmentInTransaction(
     throw new AppointmentMutationError(
       "Nao foi possivel validar a ordem dos servicos selecionados."
     );
+  }
+
+  const selectedProducts = extrasByProductId.size
+    ? await db.extraProduct.findMany({
+        where: {
+          id: {
+            in: Array.from(extrasByProductId.keys()),
+          },
+          isActive: true,
+        },
+        select: {
+          id: true,
+          name: true,
+          price: true,
+          stock: true,
+        },
+      })
+    : [];
+
+  if (selectedProducts.length !== extrasByProductId.size) {
+    throw new AppointmentMutationError(
+      "Um ou mais extras escolhidos nao estao mais disponiveis."
+    );
+  }
+
+  for (const product of selectedProducts) {
+    const selectedQuantity = extrasByProductId.get(product.id) || 0;
+
+    if (selectedQuantity > product.stock) {
+      throw new AppointmentMutationError(
+        `${product.name} nao possui estoque suficiente para esse agendamento.`
+      );
+    }
   }
 
   const appointmentDate = new Date(`${date}T${time}:00`);
@@ -242,6 +301,11 @@ async function createCustomerAppointmentInTransaction(
 
     const existingDate = new Date(appointment.date);
     const existingStartMinutes = existingDate.getHours() * 60 + existingDate.getMinutes();
+
+    if (conflictMode === "SAME_START_ONLY") {
+      return selectedStartMinutes === existingStartMinutes;
+    }
+
     const existingEndMinutes =
       existingStartMinutes + getAppointmentServicesOccupiedDuration(appointment.services);
 
@@ -254,7 +318,7 @@ async function createCustomerAppointmentInTransaction(
     );
   }
 
-  return db.appointment.create({
+  const appointment = await db.appointment.create({
     data: {
       barberId,
       customerId: input.customerId,
@@ -281,6 +345,72 @@ async function createCustomerAppointmentInTransaction(
       },
     },
     include: {
+      items: true,
+      services: true,
+      barber: true,
+      customer: true,
+    },
+  });
+
+  if (selectedProducts.length > 0) {
+    for (const product of selectedProducts) {
+      const quantity = extrasByProductId.get(product.id) || 0;
+      const updated = await db.extraProduct.updateMany({
+        where: {
+          id: product.id,
+          isActive: true,
+          stock: {
+            gte: quantity,
+          },
+        },
+        data: {
+          stock: {
+            decrement: quantity,
+          },
+        },
+      });
+
+      if (updated.count === 0) {
+        throw new AppointmentMutationError(
+          `${product.name} acabou de ficar sem estoque. Tente novamente.`
+        );
+      }
+    }
+
+    await db.appointmentItem.createMany({
+      data: selectedProducts.map((product) => {
+        const quantity = extrasByProductId.get(product.id) || 0;
+        return {
+          appointmentId: appointment.id,
+          extraProductId: product.id,
+          productNameSnapshot: product.name,
+          quantity,
+          unitPrice: product.price,
+          subtotal: product.price * quantity,
+        };
+      }),
+    });
+
+    for (const product of selectedProducts) {
+      const quantity = extrasByProductId.get(product.id) || 0;
+      await registerExtraStockMovement(
+        {
+          extraProductId: product.id,
+          type: "RESERVE_OUT",
+          quantity,
+          reason: `Reserva em agendamento ${appointment.id}`,
+        },
+        db
+      );
+    }
+  }
+
+  return db.appointment.findUniqueOrThrow({
+    where: {
+      id: appointment.id,
+    },
+    include: {
+      items: true,
       services: true,
       barber: true,
       customer: true,
@@ -316,16 +446,189 @@ export async function updateAppointmentStatusForBarber(
     );
   }
 
-  const updatedAppointment = await db.appointment.update({
-    where: { id: appointmentId },
-    data: {
-      status: normalizedStatus,
-    },
-  });
+  const updatedAppointment = await db.$transaction(
+    (tx) =>
+      updateAppointmentStatusWithSideEffects(
+        {
+          appointmentId,
+          nextStatus: normalizedStatus,
+          cancellationReason: "Cancelado pelo barbeiro.",
+        },
+        tx
+      ),
+    {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      maxWait: 10000,
+      timeout: 20000,
+    }
+  );
 
   if (normalizedStatus === "COMPLETED") {
     await syncAppointmentFinancialSnapshots(appointmentId, db);
   }
 
   return updatedAppointment;
+}
+
+export async function cancelAppointmentByCustomer(
+  {
+    appointmentId,
+    customerId,
+  }: {
+    appointmentId: string;
+    customerId: string;
+  },
+  db: AppointmentPrismaClient = prisma
+) {
+  return db.$transaction(
+    async (tx) => {
+      const appointment = await tx.appointment.findUnique({
+        where: { id: appointmentId },
+        select: {
+          id: true,
+          customerId: true,
+          status: true,
+          date: true,
+        },
+      });
+
+      if (!appointment || appointment.customerId !== customerId) {
+        throw new AppointmentMutationError("Agendamento nao encontrado para sua conta.");
+      }
+
+      if (["CANCELLED", "COMPLETED", "DONE", "NO_SHOW"].includes(appointment.status)) {
+        throw new AppointmentMutationError("Esse agendamento nao pode mais ser cancelado.");
+      }
+
+      if (appointment.date.getTime() <= Date.now()) {
+        throw new AppointmentMutationError(
+          "Esse horario ja passou. Fale com o barbeiro para ajustar o status."
+        );
+      }
+
+      await updateAppointmentStatusWithSideEffects(
+        {
+          appointmentId,
+          nextStatus: "CANCELLED",
+          cancellationReason: "Cancelado pelo cliente.",
+        },
+        tx
+      );
+    },
+    {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      maxWait: 10000,
+      timeout: 20000,
+    }
+  );
+}
+
+export async function toggleAppointmentItemsDelivered(
+  {
+    appointmentId,
+    barberId,
+    isAdmin = false,
+  }: {
+    appointmentId: string;
+    barberId?: string;
+    isAdmin?: boolean;
+  },
+  db: AppointmentPrismaClient = prisma
+) {
+  return db.$transaction(async (tx) => {
+    const appointment = await tx.appointment.findUnique({
+      where: { id: appointmentId },
+      include: {
+        items: true,
+      },
+    });
+
+    if (!appointment) {
+      throw new AppointmentMutationError("Agendamento nao encontrado.");
+    }
+
+    if (!isAdmin && appointment.barberId !== barberId) {
+      throw new AppointmentMutationError("Agendamento nao encontrado para este barbeiro.");
+    }
+
+    if (appointment.items.length === 0) {
+      throw new AppointmentMutationError("Esse agendamento nao possui extras.");
+    }
+
+    const shouldDeliver = appointment.items.some((item) => !item.isDelivered);
+
+    await tx.appointmentItem.updateMany({
+      where: {
+        appointmentId,
+      },
+      data: {
+        isDelivered: shouldDeliver,
+        deliveredAt: shouldDeliver ? new Date() : null,
+      },
+    });
+
+    return {
+      delivered: shouldDeliver,
+    };
+  });
+}
+
+async function updateAppointmentStatusWithSideEffects(
+  {
+    appointmentId,
+    nextStatus,
+    cancellationReason,
+  }: {
+    appointmentId: string;
+    nextStatus: AppointmentStatus;
+    cancellationReason?: string;
+  },
+  db: AppointmentTransactionClient
+) {
+  const appointment = await db.appointment.findUnique({
+    where: { id: appointmentId },
+    include: {
+      items: true,
+    },
+  });
+
+  if (!appointment) {
+    throw new AppointmentMutationError("Agendamento nao encontrado.");
+  }
+
+  if (nextStatus === "CANCELLED" && appointment.status !== "CANCELLED") {
+    for (const item of appointment.items) {
+      await db.extraProduct.update({
+        where: {
+          id: item.extraProductId,
+        },
+        data: {
+          stock: {
+            increment: item.quantity,
+          },
+        },
+      });
+
+      await registerExtraStockMovement(
+        {
+          extraProductId: item.extraProductId,
+          type: "CANCEL_RETURN",
+          quantity: item.quantity,
+          reason: `Devolucao por cancelamento do agendamento ${appointment.id}`,
+        },
+        db
+      );
+    }
+  }
+
+  return db.appointment.update({
+    where: { id: appointmentId },
+    data: {
+      status: nextStatus,
+      notes:
+        nextStatus === "CANCELLED" && cancellationReason
+          ? [appointment.notes, cancellationReason].filter(Boolean).join(" | ")
+          : appointment.notes,
+    },
+  });
 }

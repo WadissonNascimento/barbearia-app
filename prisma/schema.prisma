@@ -8,6 +8,18 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+enum ProductCategory {
+  BEVERAGE
+  SHELF
+  OTHER
+}
+
+enum ExtraCategory {
+  BEVERAGE
+  SHELF
+  OTHER
+}
+
 model User {
   id            String    @id @default(cuid())
   name          String?
@@ -139,6 +151,7 @@ model Appointment {
   customer User                 @relation("CustomerAppointments", fields: [customerId], references: [id], onDelete: Cascade)
   barber   User                 @relation("BarberAppointments", fields: [barberId], references: [id], onDelete: Cascade)
   services AppointmentService[]
+  items    AppointmentItem[]
   review   Review?
 
   @@index([customerId])
@@ -273,6 +286,7 @@ model Product {
   id          String   @id @default(cuid())
   name        String
   description String?
+  category    ProductCategory @default(OTHER)
   price       Float
   imageUrl    String?
   imagePath   String?  @map("image_path")
@@ -281,8 +295,44 @@ model Product {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  orderItems     OrderItem[]
-  stockMovements StockMovement[]
+  orderItems        OrderItem[]
+  stockMovements    StockMovement[]
+}
+
+model ExtraProduct {
+  id          String        @id @default(cuid())
+  name        String
+  description String?
+  category    ExtraCategory @default(OTHER)
+  price       Float
+  imageUrl    String?
+  imagePath   String?       @map("image_path")
+  stock       Int           @default(0)
+  isActive    Boolean       @default(true)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  appointmentItems AppointmentItem[]
+  stockMovements   ExtraStockMovement[]
+}
+
+model AppointmentItem {
+  id                  String   @id @default(cuid())
+  appointmentId       String
+  extraProductId      String   @map("productId")
+  productNameSnapshot String
+  quantity            Int      @default(1)
+  unitPrice           Float
+  subtotal            Float
+  isDelivered         Boolean  @default(false)
+  deliveredAt         DateTime?
+  createdAt           DateTime @default(now())
+
+  appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  extraProduct ExtraProduct @relation(fields: [extraProductId], references: [id], onDelete: Cascade)
+
+  @@index([appointmentId])
+  @@index([extraProductId])
 }
 
 model Order {
@@ -359,6 +409,20 @@ model StockMovement {
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@index([productId, createdAt])
+  @@index([type])
+}
+
+model ExtraStockMovement {
+  id             String   @id @default(cuid())
+  extraProductId String
+  type           String
+  quantity       Int
+  reason         String?
+  createdAt      DateTime @default(now())
+
+  extraProduct ExtraProduct @relation(fields: [extraProductId], references: [id], onDelete: Cascade)
+
+  @@index([extraProductId, createdAt])
   @@index([type])
 }
 

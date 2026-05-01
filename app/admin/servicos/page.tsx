@@ -24,6 +24,18 @@ export default async function AdminServicosPage() {
 
   const globalServices = services.filter((service) => service.barberId === null);
   const barberServices = services.filter((service) => service.barberId !== null);
+  const barbers = await prisma.user.findMany({
+    where: {
+      role: "BARBER",
+      isActive: true,
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+    },
+    orderBy: [{ name: "asc" }, { email: "asc" }],
+  });
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 text-white">
@@ -43,7 +55,11 @@ export default async function AdminServicosPage() {
         </Link>
       </div>
 
-      <AdminServicesClient globalServices={globalServices} barberServices={barberServices} />
+      <AdminServicesClient
+        globalServices={globalServices}
+        barberServices={barberServices}
+        barbers={barbers}
+      />
     </div>
   );
 }

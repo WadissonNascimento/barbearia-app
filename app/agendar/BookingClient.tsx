@@ -5,6 +5,10 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import FeedbackMessage from "@/components/FeedbackMessage";
+import { normalizeProductImageUrl } from "@/lib/productImageUrl";
+import {
+  getExtraCategoryLabel,
+} from "@/lib/extraCategories";
 import { formatCurrency } from "@/lib/utils";
 
 type BarberOption = {
@@ -25,9 +29,20 @@ type ServiceOption = {
 type BookingClientProps = {
   barbers: BarberOption[];
   services: ServiceOption[];
+  extras: ProductExtraOption[];
   initialDate: string;
   nextDays: string[];
   whatsappNumber: string;
+};
+
+type ProductExtraOption = {
+  id: string;
+  name: string;
+  description: string | null;
+  category: string;
+  price: number;
+  stock: number;
+  imageUrl: string | null;
 };
 
 type PeriodSlots = {
@@ -41,8 +56,15 @@ type BookingDetails = {
   time: string;
   barberName: string;
   serviceNames: string[];
+  extras: Array<{
+    name: string;
+    quantity: number;
+    subtotal: number;
+  }>;
   duration: number;
-  price: number;
+  servicePrice: number;
+  extrasPrice: number;
+  totalPrice: number;
 };
 
 function formatShortDate(dateString: string) {
@@ -73,6 +95,7 @@ function getLocalBarberImage(image: string | null) {
 export default function BookingClient({
   barbers,
   services,
+  extras,
   initialDate,
   nextDays,
   whatsappNumber,
@@ -91,9 +114,11 @@ export default function BookingClient({
   const [bookingError, setBookingError] = useState<string | null>(null);
   const [bookingSuccess, setBookingSuccess] = useState<string | null>(null);
   const [bookingSlot, setBookingSlot] = useState<string | null>(null);
+  const [extrasSlot, setExtrasSlot] = useState<string | null>(null);
   const [confirmationSlot, setConfirmationSlot] = useState<string | null>(null);
   const [bookingDetails, setBookingDetails] = useState<BookingDetails | null>(null);
   const [previewBarber, setPreviewBarber] = useState<BarberOption | null>(null);
+  const [extraQuantities, setExtraQuantities] = useState<Record<string, number>>({});
 
   const visibleServices = useMemo(
     () =>
@@ -119,18 +144,41 @@ export default function BookingClient({
     barbers.findIndex((barber) => barber.id === selectedBarberId)
   );
 
-  const selectedBaseDuration = selectedServices.reduce(
-    (sum, service) => sum + service.duration,
-    0
-  );
   const selectedOccupiedDuration = selectedServices.reduce(
     (sum, service) => sum + service.duration + Math.max(0, service.bufferAfter || 0),
     0
   );
   const selectedPrice = selectedServices.reduce((sum, service) => sum + service.price, 0);
+  const selectedExtras = useMemo(
+    () =>
+      extras
+        .map((product) => ({
+          ...product,
+          quantity: extraQuantities[product.id] || 0,
+          imageUrl: normalizeProductImageUrl(product.imageUrl),
+        }))
+        .filter((product) => product.quantity > 0),
+    [extraQuantities, extras]
+  );
+  const selectedExtrasPrice = selectedExtras.reduce(
+    (sum, product) => sum + product.price * product.quantity,
+    0
+  );
+  const selectedTotalPrice = selectedPrice + selectedExtrasPrice;
   const totalSlots =
     periodSlots.morning.length + periodSlots.afternoon.length + periodSlots.night.length;
   const hasBookingConflict = bookingError?.toLowerCase().includes("reservado") ?? false;
+  const groupedExtras = useMemo(() => {
+    const categories = ["BEVERAGE", "SHELF", "OTHER"] as const;
+
+    return categories
+      .map((category) => ({
+        category,
+        title: getExtraCategoryLabel(category),
+        items: extras.filter((product) => product.category === category),
+      }))
+      .filter((group) => group.items.length > 0);
+  }, [extras]);
 
   useEffect(() => {
     setSelectedServiceIds((current) =>
@@ -248,10 +296,36 @@ export default function BookingClient({
   function openBookingConfirmation(time: string) {
     setBookingError(null);
     setBookingSuccess(null);
-    setConfirmationSlot(time);
+    setExtrasSlot(time);
+  }
+
+  function proceedFromExtrasToSummary() {
+    if (!extrasSlot) {
+      return;
+    }
+
+    setConfirmationSlot(extrasSlot);
+    setExtrasSlot(null);
+  }
+
+  function updateExtraQuantity(productId: string, nextQuantity: number, stock: number) {
+    setExtraQuantities((current) => {
+      const boundedQuantity = Math.max(0, Math.min(stock, nextQuantity));
+
+      if (boundedQuantity === 0) {
+        const { [productId]: _removed, ...rest } = current;
+        return rest;
+      }
+
+      return {
+        ...current,
+        [productId]: boundedQuantity,
+      };
+    });
   }
 
   async function bookAppointment(time: string, notes = "") {
+    setExtrasSlot(null);
     setConfirmationSlot(null);
     setBookingSlot(time);
     setBookingError(null);
@@ -266,6 +340,10 @@ export default function BookingClient({
         body: JSON.stringify({
           barberId: selectedBarberId,
           serviceIds: selectedServiceIds,
+          extras: selectedExtras.map((product) => ({
+            extraProductId: product.id,
+            quantity: product.quantity,
+          })),
           date: selectedDate,
           time,
           notes,
@@ -284,8 +362,15 @@ export default function BookingClient({
         time,
         barberName: selectedBarber?.name || "Barbeiro",
         serviceNames: selectedServices.map((service) => service.name),
+        extras: selectedExtras.map((product) => ({
+          name: product.name,
+          quantity: product.quantity,
+          subtotal: product.price * product.quantity,
+        })),
         duration: selectedOccupiedDuration,
-        price: selectedPrice,
+        servicePrice: selectedPrice,
+        extrasPrice: selectedExtrasPrice,
+        totalPrice: selectedTotalPrice,
       });
 
       const refreshed = await fetch("/api/booking/availability", {
@@ -502,16 +587,6 @@ export default function BookingClient({
               )}
             </div>
           </div>
-          <div className="hidden lg:sticky lg:top-24 lg:block lg:self-start">
-            <BookingSummary
-              barberName={selectedBarber?.name || "Nao escolhido"}
-              services={selectedServices.map((service) => service.name)}
-              date={selectedDate}
-              duration={selectedOccupiedDuration}
-              price={selectedPrice}
-              totalSlots={totalSlots}
-            />
-          </div>
         </div>
       </section>
 
@@ -528,7 +603,7 @@ export default function BookingClient({
 
             {selectedServices.length > 0 && (
               <div className="min-w-0 rounded-2xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-200 sm:px-4 sm:py-3">
-                {selectedServices.length} servico(s) - {formatCurrency(selectedPrice)}
+                Total atual - {formatCurrency(selectedTotalPrice)}
               </div>
             )}
           </div>
@@ -579,14 +654,35 @@ export default function BookingClient({
           )}
       </section>
 
+      {extrasSlot ? (
+        <BookingExtrasDialog
+          groupedExtras={groupedExtras}
+          selectedExtras={selectedExtras.map((product) => ({
+            name: product.name,
+            quantity: product.quantity,
+          }))}
+          extraQuantities={extraQuantities}
+          onUpdateExtraQuantity={updateExtraQuantity}
+          onCancel={() => setExtrasSlot(null)}
+          onContinue={proceedFromExtrasToSummary}
+        />
+      ) : null}
+
       {confirmationSlot ? (
         <BookingConfirmationDialog
           time={confirmationSlot}
           date={selectedDate}
           barberName={selectedBarber?.name || "Barbeiro"}
           services={selectedServices.map((service) => service.name)}
+          extras={selectedExtras.map((product) => ({
+            name: product.name,
+            quantity: product.quantity,
+            subtotal: product.price * product.quantity,
+          }))}
           duration={selectedOccupiedDuration}
-          price={selectedPrice}
+          servicePrice={selectedPrice}
+          extrasPrice={selectedExtrasPrice}
+          totalPrice={selectedTotalPrice}
           isSubmitting={bookingSlot === confirmationSlot}
           onCancel={() => setConfirmationSlot(null)}
           onConfirm={(notes) => void bookAppointment(confirmationSlot, notes)}
@@ -855,16 +951,26 @@ function BarberPhotoPreviewDialog({
 function BookingSummary({
   barberName,
   services,
+  extras,
   date,
   duration,
-  price,
+  servicePrice,
+  extrasPrice,
+  totalPrice,
   totalSlots,
 }: {
   barberName: string;
   services: string[];
+  extras: Array<{
+    name: string;
+    quantity: number;
+    subtotal: number;
+  }>;
   date: string;
   duration: number;
-  price: number;
+  servicePrice: number;
+  extrasPrice: number;
+  totalPrice: number;
   totalSlots: number;
 }) {
   const formattedDate = new Date(`${date}T00:00:00`).toLocaleDateString("pt-BR", {
@@ -880,12 +986,31 @@ function BookingSummary({
       <div className="mt-3 space-y-2 text-sm">
         <ConfirmationRow label="Barbeiro" value={barberName} />
         <ConfirmationRow
-          label="Servicos"
+          label="Lista de servicos"
           value={services.length ? services.join(", ") : "Nenhum servico"}
+        />
+        <ConfirmationRow
+          label="Lista de extras"
+          value={
+            extras.length
+              ? extras.map((item) => `${item.name} x${item.quantity}`).join(", ")
+              : "Nenhum extra"
+          }
         />
         <ConfirmationRow label="Data" value={formattedDate} />
         <ConfirmationRow label="Duracao" value={duration ? `${duration} min` : "-"} />
-        <ConfirmationRow label="Valor" value={price ? formatCurrency(price) : "-"} />
+        <ConfirmationRow
+          label="Servicos"
+          value={servicePrice ? formatCurrency(servicePrice) : "-"}
+        />
+        <ConfirmationRow
+          label="Extras"
+          value={extrasPrice ? formatCurrency(extrasPrice) : "R$ 0,00"}
+        />
+        <ConfirmationRow
+          label="Total"
+          value={totalPrice ? formatCurrency(totalPrice) : "-"}
+        />
         <ConfirmationRow
           label="Horarios"
           value={services.length ? `${totalSlots} disponiveis` : "Aguardando"}
@@ -955,7 +1080,17 @@ function BookingSuccessDialog({
           <ConfirmationRow label="Horario" value={details.time} />
           <ConfirmationRow label="Barbeiro" value={details.barberName} />
           <ConfirmationRow label="Servicos" value={details.serviceNames.join(", ")} />
-          <ConfirmationRow label="Valor" value={formatCurrency(details.price)} />
+          <ConfirmationRow
+            label="Extras"
+            value={
+              details.extras.length
+                ? details.extras.map((item) => `${item.name} x${item.quantity}`).join(", ")
+                : "Nenhum extra"
+            }
+          />
+          <ConfirmationRow label="Servicos" value={formatCurrency(details.servicePrice)} />
+          <ConfirmationRow label="Extras" value={formatCurrency(details.extrasPrice)} />
+          <ConfirmationRow label="Total" value={formatCurrency(details.totalPrice)} />
         </div>
 
         <div className="mt-5 grid gap-3">
@@ -989,6 +1124,230 @@ function BookingSuccessDialog({
   );
 }
 
+function BookingExtrasDialog({
+  groupedExtras,
+  selectedExtras,
+  extraQuantities,
+  onUpdateExtraQuantity,
+  onCancel,
+  onContinue,
+}: {
+  groupedExtras: Array<{
+    category: string;
+    title: string;
+    items: ProductExtraOption[];
+  }>;
+  selectedExtras: Array<{
+    name: string;
+    quantity: number;
+  }>;
+  extraQuantities: Record<string, number>;
+  onUpdateExtraQuantity: (productId: string, nextQuantity: number, stock: number) => void;
+  onCancel: () => void;
+  onContinue: () => void;
+}) {
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  if (!isMounted) {
+    return null;
+  }
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/75 px-4 py-6 backdrop-blur-md"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="booking-extras-title"
+    >
+      <div className="max-h-[calc(100svh-32px)] w-full max-w-md overflow-y-auto rounded-2xl border border-white/10 bg-[#050b16] p-5 text-white shadow-[0_24px_80px_rgba(0,0,0,0.55)]">
+        <p className="text-xs uppercase tracking-[0.24em] text-[var(--brand-strong)]">
+          Adicionar extras
+        </p>
+        <h2 id="booking-extras-title" className="mt-2 text-2xl font-bold">
+          Deseja retirar algo no local?
+        </h2>
+        <p className="mt-2 text-sm leading-6 text-zinc-400">
+          Escolha uma bebida ou algum produto para retirar durante seu atendimento.
+        </p>
+
+        <div className="mt-5 rounded-3xl border border-white/10 bg-black/20 p-4">
+          {groupedExtras.length === 0 ? (
+            <p className="rounded-2xl border border-dashed border-white/10 px-4 py-4 text-sm text-zinc-500">
+              Nenhum extra disponivel no momento.
+            </p>
+          ) : (
+            <div className="max-h-[420px] space-y-3 overflow-y-auto overflow-x-hidden pr-1">
+              {groupedExtras.map((group) => (
+                <div
+                  key={group.category}
+                  className={`space-y-3 rounded-[24px] border p-3 ${
+                    group.category === "BEVERAGE"
+                      ? "border-sky-400/20 bg-sky-500/[0.06]"
+                      : group.category === "SHELF"
+                        ? "border-violet-400/20 bg-violet-500/[0.06]"
+                        : "border-white/10 bg-white/[0.03]"
+                  }`}
+                >
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <p
+                        className={`text-[11px] font-semibold uppercase tracking-[0.2em] ${
+                          group.category === "BEVERAGE"
+                            ? "text-sky-200"
+                            : group.category === "SHELF"
+                              ? "text-violet-200"
+                              : "text-zinc-400"
+                        }`}
+                      >
+                        {group.category === "BEVERAGE"
+                          ? "BEBIDAS"
+                          : group.category === "SHELF"
+                            ? "PRODUTOS PARA CUIDADO"
+                            : group.title.toUpperCase()}
+                      </p>
+                      <div
+                        className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${
+                          group.category === "BEVERAGE"
+                            ? "border-sky-400/25 bg-sky-400/10 text-sky-200"
+                            : group.category === "SHELF"
+                              ? "border-violet-400/25 bg-violet-400/10 text-violet-200"
+                              : "border-white/10 bg-white/[0.05] text-zinc-300"
+                        }`}
+                      >
+                        {group.items.length} item(ns)
+                      </div>
+                    </div>
+                    <p className="text-xs leading-5 text-zinc-400">
+                      {group.category === "BEVERAGE"
+                        ? "Geladas para retirada no atendimento."
+                        : group.category === "SHELF"
+                          ? "Somente para retirada no local."
+                          : "Itens adicionais disponiveis para esse horario."}
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    {group.items.map((product) => {
+                      const quantity = extraQuantities[product.id] || 0;
+                      const productImageUrl = normalizeProductImageUrl(product.imageUrl);
+
+                      return (
+                        <div
+                          key={product.id}
+                          className="rounded-[22px] border border-white/10 bg-[#0f1724]/90 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]"
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className="relative h-[62px] w-[62px] shrink-0 overflow-hidden rounded-[18px] border border-white/10 bg-[#edf1f7] shadow-[0_12px_24px_rgba(0,0,0,0.18)]">
+                              {productImageUrl ? (
+                                <Image
+                                  src={productImageUrl}
+                                  alt={product.name}
+                                  fill
+                                  sizes="62px"
+                                  className="object-contain"
+                                />
+                              ) : (
+                                <div className="flex h-full items-center justify-center px-2 text-center text-[10px] text-zinc-500">
+                                  Sem imagem
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="min-w-0 flex-1">
+                              <div className="space-y-1">
+                                <p className="text-[15px] font-semibold leading-5 text-white break-words">
+                                  {product.name}
+                                </p>
+                                <p className="text-sm font-semibold text-white">
+                                  {formatCurrency(product.price)}
+                                </p>
+                                {product.description ? (
+                                  <p className="line-clamp-2 text-xs leading-5 text-zinc-400">
+                                    {product.description}
+                                  </p>
+                                ) : null}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="mt-3 flex items-center justify-between gap-2 rounded-[18px] border border-white/10 bg-black/20 px-3 py-2">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                onUpdateExtraQuantity(
+                                  product.id,
+                                  quantity - 1,
+                                  product.stock
+                                )
+                              }
+                              disabled={quantity === 0}
+                              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 text-lg font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                              -
+                            </button>
+                            <div className="min-w-0 flex-1 text-center">
+                              <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">
+                                Quantidade
+                              </p>
+                              <p className="mt-1 text-lg font-bold text-white">{quantity}</p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                onUpdateExtraQuantity(
+                                  product.id,
+                                  quantity + 1,
+                                  product.stock
+                                )
+                              }
+                              disabled={quantity >= product.stock}
+                              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--brand)] text-lg font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                              +
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-zinc-300">
+          {selectedExtras.length > 0
+            ? `Selecionado: ${selectedExtras.map((item) => `${item.name} x${item.quantity}`).join(", ")}`
+            : "Nenhum extra selecionado."}
+        </div>
+
+        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/5"
+          >
+            Voltar
+          </button>
+          <button
+            type="button"
+            onClick={onContinue}
+            className="rounded-2xl bg-[var(--brand)] px-4 py-3 text-sm font-semibold text-white transition hover:brightness-110"
+          >
+            {selectedExtras.length > 0 ? "Continuar com extras" : "Continuar sem extras"}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 function WhatsAppIcon() {
   return (
     <svg
@@ -1007,8 +1366,11 @@ function BookingConfirmationDialog({
   date,
   barberName,
   services,
+  extras,
   duration,
-  price,
+  servicePrice,
+  extrasPrice,
+  totalPrice,
   isSubmitting,
   onCancel,
   onConfirm,
@@ -1017,8 +1379,15 @@ function BookingConfirmationDialog({
   date: string;
   barberName: string;
   services: string[];
+  extras: Array<{
+    name: string;
+    quantity: number;
+    subtotal: number;
+  }>;
   duration: number;
-  price: number;
+  servicePrice: number;
+  extrasPrice: number;
+  totalPrice: number;
   isSubmitting: boolean;
   onCancel: () => void;
   onConfirm: (notes: string) => void;
@@ -1059,12 +1428,25 @@ function BookingConfirmationDialog({
         </p>
 
         <div className="mt-5 space-y-3 rounded-3xl border border-white/10 bg-black/20 p-4 text-sm">
+          <p className="text-xs uppercase tracking-[0.22em] text-[var(--brand-strong)]">
+            Resumo
+          </p>
           <ConfirmationRow label="Data" value={formattedDate} />
           <ConfirmationRow label="Horario" value={time} />
           <ConfirmationRow label="Barbeiro" value={barberName} />
           <ConfirmationRow label="Servicos" value={services.join(", ")} />
+          <ConfirmationRow
+            label="Extras"
+            value={
+              extras.length
+                ? extras.map((item) => `${item.name} x${item.quantity}`).join(", ")
+                : "Nenhum extra"
+            }
+          />
           <ConfirmationRow label="Duracao" value={`${duration} min`} />
-          <ConfirmationRow label="Valor" value={formatCurrency(price)} />
+          <ConfirmationRow label="Servicos" value={formatCurrency(servicePrice)} />
+          <ConfirmationRow label="Extras" value={formatCurrency(extrasPrice)} />
+          <ConfirmationRow label="Total" value={formatCurrency(totalPrice)} />
         </div>
 
         <label className="mt-5 block">

@@ -3,10 +3,12 @@ import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import EmptyState from "@/components/ui/EmptyState";
+import { getAppointmentItemsLabel } from "@/lib/appointmentItems";
 import PageHeader from "@/components/ui/PageHeader";
 import SectionCard from "@/components/ui/SectionCard";
 import StatusBadge from "@/components/ui/StatusBadge";
 import { getAppointmentDisplayName } from "@/lib/appointmentServices";
+import { getAppointmentGrandTotal } from "@/lib/appointmentServices";
 import {
   appointmentStatusLabel,
   appointmentStatusVariant,
@@ -31,6 +33,7 @@ export default async function CustomerAppointmentsPage() {
     },
     include: {
       barber: true,
+      items: true,
       services: true,
       review: true,
     },
@@ -135,6 +138,23 @@ export default async function CustomerAppointmentsPage() {
                       label="Observacoes"
                       value={appointment.notes || "Sem observacoes registradas"}
                     />
+                    <InfoBlock
+                      label="Extras"
+                      value={getAppointmentItemsLabel(appointment.items)}
+                    />
+                  </div>
+
+                  <div className="mt-4 rounded-2xl border border-zinc-800 bg-black/20 p-4">
+                    <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">Total</p>
+                    <p className="mt-2 text-lg font-semibold text-white">
+                      {getAppointmentGrandTotal(
+                        appointment.services,
+                        appointment.items
+                      ).toLocaleString("pt-BR", {
+                        style: "currency",
+                        currency: "BRL",
+                      })}
+                    </p>
                   </div>
 
                   <div className="mt-5 border-t border-white/10 pt-4">

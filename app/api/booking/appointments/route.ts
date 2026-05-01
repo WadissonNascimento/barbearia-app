@@ -38,6 +38,7 @@ export async function POST(request: Request) {
     const body = (await readJsonWithLimit(request, 8 * 1024)) as {
       barberId?: string;
       serviceIds?: string[];
+      extras?: Array<{ extraProductId?: string; quantity?: number }>;
       date?: string;
       time?: string;
       notes?: string;
@@ -47,6 +48,19 @@ export async function POST(request: Request) {
     const serviceIds = Array.isArray(body.serviceIds)
       ? body.serviceIds.map((value) => String(value).trim()).filter(Boolean)
       : [];
+    const extras = Array.isArray(body.extras)
+      ? body.extras
+          .map((extra) => ({
+            extraProductId: String(extra?.extraProductId || "").trim(),
+            quantity: Number(extra?.quantity || 0),
+          }))
+          .filter(
+            (extra) =>
+              extra.extraProductId &&
+              Number.isInteger(extra.quantity) &&
+              extra.quantity > 0
+          )
+      : [];
     const date = String(body.date || "").trim();
     const time = String(body.time || "").trim();
     const notes = String(body.notes || "").trim();
@@ -55,6 +69,7 @@ export async function POST(request: Request) {
       customerId: session.user.id,
       barberId,
       serviceIds,
+      extras,
       date,
       time,
       notes,

@@ -1,8 +1,9 @@
 import { Prisma } from "@prisma/client";
 import {
   getAppointmentDisplayName,
-  getAppointmentTotalPrice,
+  getAppointmentGrandTotal,
 } from "@/lib/appointmentServices";
+import { getAppointmentItemsLabel } from "@/lib/appointmentItems";
 import { prisma } from "@/lib/prisma";
 import {
   APPOINTMENT_STATUSES,
@@ -110,6 +111,7 @@ export async function getAdminAgendaReport(filters: AdminAgendaFilters) {
     include: {
       barber: true,
       customer: true,
+      items: true,
       services: true,
     },
     orderBy: {
@@ -214,6 +216,7 @@ export function buildAgendaCsv(
     "Servico",
     "Valor",
     "Status",
+    "Extras",
     "Observacoes",
   ];
 
@@ -224,8 +227,9 @@ export function buildAgendaCsv(
     appointment.customer.name || appointment.customer.email || "Cliente",
     appointment.customer.email || "",
     getAppointmentDisplayName(appointment.services),
-    formatCurrency(getAppointmentTotalPrice(appointment.services)),
+    formatCurrency(getAppointmentGrandTotal(appointment.services, appointment.items)),
     appointmentStatusLabel(appointment.status),
+    getAppointmentItemsLabel(appointment.items),
     appointment.notes || "",
   ]);
 

@@ -48,8 +48,7 @@ export default async function AdminBarbersPage({
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 text-white">
       <PageHeader
-        title="Equipe de barbeiros"
-        description="Adicione barbeiros, acompanhe convites e controle quem pode atender."
+        title="Gerenciamento"
         actions={
           <Link
             href="/admin"

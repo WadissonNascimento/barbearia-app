@@ -1,8 +1,10 @@
 "use server";
 
+import { ProductCategory } from "@prisma/client";
 import { auth } from "@/auth";
 import { registerStockMovement } from "@/lib/inventory";
 import { prisma } from "@/lib/prisma";
+import { isProductCategoryValue } from "@/lib/productCategories";
 import { revalidatePath } from "next/cache";
 import {
   deleteProductImage,
@@ -25,11 +27,20 @@ function revalidateProductViews() {
   revalidatePath("/admin");
   revalidatePath("/admin/produtos");
   revalidatePath("/admin/produtos/novo");
+  revalidatePath("/agendar");
+  revalidatePath("/customer/agendamentos");
+  revalidatePath("/barber");
+  revalidatePath("/barber/agenda");
+}
+
+function parseProductCategory(value: string) {
+  return isProductCategoryValue(value) ? value : ProductCategory.OTHER;
 }
 
 export async function createProduct(data: {
   name: string;
   description?: string;
+  category?: ProductCategory;
   price: number;
   imageUrl?: string;
   stock: number;
@@ -48,6 +59,7 @@ export async function createProduct(data: {
     data: {
       name,
       description: data.description?.trim() || null,
+      category: data.category || ProductCategory.OTHER,
       price,
       imageUrl: normalizeProductImageUrl(data.imageUrl?.trim() || null),
       stock,
@@ -70,6 +82,7 @@ export async function createProductFromForm(formData: FormData) {
 
   const name = String(formData.get("name") || "").trim();
   const description = String(formData.get("description") || "").trim();
+  const category = parseProductCategory(String(formData.get("category") || ""));
   const price = Number(formData.get("price") || 0);
   const stock = Number(formData.get("stock") || 0);
   const imageFile = formData.get("image");
@@ -84,32 +97,31 @@ export async function createProductFromForm(formData: FormData) {
     throw new Error("Preencha nome, preco e estoque corretamente.");
   }
 
-  if (!(imageFile instanceof File) || imageFile.size === 0) {
-    throw new Error("Selecione uma imagem principal para o produto.");
-  }
-
   const product = await prisma.product.create({
     data: {
       name,
       description: description || null,
+      category,
       price,
       stock,
     },
   });
 
   try {
-    const image = await uploadProductImage({
-      productId: product.id,
-      file: imageFile,
-    });
+    if (imageFile instanceof File && imageFile.size > 0) {
+      const image = await uploadProductImage({
+        productId: product.id,
+        file: imageFile,
+      });
 
-    await prisma.product.update({
-      where: { id: product.id },
-      data: {
-        imageUrl: image.imageUrl,
-        imagePath: image.imagePath,
-      },
-    });
+      await prisma.product.update({
+        where: { id: product.id },
+        data: {
+          imageUrl: image.imageUrl,
+          imagePath: image.imagePath,
+        },
+      });
+    }
 
     await registerStockMovement({
       productId: product.id,
@@ -131,6 +143,7 @@ export async function updateProduct(
   data: Partial<{
     name: string;
     description: string | null;
+    category: ProductCategory;
     price: number;
     imageUrl: string | null;
     stock: number;
@@ -161,6 +174,7 @@ export async function updateProduct(
     data: {
       ...data,
       name: data.name?.trim(),
+      category: data.category,
       imageUrl:
         data.imageUrl === undefined
           ? undefined
@@ -181,6 +195,40 @@ export async function updateProduct(
 
   revalidateProductViews();
   return product;
+}
+
+export async function updateProductFromForm(formData: FormData) {
+  await ensureProductAccess();
+
+  const productId = String(formData.get("productId") || "").trim();
+  const name = String(formData.get("name") || "").trim();
+  const description = String(formData.get("description") || "").trim();
+  const category = parseProductCategory(String(formData.get("category") || ""));
+  const price = Number(formData.get("price") || 0);
+  const stock = Number(formData.get("stock") || 0);
+
+  if (
+    !productId ||
+    !name ||
+    !Number.isFinite(price) ||
+    price <= 0 ||
+    !Number.isInteger(stock) ||
+    stock < 0
+  ) {
+    throw new Error("Preencha nome, categoria, preco e estoque corretamente.");
+  }
+
+  await updateProduct(productId, {
+    name,
+    description: description || null,
+    category,
+    price,
+    stock,
+  });
+
+  return {
+    message: "Produto atualizado com sucesso.",
+  };
 }
 
 export async function updateProductImage(formData: FormData) {
@@ -251,7 +299,9 @@ export async function deleteProduct(id: string) {
     throw new Error("Produto nao encontrado.");
   }
 
-  if (product._count.orderItems > 0 || product._count.stockMovements > 0) {
+  if (
+    product._count.orderItems > 0 || product._count.stockMovements > 0
+  ) {
     await prisma.product.update({
       where: { id },
       data: {

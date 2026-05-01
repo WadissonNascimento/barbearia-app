@@ -2,6 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
+import {
+  AppointmentMutationError,
+  cancelAppointmentByCustomer,
+} from "@/lib/appointmentMutations";
 import { prisma } from "@/lib/prisma";
 import {
   mutationError,
@@ -49,25 +53,18 @@ export async function cancelCustomerAppointmentAction(
     return mutationError("Agendamento nao encontrado para sua conta.");
   }
 
-  if (["CANCELLED", "COMPLETED", "DONE", "NO_SHOW"].includes(appointment.status)) {
-    return mutationError("Esse agendamento nao pode mais ser cancelado.");
-  }
+  try {
+    await cancelAppointmentByCustomer({
+      appointmentId,
+      customerId: session.user.id,
+    });
+  } catch (error) {
+    if (error instanceof AppointmentMutationError) {
+      return mutationError(error.message);
+    }
 
-  if (appointment.date.getTime() <= Date.now()) {
-    return mutationError(
-      "Esse horario ja passou. Fale com o barbeiro para ajustar o status."
-    );
+    throw error;
   }
-
-  await prisma.appointment.update({
-    where: {
-      id: appointmentId,
-    },
-    data: {
-      status: "CANCELLED",
-      notes: "Cancelado pelo cliente.",
-    },
-  });
 
   revalidatePath("/customer/agendamentos");
   revalidatePath("/customer");

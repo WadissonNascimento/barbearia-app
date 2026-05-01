@@ -18,6 +18,7 @@ import {
   appointmentStatusVariant,
 } from "@/lib/appointmentStatus";
 import { formatCurrency } from "@/lib/utils";
+import { buildAppointmentContactWhatsAppUrl } from "@/lib/whatsapp";
 import { updateAppointmentStatusAction } from "../actions";
 import type { getBarberDashboardData } from "../data";
 import WalkInAppointmentCard from "./WalkInAppointmentCard";
@@ -79,10 +80,8 @@ export default function BarberTodayDashboard({
   );
   const nextAppointment =
     visibleAppointments.find(
-      (appointment) =>
-        new Date(appointment.date).getTime() >= Date.now()
+      (appointment) => new Date(appointment.date).getTime() >= Date.now()
     ) || visibleAppointments[0] || null;
-  const nextAppointmentDate = nextAppointment ? new Date(nextAppointment.date) : null;
   const visibleUpcomingAppointments = upcomingAppointments.slice(0, 3);
 
   function updateStatus(appointment: DashboardAppointment, status: string) {
@@ -156,6 +155,17 @@ export default function BarberTodayDashboard({
           </div>
         </div>
 
+        <div className="mt-4 flex flex-wrap gap-3">
+          <WalkInAppointmentCard
+            services={walkInServices}
+            activeAppointments={summary.todayAppointments.map((appointment) => ({
+              date: appointment.date,
+              status: appointment.status,
+              occupiedDuration: appointment.occupiedDuration,
+            }))}
+          />
+        </div>
+
         <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <MetricCard
             icon={<CalendarRange />}
@@ -210,99 +220,21 @@ export default function BarberTodayDashboard({
               </div>
             ) : (
               visibleAppointments.map((appointment) => (
-                <article
+                <TodayAppointmentCard
                   key={appointment.id}
-                  className={`max-w-full overflow-hidden rounded-2xl border p-4 transition ${
-                    appointment.id === nextAppointment?.id
-                      ? "border-[var(--brand)]/50 bg-[var(--brand-muted)]"
-                      : "border-white/10 bg-black/20"
-                  }`}
-                >
-                  <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="min-w-0">
-                      <p className="text-2xl font-bold text-white">
-                        {formatTime(appointment.date)}
-                      </p>
-                      <Link
-                        href={`/barber/clientes/${appointment.customer.id}`}
-                        className="mt-2 block truncate text-base font-semibold text-white hover:text-[var(--brand-strong)]"
-                      >
-                        {appointment.customer.name}
-                      </Link>
-                      <p className="mt-1 text-sm text-zinc-400">
-                        {appointment.serviceName}
-                      </p>
-                      <p className="mt-1 text-xs text-zinc-500">
-                        {appointment.serviceMeta}
-                      </p>
-                    </div>
-                    <StatusBadge
-                      variant={appointmentStatusVariant(appointment.status)}
-                      className="w-fit max-w-full shrink-0"
-                    >
-                      {appointmentStatusLabel(appointment.status)}
-                    </StatusBadge>
-                  </div>
-
-                  {appointment.notes ? (
-                    <div className="mt-3 rounded-2xl border border-[var(--brand)]/20 bg-[var(--brand-muted)]/25 px-4 py-3">
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[var(--brand-strong)]">
-                        Observacao
-                      </p>
-                      <p className="mt-2 text-sm leading-5 text-zinc-200">
-                        {appointment.notes}
-                      </p>
-                    </div>
-                  ) : null}
-
-                  <div className="mt-4 grid gap-2 sm:grid-cols-3">
-                    {appointment.status === "PENDING" ? (
-                      <ActionButton
-                        pending={isPending && pendingKey === `${appointment.id}-CONFIRMED`}
-                        onClick={() => updateStatus(appointment, "CONFIRMED")}
-                      >
-                        Confirmar
-                      </ActionButton>
-                    ) : null}
-                    {appointment.status === "CONFIRMED" ? (
-                      <ActionButton
-                        pending={isPending && pendingKey === `${appointment.id}-COMPLETED`}
-                        onClick={() => updateStatus(appointment, "COMPLETED")}
-                      >
-                        Concluir
-                      </ActionButton>
-                    ) : null}
-                    {["PENDING", "CONFIRMED"].includes(appointment.status) ? (
-                      <>
-                        <ActionButton
-                          variant="ghost"
-                          pending={isPending && pendingKey === `${appointment.id}-NO_SHOW`}
-                          onClick={() => updateStatus(appointment, "NO_SHOW")}
-                        >
-                          Nao veio
-                        </ActionButton>
-                        <ActionButton
-                          variant="danger"
-                          pending={isPending && pendingKey === `${appointment.id}-CANCELLED`}
-                          onClick={() => updateStatus(appointment, "CANCELLED")}
-                        >
-                          Cancelar
-                        </ActionButton>
-                      </>
-                    ) : null}
-                  </div>
-                </article>
+                  appointment={appointment}
+                  barberName={barberName}
+                  highlighted={appointment.id === nextAppointment?.id}
+                  isPending={isPending}
+                  pendingKey={pendingKey}
+                  onUpdateStatus={updateStatus}
+                />
               ))
             )}
           </div>
         </div>
 
         <aside className="min-w-0 space-y-5">
-          <WalkInAppointmentCard
-            services={walkInServices}
-            nextAppointmentDate={nextAppointmentDate}
-          />
-
           <div className="min-w-0 overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.04] p-4 backdrop-blur sm:p-5">
             <h2 className="text-xl font-semibold text-white">Proximos agendamentos</h2>
             <p className="mt-1 text-sm text-zinc-400">
@@ -316,67 +248,14 @@ export default function BarberTodayDashboard({
                 </p>
               ) : (
                 visibleUpcomingAppointments.map((appointment) => (
-                  <article
+                  <UpcomingAppointmentCard
                     key={appointment.id}
-                    className="max-w-full overflow-hidden rounded-2xl border border-white/10 bg-black/20 p-4"
-                  >
-                    <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                      <div className="min-w-0">
-                        <p className="text-xs uppercase tracking-[0.18em] text-[var(--brand-strong)]">
-                          {formatDateLabel(appointment.date)}
-                        </p>
-                        <p className="mt-1 text-2xl font-bold text-white">
-                          {formatTime(appointment.date)}
-                        </p>
-                        <Link
-                          href={`/barber/clientes/${appointment.customer.id}`}
-                          className="mt-2 block truncate font-semibold text-white hover:text-[var(--brand-strong)]"
-                        >
-                          {appointment.customer.name}
-                        </Link>
-                        <p className="mt-1 text-sm text-zinc-400">
-                          {appointment.serviceName}
-                        </p>
-                      </div>
-                      <StatusBadge
-                        variant={appointmentStatusVariant(appointment.status)}
-                        className="w-fit max-w-full shrink-0"
-                      >
-                        {appointmentStatusLabel(appointment.status)}
-                      </StatusBadge>
-                    </div>
-
-                    {appointment.notes ? (
-                      <div className="mt-3 rounded-2xl border border-[var(--brand)]/20 bg-[var(--brand-muted)]/25 px-4 py-3">
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[var(--brand-strong)]">
-                          Observacao
-                        </p>
-                        <p className="mt-2 text-sm leading-5 text-zinc-200">
-                          {appointment.notes}
-                        </p>
-                      </div>
-                    ) : null}
-
-                    {["PENDING", "CONFIRMED"].includes(appointment.status) ? (
-                      <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                        {appointment.status === "PENDING" ? (
-                          <ActionButton
-                            pending={isPending && pendingKey === `${appointment.id}-CONFIRMED`}
-                            onClick={() => updateStatus(appointment, "CONFIRMED")}
-                          >
-                            Confirmar
-                          </ActionButton>
-                        ) : null}
-                        <ActionButton
-                          variant="danger"
-                          pending={isPending && pendingKey === `${appointment.id}-CANCELLED`}
-                          onClick={() => updateStatus(appointment, "CANCELLED")}
-                        >
-                          Cancelar
-                        </ActionButton>
-                      </div>
-                    ) : null}
-                  </article>
+                    appointment={appointment}
+                    barberName={barberName}
+                    isPending={isPending}
+                    pendingKey={pendingKey}
+                    onUpdateStatus={updateStatus}
+                  />
                 ))
               )}
             </div>
@@ -408,6 +287,16 @@ export default function BarberTodayDashboard({
                 >
                   Abrir cliente
                 </Link>
+                <ContactLink
+                  href={buildAppointmentContactWhatsAppUrl({
+                    customerName: nextAppointment.customer.name,
+                    barberName,
+                    serviceName: nextAppointment.serviceName,
+                    appointmentDate: nextAppointment.date,
+                    customerPhone: nextAppointment.customer.phone,
+                  })}
+                  className="mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm font-semibold text-emerald-100 transition hover:border-emerald-400/50 hover:bg-emerald-500/15"
+                />
               </div>
             ) : (
               <p className="mt-4 rounded-2xl border border-dashed border-white/10 p-4 text-sm text-zinc-400">
@@ -439,6 +328,225 @@ export default function BarberTodayDashboard({
         </aside>
       </div>
     </section>
+  );
+}
+
+function TodayAppointmentCard({
+  appointment,
+  barberName,
+  highlighted,
+  isPending,
+  pendingKey,
+  onUpdateStatus,
+}: {
+  appointment: DashboardAppointment;
+  barberName: string;
+  highlighted: boolean;
+  isPending: boolean;
+  pendingKey: string | null;
+  onUpdateStatus: (appointment: DashboardAppointment, status: string) => void;
+}) {
+  const contactHref = buildAppointmentContactWhatsAppUrl({
+    customerName: appointment.customer.name,
+    barberName,
+    serviceName: appointment.serviceName,
+    appointmentDate: appointment.date,
+    customerPhone: appointment.customer.phone,
+  });
+
+  return (
+    <article
+      className={`max-w-full overflow-hidden rounded-2xl border p-4 transition ${
+        highlighted
+          ? "border-[var(--brand)]/50 bg-[var(--brand-muted)]"
+          : "border-white/10 bg-black/20"
+      }`}
+    >
+      <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-2xl font-bold text-white">
+            {formatTime(appointment.date)}
+          </p>
+          <Link
+            href={`/barber/clientes/${appointment.customer.id}`}
+            className="mt-2 block truncate text-base font-semibold text-white hover:text-[var(--brand-strong)]"
+          >
+            {appointment.customer.name}
+          </Link>
+          <p className="mt-1 text-sm text-zinc-400">
+            {appointment.serviceName}
+          </p>
+          <p className="mt-1 text-xs text-zinc-500">
+            {appointment.serviceMeta}
+          </p>
+        </div>
+        <StatusBadge
+          variant={appointmentStatusVariant(appointment.status)}
+          className="w-fit max-w-full shrink-0"
+        >
+          {appointmentStatusLabel(appointment.status)}
+        </StatusBadge>
+      </div>
+
+      {appointment.notes ? (
+        <div className="mt-3 rounded-2xl border border-[var(--brand)]/20 bg-[var(--brand-muted)]/25 px-4 py-3">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[var(--brand-strong)]">
+            Observacao
+          </p>
+          <p className="mt-2 text-sm leading-5 text-zinc-200">
+            {appointment.notes}
+          </p>
+        </div>
+      ) : null}
+
+      <div className="mt-4 grid gap-2 sm:grid-cols-3">
+        <ContactLink href={contactHref} />
+        {appointment.status === "PENDING" ? (
+          <ActionButton
+            pending={isPending && pendingKey === `${appointment.id}-CONFIRMED`}
+            onClick={() => onUpdateStatus(appointment, "CONFIRMED")}
+          >
+            Confirmar
+          </ActionButton>
+        ) : null}
+        {appointment.status === "CONFIRMED" ? (
+          <ActionButton
+            pending={isPending && pendingKey === `${appointment.id}-COMPLETED`}
+            onClick={() => onUpdateStatus(appointment, "COMPLETED")}
+          >
+            Concluir
+          </ActionButton>
+        ) : null}
+        {["PENDING", "CONFIRMED"].includes(appointment.status) ? (
+          <>
+            <ActionButton
+              variant="ghost"
+              pending={isPending && pendingKey === `${appointment.id}-NO_SHOW`}
+              onClick={() => onUpdateStatus(appointment, "NO_SHOW")}
+            >
+              Nao veio
+            </ActionButton>
+            <ActionButton
+              variant="danger"
+              pending={isPending && pendingKey === `${appointment.id}-CANCELLED`}
+              onClick={() => onUpdateStatus(appointment, "CANCELLED")}
+            >
+              Cancelar
+            </ActionButton>
+          </>
+        ) : null}
+      </div>
+    </article>
+  );
+}
+
+function UpcomingAppointmentCard({
+  appointment,
+  barberName,
+  isPending,
+  pendingKey,
+  onUpdateStatus,
+}: {
+  appointment: DashboardAppointment;
+  barberName: string;
+  isPending: boolean;
+  pendingKey: string | null;
+  onUpdateStatus: (appointment: DashboardAppointment, status: string) => void;
+}) {
+  const contactHref = buildAppointmentContactWhatsAppUrl({
+    customerName: appointment.customer.name,
+    barberName,
+    serviceName: appointment.serviceName,
+    appointmentDate: appointment.date,
+    customerPhone: appointment.customer.phone,
+  });
+
+  return (
+    <article className="max-w-full overflow-hidden rounded-2xl border border-white/10 bg-black/20 p-4">
+      <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-xs uppercase tracking-[0.18em] text-[var(--brand-strong)]">
+            {formatDateLabel(appointment.date)}
+          </p>
+          <p className="mt-1 text-2xl font-bold text-white">
+            {formatTime(appointment.date)}
+          </p>
+          <Link
+            href={`/barber/clientes/${appointment.customer.id}`}
+            className="mt-2 block truncate font-semibold text-white hover:text-[var(--brand-strong)]"
+          >
+            {appointment.customer.name}
+          </Link>
+          <p className="mt-1 text-sm text-zinc-400">
+            {appointment.serviceName}
+          </p>
+        </div>
+        <StatusBadge
+          variant={appointmentStatusVariant(appointment.status)}
+          className="w-fit max-w-full shrink-0"
+        >
+          {appointmentStatusLabel(appointment.status)}
+        </StatusBadge>
+      </div>
+
+      {appointment.notes ? (
+        <div className="mt-3 rounded-2xl border border-[var(--brand)]/20 bg-[var(--brand-muted)]/25 px-4 py-3">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[var(--brand-strong)]">
+            Observacao
+          </p>
+          <p className="mt-2 text-sm leading-5 text-zinc-200">
+            {appointment.notes}
+          </p>
+        </div>
+      ) : null}
+
+      <div className="mt-4 grid gap-2 sm:grid-cols-3">
+        <ContactLink href={contactHref} />
+        {appointment.status === "PENDING" ? (
+          <ActionButton
+            pending={isPending && pendingKey === `${appointment.id}-CONFIRMED`}
+            onClick={() => onUpdateStatus(appointment, "CONFIRMED")}
+          >
+            Confirmar
+          </ActionButton>
+        ) : null}
+        {["PENDING", "CONFIRMED"].includes(appointment.status) ? (
+          <ActionButton
+            variant="danger"
+            pending={isPending && pendingKey === `${appointment.id}-CANCELLED`}
+            onClick={() => onUpdateStatus(appointment, "CANCELLED")}
+          >
+            Cancelar
+          </ActionButton>
+        ) : null}
+      </div>
+    </article>
+  );
+}
+
+function ContactLink({
+  href,
+  className,
+}: {
+  href: string | null;
+  className?: string;
+}) {
+  const classes =
+    className ||
+    "inline-flex min-h-11 min-w-0 items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm font-semibold text-emerald-100 transition hover:border-emerald-400/50 hover:bg-emerald-500/15 disabled:cursor-not-allowed disabled:opacity-50";
+
+  if (!href) {
+    return (
+      <button type="button" disabled className={classes}>
+        Entrar em contato
+      </button>
+    );
+  }
+
+  return (
+    <a href={href} target="_blank" rel="noreferrer" className={classes}>
+      Entrar em contato
+    </a>
   );
 }
 

@@ -16,7 +16,9 @@ import {
   appointmentStatusLabel,
   appointmentStatusVariant,
 } from "@/lib/appointmentStatus";
+import { buildAppointmentContactWhatsAppUrl } from "@/lib/whatsapp";
 import { updateAppointmentStatusAction } from "../actions";
+import { toggleAppointmentItemsDeliveredAction } from "../actions";
 import type { getBarberDashboardData } from "../data";
 
 type BarberDashboardData = Awaited<ReturnType<typeof getBarberDashboardData>>;
@@ -24,6 +26,7 @@ type BarberDashboardData = Awaited<ReturnType<typeof getBarberDashboardData>>;
 type AppointmentsSectionProps = {
   appointments: BarberDashboardData["appointments"];
   filters: BarberDashboardData["filters"];
+  barberName: string;
 };
 
 function formatDateTime(value: Date) {
@@ -81,6 +84,7 @@ function formatAgendaDay(dateString: string) {
 export function AppointmentsSection({
   appointments,
   filters,
+  barberName,
 }: AppointmentsSectionProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -258,6 +262,13 @@ export function AppointmentsSection({
         ) : (
           appointments.map((appointment) => {
             const { date, time } = formatDateTime(appointment.date);
+            const contactHref = buildAppointmentContactWhatsAppUrl({
+              customerName: appointment.customer.name || "Cliente",
+              barberName,
+              serviceName: getAppointmentDisplayName(appointment.services),
+              appointmentDate: appointment.date,
+              customerPhone: appointment.customer.phone,
+            });
 
             return (
               <article
@@ -317,6 +328,26 @@ export function AppointmentsSection({
                   </p>
                 </div>
 
+                <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-500">
+                      Extras
+                    </p>
+                    {appointment.items.length > 0 ? (
+                      <StatusBadge variant={appointment.items.every((item) => item.isDelivered) ? "success" : "info"}>
+                        {appointment.items.every((item) => item.isDelivered) ? "Entregues" : "Pendentes"}
+                      </StatusBadge>
+                    ) : null}
+                  </div>
+                  <p className="mt-2 break-words text-sm leading-5 text-zinc-300">
+                    {appointment.items.length
+                      ? appointment.items
+                          .map((item) => `${item.productNameSnapshot} x${item.quantity}`)
+                          .join(", ")
+                      : "Nenhum extra nesse agendamento"}
+                  </p>
+                </div>
+
                 <div className="mt-4 border-t border-white/10 pt-4">
                   <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                     <Link
@@ -325,6 +356,7 @@ export function AppointmentsSection({
                     >
                       Ver perfil
                     </Link>
+                    <ContactAppointmentButton href={contactHref} />
 
                     {appointment.status === "PENDING" ? (
                       <>
@@ -367,6 +399,18 @@ export function AppointmentsSection({
                         </StatusButton>
                         <StatusButton
                           appointmentId={appointment.id}
+                          status="DELIVERY"
+                          variant="secondary"
+                          onFeedback={setFeedback}
+                          action={toggleAppointmentItemsDeliveredAction}
+                          hidden={appointment.items.length === 0}
+                        >
+                          {appointment.items.every((item) => item.isDelivered)
+                            ? "Desmarcar extras"
+                            : "Marcar extras entregues"}
+                        </StatusButton>
+                        <StatusButton
+                          appointmentId={appointment.id}
                           status="NO_SHOW"
                           variant="warning"
                           onFeedback={setFeedback}
@@ -394,29 +438,62 @@ export function AppointmentsSection({
   );
 }
 
+function ContactAppointmentButton({ href }: { href: string | null }) {
+  const classes =
+    "inline-flex min-h-11 items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm font-semibold text-emerald-100 transition hover:bg-emerald-500/15 hover:border-emerald-400/50 disabled:cursor-not-allowed disabled:opacity-50";
+
+  if (!href) {
+    return (
+      <button type="button" disabled className={classes}>
+        Entrar em contato
+      </button>
+    );
+  }
+
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      className={classes}
+    >
+      Entrar em contato
+    </a>
+  );
+}
+
 function StatusButton({
   appointmentId,
   status,
   variant,
   children,
   onFeedback,
+  action,
+  hidden = false,
 }: {
   appointmentId: string;
   status: string;
-  variant: "primary" | "warning" | "danger";
+  variant: "primary" | "warning" | "danger" | "secondary";
   children: ReactNode;
   onFeedback: (feedback: {
     message: string | null;
     tone: "success" | "error" | "info";
   }) => void;
+  action?: (formData: FormData) => Promise<{ ok: boolean; message: string; tone: "success" | "error" | "info" }>;
+  hidden?: boolean;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const classes = {
     primary: "bg-[var(--brand)] text-white hover:brightness-110",
+    secondary: "border border-sky-400/35 text-sky-100 hover:bg-sky-400/10",
     warning: "border border-amber-400/50 text-amber-200 hover:bg-amber-400/10",
     danger: "border border-red-500/40 text-red-200 hover:bg-red-500/10",
   };
+
+  if (hidden) {
+    return null;
+  }
 
   return (
     <button
@@ -428,7 +505,9 @@ function StatusButton({
           formData.set("appointmentId", appointmentId);
           formData.set("status", status);
 
-          const result = await updateAppointmentStatusAction(formData);
+          const result = action
+            ? await action(formData)
+            : await updateAppointmentStatusAction(formData);
           onFeedback({ message: result.message, tone: result.tone });
 
           if (result.ok) {

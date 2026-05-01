@@ -6,6 +6,7 @@ import { useEffect, useState, useTransition } from "react";
 import FeedbackMessage from "@/components/FeedbackMessage";
 import { createProductFromForm } from "@/app/actions/productActions";
 import { prepareProductImageUpload } from "@/lib/productImageClient";
+import { PRODUCT_CATEGORY_OPTIONS } from "@/lib/productCategories";
 
 export default function NewProductForm() {
   const router = useRouter();
@@ -37,15 +38,10 @@ export default function NewProductForm() {
 
         startTransition(async () => {
           try {
-            if (!imageUpload) {
-              setFeedback({
-                message: "Selecione uma imagem principal para o produto.",
-                tone: "error",
-              });
-              return;
+            if (imageUpload) {
+              formData.set("image", imageUpload.file);
             }
 
-            formData.set("image", imageUpload.file);
             await createProductFromForm(formData);
             setFeedback({
               message: "Produto criado com sucesso. Abrindo a lista...",
@@ -81,6 +77,18 @@ export default function NewProductForm() {
         className="min-h-28 w-full rounded-xl bg-black px-4 py-3"
       />
       <div className="grid gap-4 sm:grid-cols-2">
+        <select
+          name="category"
+          className="w-full rounded-xl bg-black px-4 py-3"
+          defaultValue="SHELF"
+          required
+        >
+          {PRODUCT_CATEGORY_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
         <input
           name="price"
           placeholder="Preco"
@@ -102,7 +110,7 @@ export default function NewProductForm() {
       </div>
       <div className="rounded-xl border border-zinc-700 bg-zinc-950 p-4">
         <label className="mb-2 block text-sm text-zinc-300">
-          Imagem do produto
+          Imagem do produto (opcional)
         </label>
         <input
           name="image"
@@ -139,7 +147,6 @@ export default function NewProductForm() {
             }
           }}
           className="w-full text-sm text-zinc-300 file:mr-4 file:rounded-lg file:border-0 file:bg-sky-600 file:px-4 file:py-2 file:text-white"
-          required
         />
         <p className="mt-2 text-xs text-zinc-500">
           JPG, PNG ou WEBP ate 2MB. O sistema remove bordas vazias, centraliza o produto
