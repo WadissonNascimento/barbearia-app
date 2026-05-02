@@ -40,6 +40,22 @@ export function getAppointmentItemsTotal(
   return items.reduce((sum, item) => sum + item.subtotal, 0);
 }
 
+export function getAppointmentItemsBarberPayoutTotal(
+  items: Array<{
+    barberPayoutSnapshot: number;
+  }>
+) {
+  return items.reduce((sum, item) => sum + item.barberPayoutSnapshot, 0);
+}
+
+export function getAppointmentItemsShopRevenueTotal(
+  items: Array<{
+    shopRevenueSnapshot: number;
+  }>
+) {
+  return items.reduce((sum, item) => sum + item.shopRevenueSnapshot, 0);
+}
+
 export function getAppointmentItemsLabel(
   items: Array<{
     productNameSnapshot: string;

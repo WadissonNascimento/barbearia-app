@@ -2,11 +2,11 @@ import { prisma } from "@/lib/prisma";
 import { getAppointmentItemsLabel } from "@/lib/appointmentItems";
 import { getAppointmentServicesOccupiedDuration } from "@/lib/barberSchedule";
 import {
-  getAppointmentBarberPayoutTotal,
   getAppointmentDisplayName,
   getAppointmentGrandTotal,
   getAppointmentServiceRevenue,
   getAppointmentServiceMetaLine,
+  getAppointmentTotalBarberPayout,
 } from "@/lib/appointmentServices";
 import { normalizeAppointmentStatus } from "@/lib/appointmentStatus";
 
@@ -321,7 +321,8 @@ export async function getBarberDashboardData(
         0
       ),
       barberPayoutToday: completedTodayAppointments.reduce(
-        (sum, appointment) => sum + getAppointmentBarberPayoutTotal(appointment.services),
+        (sum, appointment) =>
+          sum + getAppointmentTotalBarberPayout(appointment.services, appointment.items),
         0
       ),
       todayServices,

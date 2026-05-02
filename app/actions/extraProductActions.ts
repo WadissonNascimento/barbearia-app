@@ -34,6 +34,25 @@ function parseExtraCategory(value: string) {
   return isExtraCategoryValue(value) ? value : ExtraCategory.OTHER;
 }
 
+function parseCommissionFields(formData: FormData) {
+  const commissionType =
+    String(formData.get("commissionType") || "PERCENT") === "FIXED" ? "FIXED" : "PERCENT";
+  const commissionValue = Number(formData.get("commissionValue") || 0);
+
+  if (
+    !Number.isFinite(commissionValue) ||
+    commissionValue < 0 ||
+    (commissionType === "PERCENT" && commissionValue > 100)
+  ) {
+    throw new Error("Preencha a comissao do extra corretamente.");
+  }
+
+  return {
+    commissionType,
+    commissionValue,
+  };
+}
+
 export async function createExtraProductFromForm(formData: FormData) {
   await ensureExtraAccess();
 
@@ -42,6 +61,7 @@ export async function createExtraProductFromForm(formData: FormData) {
   const category = parseExtraCategory(String(formData.get("category") || ""));
   const price = Number(formData.get("price") || 0);
   const stock = Number(formData.get("stock") || 0);
+  const commission = parseCommissionFields(formData);
   const imageFile = formData.get("image");
 
   if (
@@ -61,6 +81,8 @@ export async function createExtraProductFromForm(formData: FormData) {
       category,
       price,
       stock,
+      commissionType: commission.commissionType,
+      commissionValue: commission.commissionValue,
     },
   });
 
@@ -106,6 +128,7 @@ export async function updateExtraProductFromForm(formData: FormData) {
   const category = parseExtraCategory(String(formData.get("category") || ""));
   const price = Number(formData.get("price") || 0);
   const stock = Number(formData.get("stock") || 0);
+  const commission = parseCommissionFields(formData);
 
   if (
     !extraProductId ||
@@ -137,6 +160,8 @@ export async function updateExtraProductFromForm(formData: FormData) {
       category,
       price,
       stock,
+      commissionType: commission.commissionType,
+      commissionValue: commission.commissionValue,
     },
   });
 

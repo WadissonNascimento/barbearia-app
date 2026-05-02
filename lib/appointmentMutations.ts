@@ -12,7 +12,11 @@ import {
   isBlockedPeriod,
   toMinutes,
 } from "@/lib/barberSchedule";
-import { calculateServiceFinancials, syncAppointmentFinancialSnapshots } from "@/lib/financials";
+import {
+  calculateCommissionFinancials,
+  calculateServiceFinancials,
+  syncAppointmentFinancialSnapshots,
+} from "@/lib/financials";
 import { prisma } from "@/lib/prisma";
 
 type AppointmentPrismaClient = Pick<
@@ -24,6 +28,7 @@ type AppointmentPrismaClient = Pick<
   | "appointmentService"
   | "barberAvailability"
   | "barberBlock"
+  | "barberServiceCommission"
   | "extraProduct"
   | "extraStockMovement"
   | "recurringBarberBlock"
@@ -175,6 +180,18 @@ async function createCustomerAppointmentInTransaction(
     );
   }
 
+  const barberServiceCommissions = await db.barberServiceCommission.findMany({
+    where: {
+      barberId,
+      serviceId: {
+        in: serviceIds,
+      },
+    },
+  });
+  const commissionByServiceId = new Map(
+    barberServiceCommissions.map((commission) => [commission.serviceId, commission] as const)
+  );
+
   const selectedProducts = extrasByProductId.size
     ? await db.extraProduct.findMany({
         where: {
@@ -188,6 +205,8 @@ async function createCustomerAppointmentInTransaction(
           name: true,
           price: true,
           stock: true,
+          commissionType: true,
+          commissionValue: true,
         },
       })
     : [];
@@ -327,7 +346,12 @@ async function createCustomerAppointmentInTransaction(
       status: "PENDING",
       services: {
         create: orderedServices.map((service, index) => {
-          const financials = calculateServiceFinancials(service);
+          const barberCommission = commissionByServiceId.get(service.id);
+          const financials = calculateServiceFinancials({
+            price: service.price,
+            commissionType: barberCommission?.commissionType || service.commissionType,
+            commissionValue: barberCommission?.commissionValue ?? service.commissionValue,
+          });
 
           return {
             serviceId: service.id,
@@ -380,6 +404,14 @@ async function createCustomerAppointmentInTransaction(
     await db.appointmentItem.createMany({
       data: selectedProducts.map((product) => {
         const quantity = extrasByProductId.get(product.id) || 0;
+        const unitFinancials = calculateCommissionFinancials({
+          price: product.price,
+          commissionType: product.commissionType,
+          commissionValue: product.commissionValue,
+        });
+        const barberPayout = Number((unitFinancials.barberPayout * quantity).toFixed(2));
+        const shopRevenue = Number((unitFinancials.shopRevenue * quantity).toFixed(2));
+
         return {
           appointmentId: appointment.id,
           extraProductId: product.id,
@@ -387,6 +419,10 @@ async function createCustomerAppointmentInTransaction(
           quantity,
           unitPrice: product.price,
           subtotal: product.price * quantity,
+          commissionTypeSnapshot: unitFinancials.commissionType,
+          commissionValueSnapshot: unitFinancials.commissionValue,
+          barberPayoutSnapshot: barberPayout,
+          shopRevenueSnapshot: shopRevenue,
         };
       }),
     });

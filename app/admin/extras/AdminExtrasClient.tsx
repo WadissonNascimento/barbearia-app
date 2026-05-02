@@ -19,6 +19,8 @@ type AdminExtrasClientProps = {
     description: null | string;
     category: string;
     price: number;
+    commissionType: string;
+    commissionValue: number;
     isActive: boolean;
     stock: number;
     imageUrl: null | string;
@@ -139,7 +141,7 @@ export default function AdminExtrasClient({ extras }: AdminExtrasClientProps) {
             />
           </label>
 
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-4">
             <label className="space-y-2 text-sm text-zinc-300">
               <span>Preco</span>
               <input
@@ -159,6 +161,30 @@ export default function AdminExtrasClient({ extras }: AdminExtrasClientProps) {
                 type="number"
                 min="0"
                 step="1"
+                required
+                className="w-full rounded-xl border border-white/10 bg-black px-4 py-3 text-white"
+                placeholder="0"
+              />
+            </label>
+            <label className="space-y-2 text-sm text-zinc-300">
+              <span>Comissao</span>
+              <select
+                name="commissionType"
+                defaultValue="PERCENT"
+                className="w-full rounded-xl border border-white/10 bg-black px-4 py-3 text-white"
+              >
+                <option value="PERCENT">Percentual</option>
+                <option value="FIXED">Valor fixo</option>
+              </select>
+            </label>
+            <label className="space-y-2 text-sm text-zinc-300">
+              <span>Valor comissao</span>
+              <input
+                name="commissionValue"
+                type="number"
+                min="0"
+                step="0.01"
+                defaultValue="0"
                 required
                 className="w-full rounded-xl border border-white/10 bg-black px-4 py-3 text-white"
                 placeholder="0"

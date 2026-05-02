@@ -161,6 +161,7 @@ export async function toggleBarberStatusAction(
   });
 
   revalidatePath("/admin/barbeiros");
+  revalidatePath(`/admin/barbeiros/${barberId}`);
   revalidatePath("/admin/agenda");
   return mutationSuccess(
     currentActive ? "Barbeiro inativado." : "Barbeiro reativado."
@@ -213,6 +214,7 @@ export async function updateBarberPhotoAction(
     await deleteLocalBarberPhoto(barber.image);
 
     revalidatePath("/admin/barbeiros");
+    revalidatePath(`/admin/barbeiros/${barber.id}`);
     revalidatePath("/admin");
     revalidatePath("/agendar");
 
@@ -262,6 +264,7 @@ export async function deleteBarberAction(
   });
 
   revalidatePath("/admin/barbeiros");
+  revalidatePath(`/admin/barbeiros/${barberId}`);
   revalidatePath("/admin/agenda");
   revalidatePath("/admin/financeiro");
   revalidatePath("/admin/servicos");
@@ -270,4 +273,76 @@ export async function deleteBarberAction(
   return mutationSuccess(
     "Barbeiro desligado com sucesso. Historico, servicos prestados e fechamentos foram preservados."
   );
+}
+
+export async function upsertBarberServiceCommissionAction(
+  formData: FormData
+): Promise<MutationResult> {
+  await requireAdmin();
+
+  const barberId = String(formData.get("barberId") || "").trim();
+  const serviceId = String(formData.get("serviceId") || "").trim();
+  const commissionType =
+    String(formData.get("commissionType") || "PERCENT") === "FIXED" ? "FIXED" : "PERCENT";
+  const commissionValue = Number(formData.get("commissionValue") || 0);
+
+  if (
+    !barberId ||
+    !serviceId ||
+    !Number.isFinite(commissionValue) ||
+    commissionValue < 0 ||
+    (commissionType === "PERCENT" && commissionValue > 100)
+  ) {
+    return mutationError("Preencha a comissao corretamente.");
+  }
+
+  const [barber, service] = await Promise.all([
+    prisma.user.findFirst({
+      where: {
+        id: barberId,
+        role: "BARBER",
+      },
+      select: { id: true },
+    }),
+    prisma.service.findFirst({
+      where: {
+        id: serviceId,
+        OR: [{ barberId }, { barberId: null }],
+      },
+      select: { id: true },
+    }),
+  ]);
+
+  if (!barber) {
+    return mutationError("Barbeiro nao encontrado.");
+  }
+
+  if (!service) {
+    return mutationError("Servico nao encontrado para esse barbeiro.");
+  }
+
+  await prisma.barberServiceCommission.upsert({
+    where: {
+      barberId_serviceId: {
+        barberId,
+        serviceId,
+      },
+    },
+    update: {
+      commissionType,
+      commissionValue,
+    },
+    create: {
+      barberId,
+      serviceId,
+      commissionType,
+      commissionValue,
+    },
+  });
+
+  revalidatePath("/admin/barbeiros");
+  revalidatePath(`/admin/barbeiros/${barberId}`);
+  revalidatePath("/admin/financeiro");
+  revalidatePath("/barber");
+  return mutationSuccess("Comissao do barbeiro atualizada.");
 }

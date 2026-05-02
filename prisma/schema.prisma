@@ -41,6 +41,7 @@ model User {
   customerReviews        Review[]              @relation("CustomerReviews")
   barberReviews          Review[]              @relation("BarberReviews")
   barberServices        Service[]              @relation("BarberServices")
+  barberServiceCommissions BarberServiceCommission[]
   barberAvailabilities  BarberAvailability[]
   barberBlocks          BarberBlock[]
   recurringBarberBlocks RecurringBarberBlock[]
@@ -133,6 +134,7 @@ model Service {
 
   barber           User?                @relation("BarberServices", fields: [barberId], references: [id], onDelete: Cascade)
   appointmentItems AppointmentService[]
+  barberCommissions BarberServiceCommission[]
 
   @@index([barberId])
   @@index([barberId, isActive])
@@ -299,12 +301,31 @@ model Product {
   stockMovements    StockMovement[]
 }
 
+model BarberServiceCommission {
+  id              String   @id @default(cuid())
+  barberId        String
+  serviceId       String
+  commissionType  String   @default("PERCENT")
+  commissionValue Float    @default(40)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  barber  User    @relation(fields: [barberId], references: [id], onDelete: Cascade)
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@unique([barberId, serviceId])
+  @@index([barberId])
+  @@index([serviceId])
+}
+
 model ExtraProduct {
   id          String        @id @default(cuid())
   name        String
   description String?
   category    ExtraCategory @default(OTHER)
   price       Float
+  commissionType  String   @default("PERCENT")
+  commissionValue Float    @default(0)
   imageUrl    String?
   imagePath   String?       @map("image_path")
   stock       Int           @default(0)
@@ -324,6 +345,10 @@ model AppointmentItem {
   quantity            Int      @default(1)
   unitPrice           Float
   subtotal            Float
+  commissionTypeSnapshot  String @default("PERCENT")
+  commissionValueSnapshot Float  @default(0)
+  barberPayoutSnapshot    Float  @default(0)
+  shopRevenueSnapshot     Float  @default(0)
   isDelivered         Boolean  @default(false)
   deliveredAt         DateTime?
   createdAt           DateTime @default(now())

@@ -12,10 +12,10 @@ export type FinancialServiceInput = {
   commissionValue?: number | null;
 };
 
-export function calculateServiceFinancials(service: FinancialServiceInput) {
-  const commissionType = service.commissionType || "PERCENT";
-  const commissionValue = Math.max(0, service.commissionValue || 0);
-  const price = Math.max(0, service.price || 0);
+export function calculateCommissionFinancials(input: FinancialServiceInput) {
+  const commissionType = input.commissionType === "FIXED" ? "FIXED" : "PERCENT";
+  const commissionValue = Math.max(0, input.commissionValue || 0);
+  const price = Math.max(0, input.price || 0);
 
   const barberPayout =
     commissionType === "FIXED"
@@ -31,6 +31,10 @@ export function calculateServiceFinancials(service: FinancialServiceInput) {
     barberPayout: normalizedPayout,
     shopRevenue,
   };
+}
+
+export function calculateServiceFinancials(service: FinancialServiceInput) {
+  return calculateCommissionFinancials(service);
 }
 
 export async function syncAppointmentFinancialSnapshots(
@@ -56,8 +60,8 @@ export async function syncAppointmentFinancialSnapshots(
     appointment.services.map((item) => {
       const financials = calculateServiceFinancials({
         price: item.priceSnapshot,
-        commissionType: item.commissionTypeSnapshot || item.service.commissionType,
-        commissionValue: item.commissionValueSnapshot || item.service.commissionValue,
+        commissionType: item.commissionTypeSnapshot ?? item.service.commissionType,
+        commissionValue: item.commissionValueSnapshot ?? item.service.commissionValue,
       });
 
       return db.appointmentService.update({

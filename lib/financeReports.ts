@@ -2,9 +2,9 @@ import { prisma } from "@/lib/prisma";
 import { getMonthRange, getWeekRange } from "@/lib/financials";
 import { normalizeAppointmentStatus } from "@/lib/appointmentStatus";
 import {
-  getAppointmentBarberPayoutTotal,
-  getAppointmentServiceRevenue,
-  getAppointmentShopRevenueTotal,
+  getAppointmentGrandTotal,
+  getAppointmentTotalBarberPayout,
+  getAppointmentTotalShopRevenue,
 } from "@/lib/appointmentServices";
 
 export type FinancePeriod = "week" | "month" | "custom";
@@ -97,6 +97,7 @@ export async function getFinanceDashboardData(filters: FinanceFilters) {
       },
       include: {
         barber: true,
+        items: true,
         services: true,
       },
       orderBy: {
@@ -111,6 +112,7 @@ export async function getFinanceDashboardData(filters: FinanceFilters) {
         },
       },
       include: {
+        items: true,
         services: true,
       },
     }),
@@ -180,9 +182,15 @@ export async function getFinanceDashboardData(filters: FinanceFilters) {
       savedPaidAt: null,
     };
 
-    current.grossRevenue += getAppointmentServiceRevenue(appointment.services);
-    current.commissionTotal += getAppointmentBarberPayoutTotal(appointment.services);
-    current.shopNetRevenue += getAppointmentShopRevenueTotal(appointment.services);
+    current.grossRevenue += getAppointmentGrandTotal(appointment.services, appointment.items);
+    current.commissionTotal += getAppointmentTotalBarberPayout(
+      appointment.services,
+      appointment.items
+    );
+    current.shopNetRevenue += getAppointmentTotalShopRevenue(
+      appointment.services,
+      appointment.items
+    );
     current.appointmentsCount += 1;
 
     barberMap.set(appointment.barberId, current);
@@ -229,19 +237,19 @@ export async function getFinanceDashboardData(filters: FinanceFilters) {
   const previousGrossRevenue = previousCompletedAppointments.reduce(
     (sum, appointment) =>
       sum +
-      getAppointmentServiceRevenue(appointment.services),
+      getAppointmentGrandTotal(appointment.services, appointment.items),
     0
   );
   const previousCommissionTotal = previousCompletedAppointments.reduce(
     (sum, appointment) =>
       sum +
-      getAppointmentBarberPayoutTotal(appointment.services),
+      getAppointmentTotalBarberPayout(appointment.services, appointment.items),
     0
   );
   const previousShopNetRevenue = previousCompletedAppointments.reduce(
     (sum, appointment) =>
       sum +
-      getAppointmentShopRevenueTotal(appointment.services),
+      getAppointmentTotalShopRevenue(appointment.services, appointment.items),
     0
   );
   const previousAppointmentsCount = previousCompletedAppointments.length;
@@ -306,9 +314,15 @@ export async function getFinanceDashboardData(filters: FinanceFilters) {
       day: "2-digit",
       month: "2-digit",
     });
-    const grossRevenue = getAppointmentServiceRevenue(appointment.services);
-    const commissionTotal = getAppointmentBarberPayoutTotal(appointment.services);
-    const shopNetRevenue = getAppointmentShopRevenueTotal(appointment.services);
+    const grossRevenue = getAppointmentGrandTotal(appointment.services, appointment.items);
+    const commissionTotal = getAppointmentTotalBarberPayout(
+      appointment.services,
+      appointment.items
+    );
+    const shopNetRevenue = getAppointmentTotalShopRevenue(
+      appointment.services,
+      appointment.items
+    );
 
     const dayCurrent = dailyMap.get(dateKey) || {
       date: dateKey,
@@ -484,6 +498,7 @@ export async function getBarberPayoutSnapshot(input: {
       },
     },
     include: {
+      items: true,
       services: true,
     },
   });
@@ -495,17 +510,17 @@ export async function getBarberPayoutSnapshot(input: {
   return {
     grossRevenue: completedAppointments.reduce(
       (sum, appointment) =>
-        sum + getAppointmentServiceRevenue(appointment.services),
+        sum + getAppointmentGrandTotal(appointment.services, appointment.items),
       0
     ),
     commissionTotal: completedAppointments.reduce(
       (sum, appointment) =>
-        sum + getAppointmentBarberPayoutTotal(appointment.services),
+        sum + getAppointmentTotalBarberPayout(appointment.services, appointment.items),
       0
     ),
     shopNetRevenue: completedAppointments.reduce(
       (sum, appointment) =>
-        sum + getAppointmentShopRevenueTotal(appointment.services),
+        sum + getAppointmentTotalShopRevenue(appointment.services, appointment.items),
       0
     ),
   };

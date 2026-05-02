@@ -25,6 +25,8 @@ type ExtraProductCardClientProps = {
     description: null | string;
     category: string;
     price: number;
+    commissionType: string;
+    commissionValue: number;
     isActive: boolean;
     stock: number;
     imageUrl: null | string;
@@ -66,6 +68,8 @@ export default function ExtraProductCardClient({
     description: extra.description || "",
     category: extra.category,
     price: extra.price.toFixed(2),
+    commissionType: extra.commissionType || "PERCENT",
+    commissionValue: extra.commissionValue.toFixed(2),
     stock: String(extra.stock),
   });
   const [imageUpload, setImageUpload] = useState<{
@@ -155,6 +159,12 @@ export default function ExtraProductCardClient({
               {isActive ? "Ativo" : "Oculto"}
             </StatusBadge>
             <StatusBadge variant="info">{getExtraCategoryLabel(draft.category)}</StatusBadge>
+            <StatusBadge variant="info">
+              Comissao:{" "}
+              {draft.commissionType === "FIXED"
+                ? `R$ ${draft.commissionValue}`
+                : `${draft.commissionValue}%`}
+            </StatusBadge>
             <StatusBadge
               variant={
                 Number(draft.stock) === 0
@@ -179,6 +189,8 @@ export default function ExtraProductCardClient({
               formData.set("category", draft.category);
               formData.set("price", draft.price);
               formData.set("stock", draft.stock);
+              formData.set("commissionType", draft.commissionType);
+              formData.set("commissionValue", draft.commissionValue);
 
               runAction(
                 "details",
@@ -228,7 +240,7 @@ export default function ExtraProductCardClient({
               />
             </label>
 
-            <div className="grid gap-3 md:grid-cols-2">
+            <div className="grid gap-3 md:grid-cols-4">
               <label className="space-y-2 text-sm text-zinc-300">
                 <span>Preco</span>
                 <input
@@ -238,6 +250,38 @@ export default function ExtraProductCardClient({
                   value={draft.price}
                   onChange={(event) =>
                     setDraft((current) => ({ ...current, price: event.target.value }))
+                  }
+                  className="w-full rounded-xl border border-white/10 bg-black px-4 py-3 text-white"
+                />
+              </label>
+              <label className="space-y-2 text-sm text-zinc-300">
+                <span>Comissao</span>
+                <select
+                  value={draft.commissionType}
+                  onChange={(event) =>
+                    setDraft((current) => ({
+                      ...current,
+                      commissionType: event.target.value,
+                    }))
+                  }
+                  className="w-full rounded-xl border border-white/10 bg-black px-4 py-3 text-white"
+                >
+                  <option value="PERCENT">Percentual</option>
+                  <option value="FIXED">Valor fixo</option>
+                </select>
+              </label>
+              <label className="space-y-2 text-sm text-zinc-300">
+                <span>Valor comissao</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={draft.commissionValue}
+                  onChange={(event) =>
+                    setDraft((current) => ({
+                      ...current,
+                      commissionValue: event.target.value,
+                    }))
                   }
                   className="w-full rounded-xl border border-white/10 bg-black px-4 py-3 text-white"
                 />
