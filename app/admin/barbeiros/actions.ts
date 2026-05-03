@@ -5,6 +5,7 @@ import { randomInt } from "crypto";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import { sendVerificationCodeEmail } from "@/lib/mail";
+import { getConfiguredAppUrl } from "@/lib/appUrl";
 import {
   mutationError,
   mutationSuccess,
@@ -32,12 +33,7 @@ function getExpirationDate() {
 }
 
 function buildVerificationUrl(email: string) {
-  const baseUrl =
-    process.env.NEXT_PUBLIC_APP_URL ||
-    process.env.NEXTAUTH_URL ||
-    "http://localhost:3000";
-
-  return `${baseUrl}/register/verify?email=${encodeURIComponent(email)}`;
+  return `${getConfiguredAppUrl()}/register/verify?email=${encodeURIComponent(email)}`;
 }
 
 export async function createBarberAction(

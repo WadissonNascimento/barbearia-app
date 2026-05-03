@@ -35,7 +35,14 @@ const securityHeaders = [
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  allowedDevOrigins: ["*.trycloudflare.com", "*.ngrok-free.dev", "localhost:3000", "127.0.0.1:3000"],
+  allowedDevOrigins: [
+    "*.trycloudflare.com",
+    "*.ngrok-free.dev",
+    "localhost:3000",
+    "127.0.0.1:3000",
+    "jakbarbercompany.com",
+    "www.jakbarbercompany.com",
+  ],
   images: {
     remotePatterns: [
       {
@@ -48,7 +55,14 @@ const nextConfig = {
   experimental: {
     serverActions: {
       bodySizeLimit: "3mb",
-      allowedOrigins: ["*.trycloudflare.com", "*.ngrok-free.dev", "localhost:3000", "127.0.0.1:3000"],
+      allowedOrigins: [
+        "*.trycloudflare.com",
+        "*.ngrok-free.dev",
+        "localhost:3000",
+        "127.0.0.1:3000",
+        "jakbarbercompany.com",
+        "www.jakbarbercompany.com",
+      ],
     },
   },
   async headers() {

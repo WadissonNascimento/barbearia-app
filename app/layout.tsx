@@ -5,6 +5,7 @@ import Footer from "@/components/Footer";
 import { Manrope, Space_Grotesk } from "next/font/google";
 import { auth } from "@/auth";
 import type { Metadata } from "next";
+import { getConfiguredAppUrl } from "@/lib/appUrl";
 
 const bodyFont = Manrope({
   subsets: ["latin"],
@@ -17,11 +18,7 @@ const headingFont = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(
-    process.env.NEXT_PUBLIC_APP_URL ||
-      process.env.NEXTAUTH_URL ||
-      "http://localhost:3000"
-  ),
+  metadataBase: new URL(getConfiguredAppUrl()),
   title: {
     default: "Jak Barber | Barbearia com hora marcada",
     template: "%s | Jak Barber",

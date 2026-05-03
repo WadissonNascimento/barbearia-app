@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getRequestAwareAppUrl } from "@/lib/appUrl";
 
 const COOKIE_NAMES = [
   "authjs.session-token",
@@ -16,7 +17,7 @@ const COOKIE_NAMES = [
 ];
 
 export async function GET(request: Request) {
-  const url = new URL("/login", request.url);
+  const url = new URL("/login", getRequestAwareAppUrl(request.url));
   const response = NextResponse.redirect(url);
 
   for (const name of COOKIE_NAMES) {

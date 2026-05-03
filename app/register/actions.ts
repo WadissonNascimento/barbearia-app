@@ -10,6 +10,7 @@ import {
 } from "@/lib/mail";
 import type { FormFeedbackState } from "@/lib/formFeedbackState";
 import { enforceRateLimit, logSecurityEvent } from "@/lib/security";
+import { getConfiguredAppUrl } from "@/lib/appUrl";
 
 function generateVerificationCode() {
   return randomInt(100000, 1000000).toString();
@@ -41,12 +42,7 @@ function buildPendingRegistrationRedirect(email: string, code?: string) {
 }
 
 function buildVerificationUrl(email: string) {
-  const baseUrl =
-    process.env.NEXT_PUBLIC_APP_URL ||
-    process.env.NEXTAUTH_URL ||
-    "http://localhost:3000";
-
-  return `${baseUrl}/register/verify?email=${encodeURIComponent(email)}`;
+  return `${getConfiguredAppUrl()}/register/verify?email=${encodeURIComponent(email)}`;
 }
 
 export async function registerCustomerAction(
