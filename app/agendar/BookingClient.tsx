@@ -1688,26 +1688,29 @@ function BookingConfirmationDialog({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/75 px-4 py-6 backdrop-blur-md"
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/75 px-3 py-3 backdrop-blur-md"
       role="dialog"
       aria-modal="true"
       aria-labelledby="booking-confirmation-title"
     >
-      <div className="max-h-[calc(100svh-32px)] w-full max-w-md overflow-y-auto rounded-2xl border border-white/10 bg-[#050b16] p-5 text-white shadow-[0_24px_80px_rgba(0,0,0,0.55)]">
-        <p className="text-xs uppercase tracking-[0.24em] text-[var(--brand-strong)]">
+      <div className="flex max-h-[calc(100svh-24px)] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#050b16] text-white shadow-[0_24px_80px_rgba(0,0,0,0.55)]">
+        <div className="shrink-0 px-4 pt-4">
+          <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-[var(--brand-strong)]">
           {isRescheduling ? "Confirmar remarcação" : "Confirmar agendamento"}
         </p>
-        <h2 id="booking-confirmation-title" className="mt-2 text-2xl font-bold">
+        <h2 id="booking-confirmation-title" className="mt-1 text-xl font-bold">
           Esta tudo certo?
         </h2>
-        <p className="mt-2 text-sm leading-6 text-zinc-400">
+        <p className="mt-1 text-xs leading-5 text-zinc-400">
           {isRescheduling
             ? "Confira os dados antes de atualizar o horário."
             : "Confira os dados antes de reservar esse horário."}
         </p>
+        </div>
 
-        <div className="mt-5 space-y-3 rounded-3xl border border-white/10 bg-black/20 p-4 text-sm">
-          <p className="text-xs uppercase tracking-[0.22em] text-[var(--brand-strong)]">
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+          <div className="space-y-2 rounded-2xl border border-white/10 bg-black/20 p-3 text-sm">
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--brand-strong)]">
             Resumo
           </p>
           <ConfirmationRow label="Data" value={formattedDate} />
@@ -1728,7 +1731,7 @@ function BookingConfirmationDialog({
           <ConfirmationRow label="Total" value={formatCurrency(totalPrice)} />
         </div>
 
-        <label className="mt-5 block">
+        <label className="mt-3 block">
           <span className="text-sm font-semibold text-white">
             Observação para o barbeiro
           </span>
@@ -1736,22 +1739,23 @@ function BookingConfirmationDialog({
             value={notes}
             onChange={(event) => setNotes(event.target.value.slice(0, 50))}
             disabled={isSubmitting}
-            rows={3}
+            rows={2}
             maxLength={50}
             placeholder="Ex: prefiro acabamento mais baixo, tenho sensibilidade na pele..."
-            className="mt-2 min-h-[96px] w-full resize-none rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-[var(--brand)]/60 disabled:cursor-not-allowed disabled:opacity-60"
+            className="mt-2 min-h-16 w-full resize-none rounded-2xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-[var(--brand)]/60 disabled:cursor-not-allowed disabled:opacity-60"
           />
-          <span className="mt-2 block text-right text-xs text-zinc-500">
+          <span className="mt-1 block text-right text-[11px] text-zinc-500">
             {notes.length}/50
           </span>
         </label>
+        </div>
 
-        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+        <div className="grid shrink-0 gap-2 border-t border-white/10 bg-[#050b16] p-3 sm:grid-cols-2">
           <button
             type="button"
             onClick={onCancel}
             disabled={isSubmitting}
-            className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-60"
+            className="min-h-11 rounded-2xl border border-white/10 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-60"
           >
             Revisar
           </button>
@@ -1759,7 +1763,7 @@ function BookingConfirmationDialog({
             type="button"
             onClick={() => onConfirm(notes)}
             disabled={isSubmitting}
-            className="rounded-2xl bg-[var(--brand)] px-4 py-3 text-sm font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+            className="min-h-11 rounded-2xl bg-[var(--brand)] px-4 py-2.5 text-sm font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isSubmitting
               ? "Confirmando..."
