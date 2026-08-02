@@ -326,7 +326,6 @@ async function getBarberFinanceData(
       orderBy: {
         date: "desc",
       },
-      take: 120,
     }),
     getBarberTipsTotal({
       barberId,
